@@ -1,10 +1,6 @@
-const https = require("https");
-const fs = require("fs");
 const express = require("express");
 const cors = require("cors");
 const bodyParser = require("body-parser");
-
-// Импорты маршрутов
 const filmsRoutes = require("./routes/films");
 const blockmainRoutes = require("./routes/blockmain");
 const cartoonsRoutes = require("./routes/cartoons");
@@ -12,7 +8,7 @@ const serialsRoutes = require("./routes/serials");
 
 const app = express();
 
-// Настройка middlewares
+// Настройка CORS и парсинг JSON
 app.use(cors());
 app.use(bodyParser.json());
 
@@ -24,17 +20,13 @@ app.use("/api/blockmain", blockmainRoutes);
 
 // Корневой маршрут
 app.get("/", (req, res) => {
-  res.send("Сервер работает! Используй /api/films, /api/cartoons, /api/serials, или /api/blockmain для получения данных.");
+  res.send("Сервер работает! Используй /api/films, /api/cartoons, /api/serials или /api/blockmain для получения данных.");
 });
 
-// Настройка SSL-сертификатов
-const sslOptions = {
-  key: fs.readFileSync("/etc/ssl/privkey.pem"),  // Путь к вашему приватному ключу
-  cert: fs.readFileSync("/etc/ssl/cert.pem"),   // Путь к вашему SSL-сертификату
-  ca: fs.readFileSync("/etc/ssl/chain.pem")     // Путь к цепочке сертификатов
-};
+// Порт, который будет использовать приложение
+const PORT = process.env.PORT || 3000; // Использует порт из переменной окружения, если он задан, или 3000 по умолчанию
 
-// Запуск HTTPS-сервера
-https.createServer(sslOptions, app).listen(443, () => {
-  console.log(`Сервер запущен на https://servernextfilms.hub-net.org`);
+// Запуск сервера на указанном порту
+app.listen(PORT, () => {
+  console.log(`Сервер запущен на https://servernextfilms.hub-net.org:${PORT}`);
 });
