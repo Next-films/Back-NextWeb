@@ -1,28 +1,38 @@
-const cors = require('cors');
-const express = require('express');
+const express = require("express");
+const cors = require("cors");
+const bodyParser = require("body-parser");
+const filmsRoutes = require("./routes/films");
+const blockmainRoutes = require("./routes/blockmain");
+const cartoonsRoutes = require("./routes/cartoons");
+const serialsRoutes = require("./routes/serials");
+
 const app = express();
 
-// Разрешаем все запросы или только с конкретных доменов
-const corsOptions = {
-  origin: 'https://servernextfilms.hub-net.org',  // Разрешаем только этот домен
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],     // Разрешаем эти методы
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'], // Разрешаем эти заголовки
-  credentials: true, // Разрешаем передачу cookies
-};
+// Настройка CORS для всех источников
+app.use(cors({
+  origin: 'https://servernextfilms.hub-net.org', // Разрешить только с этого домена
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],  // Разрешаем необходимые методы
+  allowedHeaders: ['Content-Type', 'Authorization'], // Разрешаем необходимые заголовки
+}));
 
-// Использование CORS для всех маршрутов
-app.use(cors(corsOptions));
+// Парсинг JSON
+app.use(bodyParser.json());
 
-// Добавим поддержку preflight-запросов для всех маршрутов
-app.options('*', cors(corsOptions));  // Для всех маршрутов
+// Маршруты API
+app.use("/api/films", filmsRoutes);
+app.use("/api/cartoons", cartoonsRoutes);
+app.use("/api/serials", serialsRoutes);
+app.use("/api/blockmain", blockmainRoutes);
 
-// Маршруты
-app.get('/api/films', (req, res) => {
-  res.json({ message: 'Success', data: 'Your films data here' });
+// Корневой маршрут
+app.get("/", (req, res) => {
+  res.send("Сервер работает! Используй /api/films, /api/cartoons, /api/serials или /api/blockmain для получения данных.");
 });
 
-// Сервер
+// Порт, который будет использовать приложение
 const PORT = process.env.PORT || 3000;
+
+// Запуск сервера на указанном порту
 app.listen(PORT, () => {
-  console.log(`Server running on https://servernextfilms.hub-net.org:${PORT}`);
+  console.log(`Сервер запущен на https://servernextfilms.hub-net.org:${PORT}`);
 });
