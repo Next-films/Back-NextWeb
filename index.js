@@ -1,33 +1,24 @@
-const express = require("express");
-const cors = require("cors");
-const bodyParser = require("body-parser");
-const filmsRoutes = require("./routes/films");
-const blockmainRoutes = require("./routes/blockmain");
-const cartoonsRoutes = require("./routes/cartoons");
-const serialsRoutes = require("./routes/serials");
-
+const cors = require('cors');
+const express = require('express');
 const app = express();
 
-// Настройка CORS для всех источников
-app.use(cors());
+// Разрешаем запросы только с конкретного домена
+const corsOptions = {
+  origin: 'https://servernextfilms.hub-net.org', // Ваш фронтенд домен
+  methods: ['GET'], // Разрешаем только GET-запросы
+  allowedHeaders: ['Content-Type', 'Authorization'],
+};
 
-// Парсинг JSON
-app.use(bodyParser.json());
+// Применяем CORS
+app.use(cors(corsOptions));
 
-// Маршруты API
-app.use("/api/films", filmsRoutes);
-app.use("/api/cartoons", cartoonsRoutes);
-app.use("/api/serials", serialsRoutes);
-app.use("/api/blockmain", blockmainRoutes);
-
-// Корневой маршрут
-app.get("/", (req, res) => {
-  res.send("Сервер работает! Используй /api/films, /api/cartoons, /api/serials или /api/blockmain для получения данных.");
+// Ваши маршруты
+app.get('/api/films', (req, res) => {
+  res.json({ message: 'Success', data: 'Your films data here' });
 });
 
-
-// Запуск сервера на указанном порту
+// Сервер
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Сервер запущен на https://servernextfilms.hub-net.org:${PORT}`);
+app.listen(PORT, () => {
+  console.log(`Server running on https://servernextfilms.hub-net.org:${PORT}`);
 });
