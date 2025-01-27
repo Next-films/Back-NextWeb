@@ -4,48 +4,37 @@ const bodyParser = require("body-parser");
 
 const app = express();
 
-// Настройка CORS для разрешения только с указанных источников
-const allowedOrigins = [
-  'http://localhost:3000',  // Локальный источник для разработки
-  'https://servernextfilms.hub-net.org'  // Домен вашего продакшн-сервера
-];
-
+// Настройка CORS - разрешаем все источники
 app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);  // Разрешаем запросы с указанных доменов
-    } else {
-      callback(new Error('Not allowed by CORS'));  // Запрещаем запросы с других источников
-    }
-  },
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'X-Requested-With', 'Authorization'],
+  origin: '*',  // Разрешаем все источники
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], // Разрешаем методы
+  allowedHeaders: ['Content-Type', 'X-Requested-With', 'Authorization'], // Разрешаем заголовки
 }));
 
 // Разрешаем обработку JSON данных
 app.use(bodyParser.json());
 
-// Пример маршрутов (замени на свои реальные маршруты)
-const filmsRoutes = require("./routes/films");  // Убедись, что маршруты существуют
+// Пример маршрутов
+const filmsRoutes = require("./routes/films");  // Убедись, что файлы маршрутов существуют
 const cartoonsRoutes = require("./routes/cartoons");
 const serialsRoutes = require("./routes/serials");
 
-// Подключение маршрутов
+// Добавляем маршруты
 app.use("/api/films", filmsRoutes);
 app.use("/api/cartoons", cartoonsRoutes);
 app.use("/api/serials", serialsRoutes);
 
-// Корневой маршрут (для проверки работы сервера)
+// Корневой маршрут
 app.get("/", (req, res) => {
-  res.send("Сервер работает! Используй /api/films, /api/cartoons или /api/serials для получения данных.");
+  res.send("Сервер работает! Используй /api/films, /api/cartoons, /api/serials для получения данных.");
 });
 
-// Обработка ошибок для маршрутов, которые не найдены
+// Обработка ошибок (например, если маршрут не найден)
 app.use((req, res) => {
   res.status(404).json({ message: "Ресурс не найден" });
 });
 
-// Порт для запуска сервера (3000 по умолчанию)
+// Порт, на котором будет работать сервер
 const PORT = process.env.PORT || 3000;
 
 // Запуск сервера
