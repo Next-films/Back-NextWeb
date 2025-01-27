@@ -9,10 +9,19 @@ const bodyParser = require("body-parser");
 const app = express();
 
 // Настройка CORS
+const allowedOrigins = (process.env.CORS_ORIGIN || '').split(',');
+
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || '*', // Разрешаем все источники по умолчанию
-  methods: process.env.CORS_METHODS ? process.env.CORS_METHODS.split(',') : ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], // Разрешаем методы
-  allowedHeaders: process.env.CORS_HEADERS ? process.env.CORS_HEADERS.split(',') : ['Content-Type', 'X-Requested-With', 'Authorization'], // Разрешаем заголовки
+  origin: (origin, callback) => {
+    // Разрешить запросы без Origin (например, curl) или с допустимых источников
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error(`Not allowed by CORS: ${origin}`));
+    }
+  },
+  methods: process.env.CORS_METHODS.split(','), // Разрешённые HTTP-методы
+  allowedHeaders: process.env.CORS_HEADERS.split(','), // Разрешённые заголовки
 }));
 
 // Middleware для обработки JSON
@@ -26,9 +35,9 @@ app.use((req, res, next) => {
 
 // Обработка предварительных запросов OPTIONS
 app.options('*', (req, res) => {
-  res.header('Access-Control-Allow-Origin', process.env.CORS_ORIGIN || '*');
-  res.header('Access-Control-Allow-Methods', process.env.CORS_METHODS || 'GET, POST, PUT, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', process.env.CORS_HEADERS || 'Content-Type, X-Requested-With, Authorization');
+  res.header('Access-Control-Allow-Origin', req.headers.origin || '');
+  res.header('Access-Control-Allow-Methods', process.env.CORS_METHODS);
+  res.header('Access-Control-Allow-Headers', process.env.CORS_HEADERS);
   res.sendStatus(204); // No Content
 });
 
@@ -52,9 +61,12 @@ app.use((req, res) => {
   res.status(404).json({ message: "Ресурс не найден" });
 });
 
-// Обработка ошибок 500
+// Обработка ошибок сервера
 app.use((err, req, res, next) => {
   console.error(`[${new Date().toISOString()}] Ошибка: ${err.message}`);
+  if (err.message === 'Not allowed by CORS') {
+    return res.status(403).json({ message: err.message });
+  }
   res.status(500).json({ message: "Ошибка сервера" });
 });
 
