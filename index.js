@@ -12,8 +12,7 @@ const app = express();
 app.use(cors({
   origin: 'https://servernextfilms.hub-net.org', // Разрешаем доступ только с этого домена
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],  // Разрешаем методы
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'], // Разрешаем эти заголовки
-  credentials: true,  // Если используются cookies или авторизация
+  allowedHeaders: ['Content-Type', 'X-Requested-With'], // Разрешаем эти заголовки
 }));
 
 // Обработка preflight запросов (OPTIONS)
