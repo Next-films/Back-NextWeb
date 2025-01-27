@@ -14,6 +14,9 @@ app.use(cors({
 // Разрешаем обработку JSON данных
 app.use(bodyParser.json());
 
+// Обработка предварительных запросов OPTIONS
+app.options('*', cors());
+
 // Пример маршрутов
 const filmsRoutes = require("./routes/films");  // Убедись, что файлы маршрутов существуют
 const cartoonsRoutes = require("./routes/cartoons");
