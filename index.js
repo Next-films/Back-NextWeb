@@ -8,8 +8,10 @@ const serialsRoutes = require("./routes/serials");
 
 const app = express();
 
-// Настройка CORS и парсинг JSON
+// Настройка CORS для всех источников
 app.use(cors());
+
+// Парсинг JSON
 app.use(bodyParser.json());
 
 // Маршруты API
@@ -24,7 +26,7 @@ app.get("/", (req, res) => {
 });
 
 // Порт, который будет использовать приложение
-const PORT = process.env.PORT || 3000; // Использует порт из переменной окружения, если он задан, или 3000 по умолчанию
+const PORT = process.env.PORT || 3000;
 
 // Запуск сервера на указанном порту
 app.listen(PORT, () => {
