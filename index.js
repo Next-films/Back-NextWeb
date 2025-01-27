@@ -8,12 +8,16 @@ const serialsRoutes = require("./routes/serials");
 
 const app = express();
 
-// Настройка CORS для всех источников
+// Настройка CORS с явным указанием разрешенного источника
 app.use(cors({
-  origin: 'https://servernextfilms.hub-net.org', // Разрешить только с этого домена
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],  // Разрешаем необходимые методы
-  allowedHeaders: ['Content-Type', 'Authorization'], // Разрешаем необходимые заголовки
+  origin: 'https://servernextfilms.hub-net.org', // Разрешаем доступ только с этого домена
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],  // Разрешаем методы
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'], // Разрешаем эти заголовки
+  credentials: true,  // Если используются cookies или авторизация
 }));
+
+// Обработка preflight запросов (OPTIONS)
+app.options('*', cors());
 
 // Парсинг JSON
 app.use(bodyParser.json());
