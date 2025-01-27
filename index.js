@@ -25,10 +25,9 @@ app.get("/", (req, res) => {
   res.send("Сервер работает! Используй /api/films, /api/cartoons, /api/serials или /api/blockmain для получения данных.");
 });
 
-// Порт, который будет использовать приложение
-const PORT = process.env.PORT || 3000;
 
 // Запуск сервера на указанном порту
-app.listen(PORT, () => {
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`Сервер запущен на https://servernextfilms.hub-net.org:${PORT}`);
 });
