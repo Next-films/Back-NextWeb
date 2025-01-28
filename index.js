@@ -8,15 +8,23 @@ const bodyParser = require("body-parser");
 // Инициализация приложения
 const app = express();
 
+// Логирование для диагностики
+console.log("Запуск сервера...");
+console.log("Настройки CORS:");
+console.log("CORS_ORIGIN:", process.env.CORS_ORIGIN);
+console.log("CORS_METHODS:", process.env.CORS_METHODS);
+console.log("CORS_HEADERS:", process.env.CORS_HEADERS);
+
 // Настройка CORS
 const allowedOrigins = (process.env.CORS_ORIGIN || '').split(',');
-
 app.use(cors({
   origin: (origin, callback) => {
-    // Разрешить запросы без Origin (например, curl) или с допустимых источников
+    console.log("Проверка origin:", origin);
     if (!origin || allowedOrigins.includes(origin)) {
+      console.log("CORS разрешён для origin:", origin);
       callback(null, true);
     } else {
+      console.error("CORS отклонён для origin:", origin);
       callback(new Error(`Not allowed by CORS: ${origin}`));
     }
   },
@@ -35,6 +43,7 @@ app.use((req, res, next) => {
 
 // Обработка предварительных запросов OPTIONS
 app.options('*', (req, res) => {
+  console.log("Обработка OPTIONS для:", req.headers.origin);
   res.header('Access-Control-Allow-Origin', req.headers.origin || '');
   res.header('Access-Control-Allow-Methods', process.env.CORS_METHODS);
   res.header('Access-Control-Allow-Headers', process.env.CORS_HEADERS);
