@@ -19,20 +19,7 @@ console.log("CORS_HEADERS:", process.env.CORS_HEADERS);
 const allowedOrigins = (process.env.CORS_ORIGIN || '').split(',');
 
 // Настройка CORS
-app.use(cors({
-  origin: (origin, callback) => {
-    console.log("Проверка origin:", origin);
-    if (!origin || allowedOrigins.includes(origin)) {
-      console.log("CORS разрешён для origin:", origin);
-      callback(null, true);
-    } else {
-      console.error("CORS отклонён для origin:", origin);
-      callback(new Error(`Not allowed by CORS: ${origin}`));
-    }
-  },
-  methods: process.env.CORS_METHODS.split(','), // Разрешённые HTTP-методы
-  allowedHeaders: process.env.CORS_HEADERS.split(','), // Разрешённые заголовки
-}));
+app.use(cors());
 
 // Middleware для обработки JSON
 app.use(bodyParser.json());
