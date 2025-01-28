@@ -83,7 +83,7 @@ app.use((err, req, res, next) => {
 });
 
 // Порт сервера
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3032;
 
 // Запуск сервера
 app.listen(PORT, () => {
