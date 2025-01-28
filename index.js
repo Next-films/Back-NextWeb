@@ -15,8 +15,10 @@ console.log("CORS_ORIGIN:", process.env.CORS_ORIGIN);
 console.log("CORS_METHODS:", process.env.CORS_METHODS);
 console.log("CORS_HEADERS:", process.env.CORS_HEADERS);
 
-// Настройка CORS
+// Разделим разрешённые источники для CORS
 const allowedOrigins = (process.env.CORS_ORIGIN || '').split(',');
+
+// Настройка CORS
 app.use(cors({
   origin: (origin, callback) => {
     console.log("Проверка origin:", origin);
@@ -43,8 +45,9 @@ app.use((req, res, next) => {
 
 // Обработка предварительных запросов OPTIONS
 app.options('*', (req, res) => {
-  console.log("Обработка OPTIONS для:", req.headers.origin);
-  res.header('Access-Control-Allow-Origin', req.headers.origin || '');
+  const origin = req.headers.origin || '';
+  console.log("Обработка OPTIONS для:", origin);
+  res.header('Access-Control-Allow-Origin', origin);
   res.header('Access-Control-Allow-Methods', process.env.CORS_METHODS);
   res.header('Access-Control-Allow-Headers', process.env.CORS_HEADERS);
   res.sendStatus(204); // No Content
