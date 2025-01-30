@@ -19,7 +19,14 @@ console.log('CORS_HEADERS:', process.env.CORS_HEADERS);
 const allowedOrigins = (process.env.CORS_ORIGIN || '').split(',');
 
 // Настройка CORS
-app.use(cors());
+
+const corsOptions = {
+	origin: 'https://next-films.ru', // Разрешить только этот домен
+	methods: ['GET', 'POST', 'PUT', 'DELETE'], // Указать разрешённые методы
+	allowedHeaders: ['Content-Type', 'Authorization'], // Указать разрешённые заголовки
+};
+app.options('*', cors(corsOptions));
+app.use(cors(corsOptions));
 
 // Middleware для обработки JSON
 app.use(bodyParser.json());
