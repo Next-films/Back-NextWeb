@@ -1,0 +1,52 @@
+const movieSchema = {
+	type: 'object',
+	properties: {
+		id: { type: 'integer' },
+		title: { type: 'string' },
+		subtitle: { type: 'string' },
+		name: { type: 'string' },
+		date: { type: 'string', format: 'date' },
+		description: { type: 'string' },
+		titleImgUrl: { type: 'string', format: 'uri' },
+		backgroundImgUrl: { type: 'string', format: 'uri' },
+		cardImgUrl: { type: 'string', format: 'uri' },
+		movieUrl: { type: 'string', format: 'uri' },
+		trailerUrl: { type: 'string', format: 'uri' },
+		ads: { type: 'null' },
+		formatId: { type: 'integer' },
+		created_at: { type: 'string', format: 'date-time' },
+		updated_at: { type: 'string', format: 'date-time' },
+		format: { type: 'string' },
+		genres: {
+			type: 'array',
+			items: {
+				type: 'object',
+				properties: {
+					id: { type: 'integer' },
+					genre: { type: 'string' },
+				},
+				required: ['id', 'genre'],
+			},
+		},
+	},
+	// required: [
+	// 	'id',
+	// 	'title',
+	// 	'subtitle',
+	// 	'name',
+	// 	'date',
+	// 	'description',
+	// 	'titleImgUrl',
+	// 	'backgroundImgUrl',
+	// 	'cardImgUrl',
+	// 	'movieUrl',
+	// 	'trailerUrl',
+	// 	'formatId',
+	// 	'created_at',
+	// 	'updated_at',
+	// 	'format',
+	// 	'genres',
+	// ],
+};
+
+module.exports = { movieSchema };
