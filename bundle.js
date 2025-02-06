@@ -1,28 +1,247 @@
-var __create = Object.create;
-var __defProp = Object.defineProperty;
-var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var __getOwnPropNames = Object.getOwnPropertyNames;
-var __getProtoOf = Object.getPrototypeOf;
-var __hasOwnProp = Object.prototype.hasOwnProperty;
 var __commonJS = (cb, mod) => function __require() {
   return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
 };
-var __copyProps = (to, from, except, desc) => {
-  if (from && typeof from === "object" || typeof from === "function") {
-    for (let key of __getOwnPropNames(from))
-      if (!__hasOwnProp.call(to, key) && key !== except)
-        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
+
+// src/routes/api/movies.js
+var require_movies = __commonJS({
+  "src/routes/api/movies.js"(exports2, module2) {
+    function routeMovies(fastify2, opts) {
+      fastify2.get(
+        "/",
+        {
+          schema: {
+            querystring: {
+              type: "object",
+              properties: {
+                format: {
+                  type: "string"
+                }
+              }
+            },
+            response: {
+              200: {
+                type: "array",
+                items: { $ref: "Movie#" }
+              }
+            }
+          }
+        },
+        async (req, reply) => {
+          const { format } = req.query;
+          if (format) {
+            const movies2 = await fastify2.movieService.getMoviesByFormat(format);
+            return movies2;
+          }
+          const movies = await fastify2.movieService.getAllMovies();
+          return movies;
+        }
+      );
+      fastify2.get(
+        "/:id",
+        {
+          schema: {
+            params: {
+              type: "object",
+              properties: {
+                id: { type: "number" }
+              },
+              required: ["id"]
+            }
+          }
+        },
+        async (req, reply) => {
+          const { id } = req.params;
+          const movie = await fastify2.movieService.getMovieById(id);
+          return movie;
+        }
+      );
+    }
+    module2.exports = { routeMovies };
   }
-  return to;
-};
-var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(
-  // If the importer is in node compatibility mode or this is not an ESM
-  // file that has been converted to a CommonJS file using a Babel-
-  // compatible transform (i.e. "__esModule" has not been set), then set
-  // "default" to the CommonJS "module.exports" for node compatibility.
-  isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
-  mod
-));
+});
+
+// src/routes/api/series.js
+var require_series = __commonJS({
+  "src/routes/api/series.js"(exports2, module2) {
+    function routeSeries(fastify2, opts) {
+      fastify2.get(
+        "/",
+        {
+          schema: {
+            response: {
+              200: {
+                type: "array",
+                items: { $ref: "SeriesWithEpisodes#" }
+              }
+            }
+          }
+        },
+        async (req, reply) => {
+          const series = await fastify2.seriesService.getAllSeries();
+          return series;
+        }
+      );
+      fastify2.get(
+        "/:id",
+        {
+          schema: {
+            params: {
+              type: "object",
+              properties: {
+                id: {
+                  type: "number"
+                }
+              },
+              required: ["id"]
+            }
+          }
+        },
+        async (req, reply) => {
+          const { id } = req.params;
+          const series = await fastify2.seriesService.getSeriesById(id);
+          return series;
+        }
+      );
+    }
+    module2.exports = { routeSeries };
+  }
+});
+
+// src/routes/api/users.js
+var require_users = __commonJS({
+  "src/routes/api/users.js"(exports2, module2) {
+    function routeUsers(fastify2, opts) {
+      fastify2.get("/", async (req, reply) => {
+        const users = await fastify2.userService.getAllUsers();
+        return users;
+      });
+    }
+    module2.exports = { routeUsers };
+  }
+});
+
+// src/routes/api/auth/signup.js
+var require_signup = __commonJS({
+  "src/routes/api/auth/signup.js"(exports2, module2) {
+    function routeSignUp(fastify2) {
+      fastify2.get("/", async (req, reply) => {
+        return { hello: "from fastify signup" };
+      });
+    }
+    module2.exports = { routeSignUp };
+  }
+});
+
+// src/routes/api/auth/signin.js
+var require_signin = __commonJS({
+  "src/routes/api/auth/signin.js"(exports2, module2) {
+    function routeSignIn(fastify2) {
+      fastify2.get("/", async (req, reply) => {
+        return { hello: "from fastify signin" };
+      });
+    }
+    module2.exports = { routeSignIn };
+  }
+});
+
+// src/routes/api/auth/signout.js
+var require_signout = __commonJS({
+  "src/routes/api/auth/signout.js"(exports2, module2) {
+    function routeSignOut(fastify2) {
+      fastify2.get("/", async () => {
+        return { hello: "from api/signout" };
+      });
+    }
+    module2.exports = { routeSignOut };
+  }
+});
+
+// src/routes/api/auth/index.js
+var require_auth = __commonJS({
+  "src/routes/api/auth/index.js"(exports2, module2) {
+    var { routeSignUp } = require_signup();
+    var { routeSignIn } = require_signin();
+    var { routeSignOut } = require_signout();
+    function routeAuth(fastify2) {
+      fastify2.get("/", async (req, reply) => {
+        return { hello: "world from api/auth" };
+      });
+      fastify2.register(routeSignUp, { prefix: "/signup" });
+      fastify2.register(routeSignIn, { prefix: "/signin" });
+      fastify2.register(routeSignOut, { prefix: "/signout" });
+    }
+    module2.exports = { routeAuth };
+  }
+});
+
+// src/routes/api/index.js
+var require_api = __commonJS({
+  "src/routes/api/index.js"(exports2, module2) {
+    var { routeMovies } = require_movies();
+    var { routeSeries } = require_series();
+    var { routeUsers } = require_users();
+    var { routeAuth } = require_auth();
+    function routeApi(fastify2) {
+      fastify2.get(
+        "/",
+        {
+          schema: {
+            tags: ["api"],
+            description: "API root endpoint",
+            response: {
+              200: {
+                type: "object",
+                properties: {
+                  hello: { type: "string" }
+                }
+              }
+            }
+          }
+        },
+        async (req, reply) => {
+          return { hello: "world from api" };
+        }
+      );
+      fastify2.register(routeAuth, { prefix: "/auth" });
+      fastify2.register(routeMovies, { prefix: "/movies" });
+      fastify2.register(routeSeries, { prefix: "/series" });
+      fastify2.register(routeUsers, { prefix: "/users" });
+    }
+    module2.exports = { routeApi };
+  }
+});
+
+// src/routes/index.js
+var require_routes = __commonJS({
+  "src/routes/index.js"(exports2, module2) {
+    var { routeApi } = require_api();
+    function rootRoute2(fastify2, opts) {
+      fastify2.get(
+        "/",
+        {
+          schema: {
+            tags: ["root"],
+            description: "Root endpoint",
+            response: {
+              200: {
+                type: "object",
+                properties: {
+                  hello: { type: "string" }
+                }
+              }
+            }
+          }
+        },
+        async function(request, reply) {
+          return { hello: "world from root" };
+        }
+      );
+      fastify2.register(routeApi, { prefix: "/api" });
+    }
+    module2.exports = { rootRoute: rootRoute2 };
+  }
+});
 
 // knexfile.js
 var require_knexfile = __commonJS({
@@ -30,6 +249,20 @@ var require_knexfile = __commonJS({
     var { resolve } = require("path");
     module2.exports = {
       development: {
+        client: "sqlite3",
+        connection: {
+          filename: resolve(__dirname, "db/nextfilms.db"),
+          timezone: "UTC"
+        },
+        useNullAsDefault: true,
+        migrations: {
+          directory: resolve(__dirname, "db/migrations")
+        },
+        seeds: {
+          directory: resolve(__dirname, "db/seeds")
+        }
+      },
+      production: {
         client: "sqlite3",
         connection: {
           filename: resolve(__dirname, "db/nextfilms.db"),
@@ -54,7 +287,7 @@ var require_db = __commonJS({
     var config = require_knexfile();
     var environment = "development";
     var connection = knex(config[environment]);
-    module2.exports = connection;
+    module2.exports = { connection };
   }
 });
 
@@ -62,8 +295,8 @@ var require_db = __commonJS({
 var require_models = __commonJS({
   "src/models/index.js"(exports2, module2) {
     var { Model } = require("objection");
-    var knex = require_db();
-    Model.knex(knex);
+    var { connection } = require_db();
+    Model.knex(connection);
     module2.exports = Model;
   }
 });
@@ -107,7 +340,6 @@ var require_Role = __commonJS({
         };
       }
     };
-    Role.knex(knex);
     module2.exports = Role;
   }
 });
@@ -251,6 +483,12 @@ var require_moviesService = __commonJS({
       async getAllMovies() {
         return this.movies.query().select(["movies.*", "formats.format as format"]).join("formats", "movies.formatId", "formats.id").withGraphJoined("genres");
       }
+      async getMoviesByFormat(format) {
+        return this.movies.query().select(["movies.*", "formats.format as format"]).join("formats", "movies.formatId", "formats.id").withGraphJoined("genres").where("formats.format", format);
+      }
+      async getMovieById(id) {
+        return this.movies.query().findById(id).select(["movies.*", "formats.format as format"]).join("formats", "movies.formatId", "formats.id").withGraphJoined("genres");
+      }
     };
     module2.exports = MoviesService;
   }
@@ -266,6 +504,9 @@ var require_seriesService = __commonJS({
       }
       async getAllSeries() {
         return this.series.query().select(["series.*", "formats.format as format"]).join("formats", "series.formatId", "formats.id").withGraphJoined("genres").withGraphJoined("episodes");
+      }
+      async getSeriesById(id) {
+        return this.series.query().findById(id).select(["series.*", "formats.format as format"]).join("formats", "series.formatId", "formats.id").withGraphJoined("genres").withGraphJoined("episodes");
       }
     };
     module2.exports = SeriesService;
@@ -321,42 +562,6 @@ var require_Format = __commonJS({
       static get idColumn() {
         return "id";
       }
-      // static get relationMappings() {
-      // 	return {
-      // 		movies: {
-      // 			relation: Model.ManyToManyRelation,
-      // 			modelClass: Movie,
-      // 			join: {
-      // 				from: 'formats.id',
-      // 				through: {
-      // 					from: 'movieFormats.formatId',
-      // 					to: 'movieFormats.movieId',
-      // 				},
-      // 				to: 'movies.id',
-      // 			},
-      // 		},
-      // 		series: {
-      // 			relation: Model.ManyToManyRelation,
-      // 			modelClass: Series,
-      // 			join: {
-      // 				from: 'formats.id',
-      // 				through: {
-      // 					from: 'seriesFormats.formatId',
-      // 					to: 'seriesFormats.seriesId',
-      // 				},
-      // 				to: 'series.id',
-      // 			},
-      // 		},
-      // 		seriesFormats: {
-      // 			relation: Model.HasManyRelation,
-      // 			modelClass: SeriesFormat,
-      // 			join: {
-      // 				from: 'formats.id',
-      // 				to: 'seriesFormats.formatId',
-      // 			},
-      // 		},
-      // 	};
-      // }
     };
     module2.exports = Format;
   }
@@ -435,14 +640,6 @@ var require_Series = __commonJS({
               to: "formats.id"
             }
           },
-          // seriesFormats: {
-          // 	relation: Model.HasManyRelation,
-          // 	modelClass: SeriesFormat,
-          // 	join: {
-          // 		from: 'series.id',
-          // 		to: 'seriesFormats.seriesId',
-          // 	},
-          // },
           episodes: {
             relation: Model.HasManyRelation,
             modelClass: Episode,
@@ -683,11 +880,14 @@ var require_passwordService = __commonJS({
 // src/plugins/password.js
 var require_password = __commonJS({
   "src/plugins/password.js"(exports2, module2) {
+    var fastifyPlugin = require("fastify-plugin");
     var PasswordService = require_passwordService();
-    async function passwordServicePlugin2(fastify2, options) {
-      fastify2.decorate("passwordService", PasswordService);
-    }
-    module2.exports = passwordServicePlugin2;
+    var passwordServicePlugin2 = fastifyPlugin(
+      async function passwordServicePlugin3(fastify2, options) {
+        fastify2.decorate("passwordService", PasswordService);
+      }
+    );
+    module2.exports = { passwordServicePlugin: passwordServicePlugin2 };
   }
 });
 
@@ -1077,175 +1277,44 @@ var require_swagger = __commonJS({
   }
 });
 
-// src/index.js
-var import_fastify = __toESM(require("fastify"));
-
-// src/routes/api/films.js
-function films_default(fastify2, opts) {
-  fastify2.get(
-    "/",
-    {
-      schema: {
-        response: {
-          200: {
-            type: "array",
-            items: { $ref: "Movie#" }
-          }
-        }
-      }
-    },
-    async (req, reply) => {
-      const movies = await fastify2.movieService.getAllMovies();
-      return movies;
-    }
-  );
-}
-
-// src/routes/api/series.js
-function series_default(fastify2, opts) {
-  fastify2.get(
-    "/",
-    {
-      schema: {
-        response: {
-          200: {
-            type: "array",
-            items: { $ref: "SeriesWithEpisodes#" }
-          }
-        }
-      }
-    },
-    async (req, reply) => {
-      const series = await fastify2.seriesService.getAllSeries();
-      return series;
-    }
-  );
-}
-
-// src/routes/api/users.js
-function users_default(fastify2, opts) {
-  fastify2.get("/", async (req, reply) => {
-    const users = await fastify2.userService.getAllUsers();
-    return users;
-  });
-}
-
-// src/routes/api/auth/signup.js
-function signup_default(fastify2) {
-  fastify2.get("/", async (req, reply) => {
-    return { hello: "from fastify signup" };
-  });
-}
-
-// src/routes/api/auth/signin.js
-function signin_default(fastify2) {
-  fastify2.get("/", async (req, reply) => {
-    return { hello: "from fastify signin" };
-  });
-}
-
-// src/routes/api/auth/signout.js
-function signout_default(fastify2) {
-  fastify2.get("/", async () => {
-    return { hello: "from api/signout" };
-  });
-}
-
-// src/routes/api/auth/index.js
-function auth_default(fastify2) {
-  fastify2.get("/", async (req, reply) => {
-    return { hello: "world from api/auth" };
-  });
-  fastify2.register(signup_default, { prefix: "/signup" });
-  fastify2.register(signin_default, { prefix: "/signin" });
-  fastify2.register(signout_default, { prefix: "/signout" });
-}
-
-// src/routes/api/index.js
-function api_default(fastify2) {
-  fastify2.get(
-    "/",
-    {
-      schema: {
-        tags: ["api"],
-        description: "API root endpoint",
-        response: {
-          200: {
-            type: "object",
-            properties: {
-              hello: { type: "string" }
-            }
-          }
-        }
-      }
-    },
-    async (req, reply) => {
-      return { hello: "world from api" };
-    }
-  );
-  fastify2.register(auth_default, { prefix: "/auth" });
-  fastify2.register(films_default, { prefix: "/films" });
-  fastify2.register(series_default, { prefix: "/series" });
-  fastify2.register(users_default, { prefix: "/users" });
-}
-
-// src/routes/index.js
-function routes_default(fastify2, opts) {
-  fastify2.get(
-    "/",
-    {
-      schema: {
-        tags: ["root"],
-        description: "Root endpoint",
-        response: {
-          200: {
-            type: "object",
-            properties: {
-              hello: { type: "string" }
-            }
-          }
-        }
-      }
-    },
-    async function(request, reply) {
-      return { hello: "world from root" };
-    }
-  );
-  fastify2.register(api_default, { prefix: "/api" });
-}
-
-// src/index.js
-var import_database = __toESM(require_database());
-var import_password = __toESM(require_password());
-var import_swagger = __toESM(require_swagger());
-
 // src/config/logger.js
-var envToLogger = {
-  development: {
-    transport: {
-      target: "pino-pretty",
-      options: {
-        colorize: true,
-        translateTime: "HH:MM:ss Z",
-        ignore: "pid,hostname",
-        sync: false
-      }
-    }
-  },
-  production: true,
-  test: false
-};
+var require_logger = __commonJS({
+  "src/config/logger.js"(exports2, module2) {
+    var envToLogger2 = {
+      development: {
+        transport: {
+          target: "pino-pretty",
+          options: {
+            colorize: true,
+            translateTime: "HH:MM:ss Z",
+            ignore: "pid,hostname",
+            sync: false
+          }
+        }
+      },
+      production: true,
+      test: false
+    };
+    module2.exports = { envToLogger: envToLogger2 };
+  }
+});
 
 // src/index.js
+var Fastify = require("fastify");
+var { rootRoute } = require_routes();
+var dbPlugin = require_database();
+var { passwordServicePlugin } = require_password();
+var swagger = require_swagger();
+var { envToLogger } = require_logger();
 var { PORT: port, NODE_ENV: mode } = process.env;
-var fastify = (0, import_fastify.default)({
+var fastify = Fastify({
   logger: envToLogger[mode],
   https: false
 });
-fastify.register(import_swagger.default, { port });
-fastify.register(import_database.default);
-fastify.register(import_password.default);
-fastify.register(routes_default);
+fastify.register(swagger, { port });
+fastify.register(dbPlugin);
+fastify.register(passwordServicePlugin);
+fastify.register(rootRoute);
 var start = async () => {
   try {
     await fastify.listen({ port: Number(port), host: "0.0.0.0" });

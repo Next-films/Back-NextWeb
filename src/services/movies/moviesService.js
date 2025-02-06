@@ -11,5 +11,21 @@ class MoviesService {
 			.join('formats', 'movies.formatId', 'formats.id')
 			.withGraphJoined('genres');
 	}
+	async getMoviesByFormat(format) {
+		return this.movies
+			.query()
+			.select(['movies.*', 'formats.format as format'])
+			.join('formats', 'movies.formatId', 'formats.id')
+			.withGraphJoined('genres')
+			.where('formats.format', format);
+	}
+	async getMovieById(id) {
+		return this.movies
+			.query()
+			.findById(id)
+			.select(['movies.*', 'formats.format as format'])
+			.join('formats', 'movies.formatId', 'formats.id')
+			.withGraphJoined('genres');
+	}
 }
 module.exports = MoviesService;

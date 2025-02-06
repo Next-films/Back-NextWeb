@@ -1,4 +1,4 @@
-export const envToLogger = {
+const envToLogger = {
 	development: {
 		transport: {
 			target: 'pino-pretty',
@@ -13,3 +13,4 @@ export const envToLogger = {
 	production: true,
 	test: false,
 };
+module.exports = { envToLogger };

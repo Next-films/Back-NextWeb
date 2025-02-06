@@ -1,6 +1,6 @@
 const { Model } = require('objection');
-const knex = require('../db');
+const { connection } = require('../db');
 
-Model.knex(knex);
+Model.knex(connection);
 
 module.exports = Model;

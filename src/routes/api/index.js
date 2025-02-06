@@ -1,9 +1,9 @@
-import routeFilms from './films';
-import routeSeries from './series';
-import routeUsers from './users';
-import routeAuth from './auth/index';
+const { routeMovies } = require('./movies');
+const { routeSeries } = require('./series');
+const { routeUsers } = require('./users');
+const { routeAuth } = require('./auth/index');
 
-export default function (fastify) {
+function routeApi(fastify) {
 	fastify.get(
 		'/',
 		{
@@ -25,7 +25,8 @@ export default function (fastify) {
 		}
 	);
 	fastify.register(routeAuth, { prefix: '/auth' });
-	fastify.register(routeFilms, { prefix: '/films' });
+	fastify.register(routeMovies, { prefix: '/movies' });
 	fastify.register(routeSeries, { prefix: '/series' });
 	fastify.register(routeUsers, { prefix: '/users' });
 }
+module.exports = { routeApi };

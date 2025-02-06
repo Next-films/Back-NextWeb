@@ -1,4 +1,4 @@
-export default function (fastify, opts) {
+function routeSeries(fastify, opts) {
 	fastify.get(
 		'/',
 		{
@@ -16,4 +16,26 @@ export default function (fastify, opts) {
 			return series;
 		}
 	);
+	fastify.get(
+		'/:id',
+		{
+			schema: {
+				params: {
+					type: 'object',
+					properties: {
+						id: {
+							type: 'number',
+						},
+					},
+					required: ['id'],
+				},
+			},
+		},
+		async (req, reply) => {
+			const { id } = req.params;
+			const series = await fastify.seriesService.getSeriesById(id);
+			return series;
+		}
+	);
 }
+module.exports = { routeSeries };

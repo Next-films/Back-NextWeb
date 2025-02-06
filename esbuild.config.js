@@ -36,7 +36,7 @@ const config = {
 	},
 };
 
-// Функция для запуска сборки
+
 async function runBuild() {
 	try {
 		if (isProduction) {

@@ -36,5 +36,4 @@ class Role extends Model {
 		};
 	}
 }
-Role.knex(knex);
 module.exports = Role;

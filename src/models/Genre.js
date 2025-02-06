@@ -1,6 +1,6 @@
 const Model = require('./index');
 const Movie = require('./Movie');
-// const Series = require('./Series');
+
 const MovieGenre = require('./MovieGenre');
 const SeriesGenre = require('./SeriesGenre');
 

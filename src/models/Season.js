@@ -1,5 +1,5 @@
 const Model = require('./index');
-const Episode = require('./Episode');
+// const Episode = require('./Episode');
 class Season extends Model {
 	static get tableName() {
 		return 'seasons';

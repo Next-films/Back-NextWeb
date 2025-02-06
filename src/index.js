@@ -1,9 +1,9 @@
-import Fastify from 'fastify';
-import routes from './routes/index';
-import dbPlugin from './plugins/database';
-import passwordServicePlugin from './plugins/password';
-import swagger from './plugins/swagger';
-import { envToLogger } from './config/logger';
+const Fastify = require('fastify');
+const { rootRoute } = require('./routes/index');
+const dbPlugin = require('./plugins/database');
+const { passwordServicePlugin } = require('./plugins/password');
+const swagger = require('./plugins/swagger');
+const { envToLogger } = require('./config/logger');
 
 const { PORT: port, NODE_ENV: mode } = process.env;
 
@@ -15,7 +15,7 @@ const fastify = Fastify({
 fastify.register(swagger, { port });
 fastify.register(dbPlugin);
 fastify.register(passwordServicePlugin);
-fastify.register(routes);
+fastify.register(rootRoute);
 
 const start = async () => {
 	try {

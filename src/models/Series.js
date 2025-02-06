@@ -1,9 +1,7 @@
 const Model = require('./index');
-
 const Format = require('./Format');
 const SeriesGenre = require('./SeriesGenre');
 const Episode = require('./Episode');
-// const Genre = require('./Genre');
 
 class Series extends Model {
 	static get tableName() {
@@ -43,14 +41,6 @@ class Series extends Model {
 					to: 'formats.id',
 				},
 			},
-			// seriesFormats: {
-			// 	relation: Model.HasManyRelation,
-			// 	modelClass: SeriesFormat,
-			// 	join: {
-			// 		from: 'series.id',
-			// 		to: 'seriesFormats.seriesId',
-			// 	},
-			// },
 			episodes: {
 				relation: Model.HasManyRelation,
 				modelClass: Episode,

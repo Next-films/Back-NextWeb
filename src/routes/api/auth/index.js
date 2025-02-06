@@ -1,13 +1,14 @@
-import routeSignup from './signup';
-import routeSignin from './signin';
-import routeSignout from './signout';
+const { routeSignUp } = require('./signup');
+const { routeSignIn } = require('./signin');
+const { routeSignOut } = require('./signout');
 
-export default function (fastify) {
+function routeAuth(fastify) {
 	fastify.get('/', async (req, reply) => {
 		return { hello: 'world from api/auth' };
 	});
 
-	fastify.register(routeSignup, { prefix: '/signup' });
-	fastify.register(routeSignin, { prefix: '/signin' });
-	fastify.register(routeSignout, { prefix: '/signout' });
+	fastify.register(routeSignUp, { prefix: '/signup' });
+	fastify.register(routeSignIn, { prefix: '/signin' });
+	fastify.register(routeSignOut, { prefix: '/signout' });
 }
+module.exports = { routeAuth };

@@ -1,6 +1,6 @@
-import api from './api';
+const { routeApi } = require('./api/index');
 
-export default function (fastify, opts) {
+function rootRoute(fastify, opts) {
 	fastify.get(
 		'/',
 		{
@@ -21,5 +21,6 @@ export default function (fastify, opts) {
 			return { hello: 'world from root' };
 		}
 	);
-	fastify.register(api, { prefix: '/api' });
+	fastify.register(routeApi, { prefix: '/api' });
 }
+module.exports = { rootRoute };
