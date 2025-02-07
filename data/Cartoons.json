@@ -97,5 +97,61 @@
      "name": "Миньоны: Грювитация, Minions: The Rise of Gru",
      "date": "13/06/2022", 
      "filtr": ["Криминал", "Комедия","Семейный"]
-     }
+     },{
+        "id": "TheGarfieldMovie",
+     "backgroundImg": "https://next-films.ru/cartoons/Minions:TheRiseofGru/trailer.webm",
+     "cardImg": "https://next-films.ru/cartoons/Minions:TheRiseofGru/poster.jpeg",
+     "description": "После неожиданного воссоединения со своим давно потерянным отцом — уличным котом Виком — Гарфилд вместе с другом-псом Оди вынужден отказаться от своей идеально тепличной жизни и присоединиться к весёлому и опасному приключению.",
+     "subTitle": "2024 г. ‧ Фэнтэзи/Комедия/Семейный ‧ 1 ч 41 мин",
+     "title": "Гарфилд",
+     "titleImg": "https://next-films.ru/cartoons/Minions:TheRiseofGru/logo.png",
+     "type": "cartoons",
+     "films": "https://next-films.ru/cartoons/Minions:TheRiseofGru/films.mp4",
+     "trailer": "https://www.youtube.com/watch?v=bsQcGpZwHl4",
+     "name": "The Garfield Movie, Гарфилд",
+     "date": "29/04/2024", 
+     "filtr": ["Фэнтэзи", "Комедия","Семейный"]
+     },{
+      "id": "TheGarfieldMovie",
+   "backgroundImg": "https://next-films.ru/cartoons/TheGarfieldMovie2024/trailer.webm",
+   "cardImg": "https://next-films.ru/cartoons/TheGarfieldMovie2024/poster.jpeg",
+   "description": "После неожиданного воссоединения со своим давно потерянным отцом — уличным котом Виком — Гарфилд вместе с другом-псом Оди вынужден отказаться от своей идеально тепличной жизни и присоединиться к весёлому и опасному приключению.",
+   "subTitle": "2024 г. ‧ Фэнтэзи/Комедия/Семейный ‧ 1 ч 41 мин",
+   "title": "Гарфилд",
+   "titleImg": "https://next-films.ru/cartoons/TheGarfieldMovie2024/logo.png",
+   "type": "cartoons",
+   "films": "https://next-films.ru/cartoons/TheGarfieldMovie2024/films.mp4",
+   "trailer": "https://www.youtube.com/watch?v=HaoUfV5SHLY",
+   "name": "The Garfield Movie, Гарфилд",
+   "date": "29/04/2024", 
+   "filtr": ["Фэнтэзи", "Комедия","Семейный"]
+   },{
+      "id": "TurningRed",
+   "backgroundImg": "https://next-films.ru/cartoons/TurningRed/trailer.webm",
+   "cardImg": "https://next-films.ru/cartoons/TurningRed/poster.jpeg",
+   "description": "Активная и неунывающая 13-летняя Мэйлинь всеми силами пытается быть первой во всём, чтобы угодить строгой гиперопекающей матери. Семья девочки живёт при храме и поклоняется Богине-прародительнице. Одним прекрасным утром Мэйлинь просыпается и вместо привычного отражения в зеркале видит красную панду — теперь, когда она волнуется, злится или испытывает другие сильные эмоции, превращается в большого зверя. Мало того, что это происходит в самые неподходящие моменты, так ещё и посещение концерта обожаемой Мэйлинь и её подружками мальчиковой группы 4-Town оказывается под угрозой.",
+   "subTitle": "2022 г. ‧ Фэнтэзи/Комедия/Семейный ‧ 1 ч 40 мин",
+   "title": "Я краснею",
+   "titleImg": "https://next-films.ru/cartoons/TurningRed/logo.png",
+   "type": "cartoons",
+   "films": "https://next-films.ru/cartoons/TurningRed/films.mp4",
+   "trailer": "https://www.youtube.com/watch?v=1E--dv8M5vQ",
+   "name": "Я краснею, Turning Red, Trunung Red",
+   "date": "01/03/2022", 
+   "filtr": ["Фэнтэзи", "Комедия","Семейный"]
+   },{
+      "id": "GuillermoDelToro'sPinocchio",
+   "backgroundImg": "https://next-films.ru/cartoons/GuillermoDelToro%27sPinocchio/trailer.webm",
+   "cardImg": "https://next-films.ru/cartoons/GuillermoDelToro%27sPinocchio/poster.jpeg",
+   "description": "История про деревянную куклу, которая превращается в настоящего мальчика.",
+   "subTitle": "2022 г. ‧ Фэнтэзи/Мюзикл/Драма ‧ 1 ч 57 мин",
+   "title": "Пиноккио Гильермо дель Торо",
+   "titleImg": "https://next-films.ru/cartoons/GuillermoDelToro%27sPinocchio/logo.png",
+   "type": "cartoons",
+   "films": "https://next-films.ru/cartoons/GuillermoDelToro%27sPinocchio/films.mp4",
+   "trailer": "https://www.youtube.com/watch?v=PGjbWDdjxic",
+   "name": "Guillermo del Toro's Pinocchio, Пиноккио Гильермо дель Торо",
+   "date": "15/10/2022", 
+   "filtr": ["Мюзикл", "Драма","Фэнтэзи","Приключения","Семейный"]
+   }
 ]
