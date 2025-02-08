@@ -16,7 +16,7 @@
        "date": "06/03/2020" 
     },{ 
        "id": "PoSoobrazheniuSovesti", 
-       "backgroundImg": "https://next-films.ru/films/PoSoobrazheniuSovesti/trailer.gif", 
+       "backgroundImg": "https://next-films.ru/films/PoSoobrazheniuSovesti/trailer.webm", 
        "cardImg": "https://next-films.ru/films/PoSoobrazheniuSovesti/poster.jpg", 
        "description": "Медик Американской армии времён Второй Мировой войны Дезмонд Досс, который служил во время битвы за Окинаву, отказывается убивать людей и становится первым идейным уклонистом в американской истории, удостоенным Медали Почёта.", 
        "subTitle": "2016 г. ‧ Военный/Триллер ‧ 2 ч 19 мин", 
@@ -30,7 +30,7 @@
        "date": "17/11/2016"
     },{
        "id": "OstrovProclytih",
-       "backgroundImg": "https://next-films.ru/films/OstrovProclytih/trailer.gif",
+       "backgroundImg": "https://next-films.ru/films/OstrovProclytih/trailer.webm",
        "cardImg": "https://next-films.ru/films/OstrovProclytih/poster.jpeg",
        "description": "Два американских судебных пристава отправляются на один из островов в штате Массачусетс, чтобы расследовать исчезновение пациентки клиники для умалишенных преступников. При проведении расследования им придется столкнуться с паутиной лжи, обрушившимся ураганом и смертельным бунтом обитателей клиники.",
        "subTitle": "2010 г. ‧ Триллер/Детективный фильм ‧ 2 ч 18 мин",
@@ -44,7 +44,7 @@
        "filtr": ["Триллер", "Детектив"]
     },{
        "id": "Oppenheimer",
-       "backgroundImg": "https://next-films.ru/films/Openheimer/trailer.gif",
+       "backgroundImg": "https://next-films.ru/films/Openheimer/trailer.webm",
        "cardImg": "https://next-films.ru/films/Openheimer/poster.jpg",
        "description": "История жизни американского физика Роберта Оппенгеймера, который стоял во главе первых разработок ядерного оружия.",
        "subTitle": "2023 г. ‧ Триллер/Историческое произведение  ‧ 3 часа",
@@ -86,7 +86,7 @@
        "filtr": ["Криминал", "Боевик"] 
     },{
        "id": "57second",
-       "backgroundImg": "https://next-films.ru/films/57second/trailer.gif",
+       "backgroundImg": "https://next-films.ru/films/57second/trailer.webm",
        "cardImg": "https://next-films.ru/films/57second/poster.jpeg",
        "description": "Блогер использует уникальный гаджет, чтобы отомстить за смерть сестры. Сай-фай-триллер с Джошем Хатчерсоном.",
        "subTitle": "2023 г. ‧ Триллер/Научная фантастика ‧ 1 ч 39 мин",
@@ -100,7 +100,7 @@
        "filtr": ["Триллер", "Фантастика"]
     },{
        "id": "Dedpool3",
-       "backgroundImg": "https://next-films.ru/films/Dedpool3/trailer.gif",
+       "backgroundImg": "https://next-films.ru/films/Dedpool3/trailer.webm",
        "cardImg": "https://next-films.ru/films/Dedpool3/poster.jpg",
        "description": "Блогер использует уникальный гаджет, чтобы отомстить за смерть сестры. Сай-фай-триллер с Джошем Хатчерсоном.",
        "subTitle": "2023 г. ‧ Триллер/Научная фантастика ‧ 1 ч 39 мин",
@@ -128,7 +128,7 @@
        "filtr": ["Комедия", "Драма"]
     },{
           "id": "DjangoUnchained2012",
-          "backgroundImg": "https://next-films.ru/films/DjangoUnchained2012/trailer.gif",
+          "backgroundImg": "https://next-films.ru/films/DjangoUnchained2012/trailer.webm",
           "cardImg": "https://next-films.ru/films/DjangoUnchained2012/poster.jpg",
           "description": "Эксцентричный охотник за головами, также известный как «Дантист», промышляет отстрелом самых опасных преступников на Диком Западе. Работенка пыльная, и без надежного помощника ему не обойтись. Но как найти такого и желательно не очень дорогого? Беглый раб по имени Джанго — прекрасная кандидатура. Правда, у нового помощника свои мотивы — кое с чем надо разобраться.",
           "subTitle": "2012 г. ‧ Вестерн/Боевик/Драма ‧ 2 ч 45 мин",
@@ -476,5 +476,19 @@
         "name": "Red One, Миссия: Красный, Мисия: красный",
         "date": "06/11/2024", 
         "filtr": ["Фэнтези","Детектив","Комедия","Боевик"]
-     }
+     }, {
+      "id": "FastX",
+      "backgroundImg": "https://next-films.ru/films/FastX/trailer.webm",
+      "cardImg": "https://next-films.ru/films/FastX/poster.jpeg",
+      "description": "10 лет назад по заданию Агентства Доминик и Брайан ограбили бразильского политика, бизнесмена и по совместительству наркобарона Эрнана Рейеса, который пустился за ними в погоню и погиб. Теперь его сын Данте собирается реализовать коварный план мести — не просто убить Доминика, а заставить страдать, разделавшись с его семьёй.",
+      "subTitle": "2023 г. ‧ Боевик/Криминал ‧ 2 ч 21 мин",
+      "title": "Форсаж 10",
+      "titleImg": "https://next-films.ru/films/FastX/logo.png",
+      "type": "films",
+      "films": "https://next-films.ru/films/FastX/films.mp4",
+      "trailer": "https://www.youtube.com/watch?v=SBZGp9edOVk",
+      "name": "Fast X, форсаж 10, fast and furios",
+      "date": "09/06/2023", 
+      "filtr": ["Боевик","Криминал"]
+   }
 ]
