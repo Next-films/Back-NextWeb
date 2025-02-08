@@ -4,6 +4,7 @@ const dbPlugin = require('./plugins/database');
 const { passwordServicePlugin } = require('./plugins/password');
 const swagger = require('./plugins/swagger');
 const { envToLogger } = require('./config/logger');
+const { default: fastifyJwt } = require('@fastify/jwt');
 
 const { PORT: port, NODE_ENV: mode } = process.env;
 
@@ -14,6 +15,7 @@ const fastify = Fastify({
 
 fastify.register(swagger, { port });
 fastify.register(dbPlugin);
+fastify.register(fastifyJwt, { secret: 'mySecretKey' });
 fastify.register(passwordServicePlugin);
 fastify.register(rootRoute);
 

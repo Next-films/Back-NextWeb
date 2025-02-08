@@ -9,7 +9,7 @@ const config = {
 	outfile: 'bundle.js',
 	platform: 'node',
 	target: 'node22',
-	format: 'cjs', // Используем CommonJS
+	format: 'cjs',
 	minify: isProduction,
 	sourcemap: !isProduction,
 	external: [
@@ -19,6 +19,8 @@ const config = {
 		'fastify-plugin',
 		'@fastify/swagger',
 		'@fastify/swagger-ui',
+		'@fastify/jwt',
+		'@fastify/auth',
 		'sqlite3',
 		'knex',
 		'objection',
@@ -35,7 +37,6 @@ const config = {
 		IS_ESM: JSON.stringify(false),
 	},
 };
-
 
 async function runBuild() {
 	try {

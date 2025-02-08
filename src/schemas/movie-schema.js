@@ -29,24 +29,6 @@ const movieSchema = {
 			},
 		},
 	},
-	// required: [
-	// 	'id',
-	// 	'title',
-	// 	'subtitle',
-	// 	'name',
-	// 	'date',
-	// 	'description',
-	// 	'titleImgUrl',
-	// 	'backgroundImgUrl',
-	// 	'cardImgUrl',
-	// 	'movieUrl',
-	// 	'trailerUrl',
-	// 	'formatId',
-	// 	'created_at',
-	// 	'updated_at',
-	// 	'format',
-	// 	'genres',
-	// ],
 };
 
 module.exports = { movieSchema };

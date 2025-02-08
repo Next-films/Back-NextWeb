@@ -25,6 +25,6 @@ COPY .env ./
 
 RUN pnpm install --prod --frozen-lockfile
 
-COPY --from=builder /app/dist ./dist
+COPY --from=builder /app ./
 
 CMD ["pnpm", "production"]

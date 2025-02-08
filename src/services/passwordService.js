@@ -13,7 +13,7 @@ class PasswordService {
 	 * @param {string} salt
 	 * @returns {Promise<string>}
 	 */
-	hashPassword(password, salt) {
+	async hashPassword(password, salt) {
 		return new Promise((resolve, reject) => {
 			crypto.pbkdf2(password, salt, 100000, 64, 'sha512', (err, derivedKey) => {
 				if (err) {
@@ -37,4 +37,4 @@ class PasswordService {
 	}
 }
 
-module.exports = new PasswordService();
+module.exports = PasswordService;

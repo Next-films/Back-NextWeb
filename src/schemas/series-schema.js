@@ -69,23 +69,6 @@ const seriesSchema = {
 			},
 		},
 	},
-	// required: [
-	// 	'id',
-	// 	'title',
-	// 	'titleImgUrl',
-	// 	'name',
-	// 	'subtitle',
-	// 	'description',
-	// 	'date',
-	// 	'backgroundImgUrl',
-	// 	'cardImgUrl',
-	// 	'trailerUrl',
-	// 	'formatId',
-	// 	'created_at',
-	// 	'updated_at',
-	// 	'format',
-	// 	'genres',
-	// ],
 };
 const seriesWithEpisodesSchema = {
 	type: 'object',
@@ -217,24 +200,6 @@ const seriesWithEpisodesSchema = {
 			},
 		},
 	},
-	// required: [
-	// 	'id',
-	// 	'title',
-	// 	'titleImgUrl',
-	// 	'name',
-	// 	'subtitle',
-	// 	'description',
-	// 	'date',
-	// 	'backgroundImgUrl',
-	// 	'cardImgUrl',
-	// 	'trailerUrl',
-	// 	'formatId',
-	// 	'created_at',
-	// 	'updated_at',
-	// 	'format',
-	// 	'genres',
-	// 	'episodes',
-	// ],
 };
 
 module.exports = { seriesSchema, seriesWithEpisodesSchema };

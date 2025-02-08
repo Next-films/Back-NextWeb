@@ -10,13 +10,12 @@ class UserService {
 	async getUserById(id) {
 		return this.UserModel.query().findById(id);
 	}
+	async findOneByEmail(email) {
+		return this.UserModel.query().findOne({ email });
+	}
 
 	async createUser(userData) {
 		return this.UserModel.query().insert(userData);
-	}
-
-	async getUserWithRoles(id) {
-		return this.UserModel.query().findById(id).withGraphFetched('roles'); // Загружаем связанные роли
 	}
 }
 module.exports = UserService;
