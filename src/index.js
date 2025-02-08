@@ -1,7 +1,7 @@
 const Fastify = require('fastify');
 const { rootRoute } = require('./routes/index');
 const dbPlugin = require('./plugins/database');
-const { passwordServicePlugin } = require('./plugins/password');
+const { hashServicePlugin } = require('./plugins/hash');
 const swagger = require('./plugins/swagger');
 const { envToLogger } = require('./config/logger');
 const { default: fastifyJwt } = require('@fastify/jwt');
@@ -16,7 +16,7 @@ const fastify = Fastify({
 fastify.register(swagger, { port });
 fastify.register(dbPlugin);
 fastify.register(fastifyJwt, { secret: 'mySecretKey' });
-fastify.register(passwordServicePlugin);
+fastify.register(hashServicePlugin);
 fastify.register(rootRoute);
 
 const start = async () => {

@@ -3,15 +3,28 @@
  * @returns { Promise<void> }
  */
 exports.up = function (knex) {
-	return knex.schema.createTable('users', (t) => {
-		t.increments('id').primary();
-		t.string('email').notNullable().unique();
-		t.string('password').notNullable();
-		t.string('salt').notNullable();
-		t.string('login').notNullable().unique();
-		t.string('role').notNullable().defaultTo('user');
-		t.timestamps(true, true);
-	});
+	return knex.schema
+		.createTable('users', (t) => {
+			t.increments('id').primary();
+			t.string('email').notNullable().unique();
+			t.string('password').notNullable();
+			t.string('salt').notNullable();
+			t.string('login').notNullable().unique();
+			t.string('role').notNullable().defaultTo('user');
+			t.timestamps(true, true);
+		})
+		.createTable('refreshTokens', (t) => {
+			t.increments('id').primary();
+			t.string('tokenHash').notNullable().unique();
+			t.string('tokenSalt').notNullable();
+			t.integer('userId')
+				.unsigned()
+				.notNullable()
+				.references('id')
+				.inTable('users')
+				.onDelete('CASCADE');
+			t.datetime('expiresAt').notNullable();
+		});
 	// .createTable('roles', (t) => {
 	// 	t.increments('id').primary();
 	// 	t.string('name').notNullable().unique();
@@ -44,6 +57,7 @@ exports.down = function (knex) {
 		knex.schema
 			// .dropTableIfExists('userRoles')
 			// .dropTableIfExists('roles')
+			.dropTableIfExists('refreshTokens')
 			.dropTableIfExists('users')
 	);
 };

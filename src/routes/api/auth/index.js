@@ -22,14 +22,11 @@ function routeAuth(fastify) {
 			if (user) {
 				reply.status(400).send({ message: 'Email already exists' });
 			}
-			const salt = fastify.passwordService.generateSalt();
-			const hashedPassowrd = await fastify.passwordService.hashPassword(
-				password,
-				salt
-			);
+			const salt = fastify.hashService.generateSalt();
+			const hashedPassword = await fastify.hashService.makeHash(password, salt);
 			const result = await fastify.userService.createUser({
 				email,
-				password: hashedPassowrd,
+				password: hashedPassword,
 				salt,
 				login,
 				role: 'user',
@@ -53,7 +50,7 @@ function routeAuth(fastify) {
 			if (!user) {
 				return reply.status(400).send({ message: 'Invalid login or password' });
 			}
-			const isPasswordValid = await fastify.passwordService.verifyPassword(
+			const isPasswordValid = await fastify.hashService.verifyHash(
 				password,
 				user.password,
 				user.salt
@@ -61,8 +58,29 @@ function routeAuth(fastify) {
 			if (!isPasswordValid) {
 				return reply.status(400).send({ message: 'Invalid login or password' });
 			}
-			const token = fastify.jwt.sign({ email });
-			reply.send({ token });
+			const accessToken = fastify.jwt.sign(
+				{ userId: user.id },
+				{ expiresIn: '15m' }
+			);
+			const refreshToken = fastify.jwt.sign(
+				{ userId: user.id },
+				{ expiresIn: '7d' }
+			);
+
+			const refreshTokenExpiresAt = fastify.jwt.decode(refreshToken).exp;
+			const refreshTokenSalt = fastify.hashService.generateSalt();
+			const refreshTokenHash = await fastify.hashService.makeHash(
+				refreshToken,
+				refreshTokenSalt
+			);
+
+			await fastify.refreshTokenService.createRefreshToken({
+				tokenHash: refreshTokenHash,
+				tokenSalt: refreshTokenSalt,
+				expiresAt: refreshTokenExpiresAt,
+				userId: user.id,
+			});
+			reply.send({ accessToken, refreshToken });
 		}
 	);
 }
