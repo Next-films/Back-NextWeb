@@ -18,6 +18,14 @@ class Episode extends Model {
 					to: 'series.id',
 				},
 			},
+			seasons: {
+				relation: Model.BelongsToOneRelation,
+				modelClass: require('./Season'),
+				join: {
+					from: 'episodes.seasonId',
+					to: 'seasons.id',
+				},
+			},
 		};
 	}
 }

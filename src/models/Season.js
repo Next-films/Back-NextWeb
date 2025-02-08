@@ -8,7 +8,24 @@ class Season extends Model {
 		return 'id';
 	}
 	static get relationMappings() {
-		return {};
+		return {
+			episodes: {
+				relation: Model.HasManyRelation,
+				modelClass: require('./Episode'),
+				join: {
+					from: 'seasons.id',
+					to: 'episodes.seasonId',
+				},
+			},
+			series: {
+				relation: Model.BelongsToOneRelation,
+				modelClass: require('./Series'),
+				join: {
+					from: 'seasons.seriesId',
+					to: 'series.id',
+				},
+			},
+		};
 	}
 }
 
