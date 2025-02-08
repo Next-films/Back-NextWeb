@@ -8,6 +8,7 @@
 		"title": "Pingiwn",
 		"titleImg": "https://next-films.ru/serials/pingvin/logo.png",
 		"type": "series",
+		"season": 1,
 		"films": [
 			{
 				"videoUrl": "https://next-films.ru/serials/pingvin/Пингвин%201%20серия%20«После%20закрытия»%20%28сериал%2C%202024%29%20%5B6dc91758cebd5e0966be925f43ee3b27%5D.mp4",
@@ -57,9 +58,10 @@
 		"cardImg": "https://next-films.ru/serials/TheBoys4/poster.jpg",
 		"description": "После смерти босса мафии Кармайна Фальконе его правая рука Освальд Кобблпот по прозвищу Пингвин решает, что он вправе занять место своего начальника. Но у Фальконе осталась дочь София, которая не готова отказываться от преступного наследия отца. В криминальном мире Готэма разгорается кровавая битва за власть.",
 		"subTitle": "2024 г. ‧ Драма/Криминал ‧ 8 серий",
-		"title": "Pingiwn2",
+		"title": "Pinguin",
 		"titleImg": "https://next-films.ru/serials/TheBoys4/logo.png",
 		"type": "series",
+		"season": 2,
 		"films": [
 			{
 				"videoUrl": "https://next-films.ru/serials/pingvin/Сериал%20Пингвин%20-%201%20сезон%201%20серия%20%E2%A7%B8%20The%20Penguin%20%282024%29.mp4",
@@ -112,6 +114,7 @@
 		"title": "Человек-паук: Паутина вселенных",
 		"titleImg": "https://next-films.ru/serials/TheBoys4/logo.png",
 		"type": "series",
+		"season": 1,
 		"films": [
 			{
 				"videoUrl": "https://next-films.ru/serials/TheBoys3/Пацаны 3 сезон, 1 серия смотреть бесплатно.mp4",
@@ -164,6 +167,7 @@
 		"title": "Игра в кальмара 2",
 		"titleImg": "https://next-films.ru/serials/SquidGame2/logo.png",
 		"type": "series",
+		"season": 1,
 		"films": [
 			{
 				"videoUrl": "https://next-films.ru/serials/SquidGame2/Игра_в_кальмара_2_сезон_1_серия.mp4",

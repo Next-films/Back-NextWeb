@@ -38,7 +38,7 @@ exports.up = function (knex) {
 			t.increments('id').primary();
 			t.integer('seasonId')
 				.unsigned()
-				// .notNullable()
+				.notNullable()
 				.references('id')
 				.inTable('seasons')
 				.onDelete('CASCADE');
