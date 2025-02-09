@@ -58,30 +58,55 @@ function routeAuth(fastify) {
 			if (!isPasswordValid) {
 				return reply.status(400).send({ message: 'Invalid login or password' });
 			}
+			const jwtPayload = {
+				userId: user.id,
+				login: user.login,
+				role: user.role,
+			};
 			const accessToken = fastify.jwt.sign(
-				{ userId: user.id },
+				{ ...jwtPayload, type: 'access' },
 				{ expiresIn: '15m' }
 			);
 			const refreshToken = fastify.jwt.sign(
-				{ userId: user.id },
+				{ ...jwtPayload, type: 'refresh' },
 				{ expiresIn: '7d' }
 			);
-
-			const refreshTokenExpiresAt = fastify.jwt.decode(refreshToken).exp;
-			const refreshTokenSalt = fastify.hashService.generateSalt();
-			const refreshTokenHash = await fastify.hashService.makeHash(
-				refreshToken,
-				refreshTokenSalt
-			);
-
-			await fastify.refreshTokenService.createRefreshToken({
-				tokenHash: refreshTokenHash,
-				tokenSalt: refreshTokenSalt,
-				expiresAt: refreshTokenExpiresAt,
-				userId: user.id,
-			});
-			reply.send({ accessToken, refreshToken });
+			// reply.setCookie('accessToken', accessToken, {
+			// 	httpOnly: true,
+			// 	secure: true,
+			// 	sameSite: 'strict',
+			// 	path: '/',
+			// 	maxAge: 3600,
+			// });
+			// reply.setCookie('refreshToken', refreshToken, {
+			// 	httpOnly: true,
+			// 	secure: true,
+			// 	sameSite: 'strict',
+			// 	path: '/',
+			// 	maxAge: 605000,
+			// });
+			reply.send({ accessToken, refreshToken, message: 'Success' });
 		}
 	);
+	fastify.post('/refresh', async (req, reply) => {
+		const { refreshToken } = req.body;
+		if (!refreshToken) {
+			return reply.status(400).send({ error: 'Missing refresh token' });
+		}
+		try {
+			const payload = fastify.jwt.verify(refreshToken);
+			if (payload.type !== 'refresh') {
+				return reply.status(400).send({ error: 'Invalid token' });
+			}
+			const accessToken = fastify.jwt.sign(
+				{ ...payload, type: 'access' },
+				{ expiresIn: '15m' }
+			);
+			const refreshToken = fastify.jwt.sign(payload, { expiresIn: '7d' });
+			reply.send({ accessToken, refreshToken });
+		} catch (err) {
+			reply.status(401).send({ error: 'Invalid or expired refresh token' });
+		}
+	});
 }
 module.exports = { routeAuth };

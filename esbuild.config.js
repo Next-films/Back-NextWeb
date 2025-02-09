@@ -21,6 +21,8 @@ const config = {
 		'@fastify/swagger-ui',
 		'@fastify/jwt',
 		'@fastify/auth',
+		'@fastify/cors',
+		'@fastify/cookie',
 		'sqlite3',
 		'knex',
 		'objection',

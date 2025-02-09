@@ -5,14 +5,22 @@ const { hashServicePlugin } = require('./plugins/hash');
 const swagger = require('./plugins/swagger');
 const { envToLogger } = require('./config/logger');
 const { default: fastifyJwt } = require('@fastify/jwt');
-
+const { default: fastifyCors } = require('@fastify/cors');
+// const { default: cookies } = require('@fastify/cookie');
 const { PORT: port, NODE_ENV: mode } = process.env;
 
 const fastify = Fastify({
 	logger: envToLogger[mode],
 	https: false,
 });
-
+fastify.register(fastifyCors, {
+	origin: 'https://next-films.ru',
+	credentials: true,
+	methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+	allowedHeaders: ['Authorization', 'Content-Type', '*'],
+	exposedHeaders: ['*'],
+});
+// fastify.register(cookies);
 fastify.register(swagger, { port });
 fastify.register(dbPlugin);
 fastify.register(fastifyJwt, { secret: 'mySecretKey' });
