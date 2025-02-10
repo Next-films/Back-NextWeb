@@ -43,6 +43,16 @@ function routeAuth(fastify) {
 		'/signin',
 		{
 			body: signInBodySchema,
+			response: {
+				201: {
+					type: 'object',
+					properties: {
+						message: {
+							type: 'string',
+						},
+					},
+				},
+			},
 		},
 		async (req, reply) => {
 			const { email, password } = req.body;
@@ -65,12 +75,25 @@ function routeAuth(fastify) {
 				role: user.role,
 			};
 
-			reply.send({ message: 'success' });
+			reply.code(201).send({ message: 'success' });
 		}
 	);
-	fastify.post('/signout', async (req, reply) => {
-		req.session.destroy();
-		return { message: 'Logged out successfully' };
-	});
+	fastify.post(
+		'/signout',
+		{
+			response: {
+				200: {
+					type: 'object',
+					properties: {
+						message: 'string',
+					},
+				},
+			},
+		},
+		async (req, reply) => {
+			req.session.destroy();
+			return { message: 'Logged out successfully' };
+		}
+	);
 }
 module.exports = { routeAuth };
