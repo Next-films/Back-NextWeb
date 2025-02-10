@@ -1,6 +1,7 @@
 const { routeApi } = require('./api/index');
 
 function rootRoute(fastify, opts) {
+	
 	fastify.get(
 		'/',
 		{

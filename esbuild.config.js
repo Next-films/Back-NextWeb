@@ -23,6 +23,7 @@ const config = {
 		'@fastify/auth',
 		'@fastify/cors',
 		'@fastify/cookie',
+		'@fastify/session',
 		'sqlite3',
 		'knex',
 		'objection',

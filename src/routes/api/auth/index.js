@@ -58,55 +58,19 @@ function routeAuth(fastify) {
 			if (!isPasswordValid) {
 				return reply.status(400).send({ message: 'Invalid login or password' });
 			}
-			const jwtPayload = {
-				userId: user.id,
+
+			req.session.user = {
+				userId: user.userId,
 				login: user.login,
 				role: user.role,
 			};
-			const accessToken = fastify.jwt.sign(
-				{ ...jwtPayload, type: 'access' },
-				{ expiresIn: '15m' }
-			);
-			const refreshToken = fastify.jwt.sign(
-				{ ...jwtPayload, type: 'refresh' },
-				{ expiresIn: '7d' }
-			);
-			// reply.setCookie('accessToken', accessToken, {
-			// 	httpOnly: true,
-			// 	secure: true,
-			// 	sameSite: 'strict',
-			// 	path: '/',
-			// 	maxAge: 3600,
-			// });
-			// reply.setCookie('refreshToken', refreshToken, {
-			// 	httpOnly: true,
-			// 	secure: true,
-			// 	sameSite: 'strict',
-			// 	path: '/',
-			// 	maxAge: 605000,
-			// });
-			reply.send({ accessToken, refreshToken, message: 'Success' });
+
+			reply.send({ message: 'success' });
 		}
 	);
-	fastify.post('/refresh', async (req, reply) => {
-		const { refreshToken } = req.body;
-		if (!refreshToken) {
-			return reply.status(400).send({ error: 'Missing refresh token' });
-		}
-		try {
-			const payload = fastify.jwt.verify(refreshToken);
-			if (payload.type !== 'refresh') {
-				return reply.status(400).send({ error: 'Invalid token' });
-			}
-			const accessToken = fastify.jwt.sign(
-				{ ...payload, type: 'access' },
-				{ expiresIn: '15m' }
-			);
-			const refreshToken = fastify.jwt.sign(payload, { expiresIn: '7d' });
-			reply.send({ accessToken, refreshToken });
-		} catch (err) {
-			reply.status(401).send({ error: 'Invalid or expired refresh token' });
-		}
+	fastify.post('/signout', async (req, reply) => {
+		req.session.destroy();
+		return { message: 'Logged out successfully' };
 	});
 }
 module.exports = { routeAuth };
