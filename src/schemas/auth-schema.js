@@ -1,4 +1,5 @@
 const signUpBodySchema = {
+	$id: 'SignUpBody',
 	type: 'object',
 	required: ['email', 'password', 'login'],
 	properties: {
@@ -17,6 +18,7 @@ const signUpBodySchema = {
 	},
 };
 const signUpResponseSchema = {
+	$id: 'SignUpResponse',
 	type: 'object',
 	required: ['email', 'login', 'role'],
 	properties: {
@@ -34,6 +36,7 @@ const signUpResponseSchema = {
 };
 
 const signInBodySchema = {
+	$id: 'SignInBody',
 	type: 'object',
 	required: ['email', 'password'],
 	properties: {
@@ -46,4 +49,19 @@ const signInBodySchema = {
 		},
 	},
 };
-module.exports = { signUpBodySchema, signUpResponseSchema, signInBodySchema };
+const responseAuthMessage = {
+	$id: 'ResponseAuthMessage',
+	type: 'object',
+	required: ['message'],
+	properties: {
+		message: {
+			type: 'string',
+		},
+	},
+};
+module.exports = [
+	signUpBodySchema,
+	signUpResponseSchema,
+	signInBodySchema,
+	responseAuthMessage,
+];

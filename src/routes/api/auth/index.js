@@ -1,9 +1,3 @@
-const {
-	signUpBodySchema,
-	signUpResponseSchema,
-	signInBodySchema,
-} = require('./../../../schemas/auth-schema');
-
 function routeAuth(fastify) {
 	fastify.get('/', async (req, reply) => {
 		return { hello: 'world from api/auth' };
@@ -11,9 +5,11 @@ function routeAuth(fastify) {
 	fastify.post(
 		'/signup',
 		{
-			body: signUpBodySchema,
-			response: {
-				201: signUpResponseSchema,
+			schema: {
+				body: { $ref: 'SignUpBody#' },
+				response: {
+					201: { $ref: 'SignUpResponse#' },
+				},
 			},
 		},
 		async (req, reply) => {
@@ -42,13 +38,15 @@ function routeAuth(fastify) {
 	fastify.post(
 		'/signin',
 		{
-			body: signInBodySchema,
-			response: {
-				201: {
-					type: 'object',
-					properties: {
-						message: {
-							type: 'string',
+			schema: {
+				body: { $ref: 'SignInBody#' },
+				response: {
+					201: {
+						type: 'object',
+						properties: {
+							message: {
+								type: 'string',
+							},
 						},
 					},
 				},
@@ -81,11 +79,14 @@ function routeAuth(fastify) {
 	fastify.post(
 		'/signout',
 		{
-			response: {
-				200: {
-					type: 'object',
-					properties: {
-						message: 'string',
+			schema: {
+				response: {
+					200: {
+						type: 'object',
+						properties: {
+							message: { type: 'string' }, // Правильно
+						},
+						required: ['message'],
 					},
 				},
 			},

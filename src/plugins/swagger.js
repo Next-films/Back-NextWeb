@@ -1,24 +1,34 @@
 const { fastifySwagger } = require('@fastify/swagger');
 const { fastifySwaggerUi } = require('@fastify/swagger-ui');
 const fastifyPlugin = require('fastify-plugin');
-const { movieSchema } = require('../schemas/movie-schema');
-const {
-	seriesSchema,
-	seriesWithEpisodesSchema,
-} = require('../schemas/series-schema');
+const authSchemas = require('../schemas/auth-schema');
+const movieSchemas = require('../schemas/movie-schema');
+const seriesSchemas = require('../schemas/series-schema');
 
 async function swaggerKit(fastify, { port }) {
-	fastify.addSchema({
-		$id: 'Movie',
-		...movieSchema,
-	});
-	fastify.addSchema({
-		$id: 'Series',
-		...seriesSchema,
-	});
-	fastify.addSchema({
-		$id: 'SeriesWithEpisodes',
-		...seriesWithEpisodesSchema,
+	// fastify.addSchema({
+	// 	$id: 'Movie',
+	// 	...movieSchema,
+	// });
+	// fastify.addSchema({
+	// 	$id: 'Series',
+	// 	...seriesSchema,
+	// });
+	// fastify.addSchema({
+	// 	$id: 'SeriesWithEpisodes',
+	// 	...seriesWithEpisodesSchema,
+	// });
+	// fastify.addSchema({
+	// 	$id: 'ResponseMessage',
+	// 	...responseMessage,
+	// });
+
+	[...authSchemas, ...movieSchemas, ...seriesSchemas].forEach((schema) => {
+		if (!schema.$id) {
+			console.warn(`Missing $id in schema: ${JSON.stringify(schema, null, 2)}`);
+		} else {
+			fastify.addSchema(schema);
+		}
 	});
 	fastify.register(fastifySwagger, {
 		openapi: {
@@ -34,13 +44,6 @@ async function swaggerKit(fastify, { port }) {
 					description: 'Development server',
 				},
 			],
-			components: {
-				schemas: {
-					Movie: 'Movie#',
-					Series: 'Series#',
-					SeriesWithEpisodes: 'SeriesWithEpisodes#',
-				},
-			},
 		},
 		exposeRoute: true,
 	});

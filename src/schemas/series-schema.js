@@ -1,4 +1,5 @@
 const seriesSchema = {
+	$id: 'Series',
 	type: 'object',
 	properties: {
 		id: {
@@ -71,6 +72,7 @@ const seriesSchema = {
 	},
 };
 const seriesWithEpisodesSchema = {
+	$id: 'SeriesWithEpisodes',
 	type: 'object',
 	properties: {
 		id: {
@@ -202,4 +204,4 @@ const seriesWithEpisodesSchema = {
 	},
 };
 
-module.exports = { seriesSchema, seriesWithEpisodesSchema };
+module.exports = [seriesSchema, seriesWithEpisodesSchema];

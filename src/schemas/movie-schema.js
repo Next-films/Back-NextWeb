@@ -1,4 +1,5 @@
 const movieSchema = {
+	$id: 'Movie',
 	type: 'object',
 	properties: {
 		id: { type: 'integer' },
@@ -31,4 +32,4 @@ const movieSchema = {
 	},
 };
 
-module.exports = { movieSchema };
+module.exports = [movieSchema];
