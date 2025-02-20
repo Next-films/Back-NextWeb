@@ -630,21 +630,7 @@
       "name": "Халк, Невероятный халк",
       "date": "06/06/2008", 
       "filtr": ["Фантастика","Боевик","Триллер"]
-   }, {
-      "id": "AvengersAgeofUltron2015",
-      "backgroundImg": "https://next-films.ru/films/Avengers%20Age%20of%20Ultron%202015/trailer.webm",
-      "cardImg": "https://next-films.ru/films/Avengers%20Age%20of%20Ultron%202015/poster.png",
-      "description": "Человечество на грани уничтожения. На этот раз людям угрожает Альтрон — искусственный интеллект, ранее созданный для того, чтобы защищать Землю от любых угроз. Однако, главной угрозой он посчитал человечество. Международная организация Щ.И.Т. распалась, и теперь мир не способен справиться с таким мощным врагом, потому люди вновь обращаются за помощью к Величайшим Героям Земли — Мстителям. Однако Альтрон слишком силен, и есть большая вероятность, что даже им не удастся остановить начало надвигающейся Эры Альтрона, где нет места для людей…",
-      "subTitle": "2015 г. ‧ Фантастика/Боевик ‧ 2 ч 21 мин",
-      "title": "Мстители: Эра Альтрона",
-      "titleImg": "https://next-films.ru/films/Avengers%20Age%20of%20Ultron%202015/logo.png",
-      "type": "films",
-      "films": "https://next-films.ru/films/Avengers%20Age%20of%20Ultron%202015/Avengers.Age.of.Ultron.2015.mp4",
-      "trailer": "https://www.youtube.com/watch?v=1KAI-6KCUKA",
-      "name": "Халк, Невероятный халк",
-      "date": "22/09/2015", 
-      "filtr": ["Фантастика","Боевик"]
-   }, {
+   },{
       "id": "AvengersEndgame",
       "backgroundImg": "https://next-films.ru/films/Avengers%20Endgame/trailer.webm",
       "cardImg": "https://next-films.ru/films/Avengers%20Endgame/poster.jpg",
