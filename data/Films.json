@@ -658,5 +658,33 @@
       "name": "Капитан Марвел",
       "date": "27/02/2019", 
       "filtr": ["Фантастика","Боевик"]
+   }, {
+      "id": "Dom.s.paranormalnymi.javlenijami",
+      "backgroundImg": "https://next-films.ru/films/Dom.s.paranormalnymi.javlenijami/trailer.webm",
+      "cardImg": "https://next-films.ru/films/Dom.s.paranormalnymi.javlenijami/poster.jpg",
+      "description": "Малкольм и Киша переезжают в дом своей мечты, но вскоре понимают, что там уже проживает демон. Когда Киша становится одержимой, Малкольм обращается за помощью к священнику, экстрасенсу и команде охотников за привидениями.",
+      "subTitle": "2013 г. ‧ Фантастика/Боевик ‧ 1 ч 20 мин",
+      "title": "Дом с паранормальными явлениями",
+      "titleImg": "https://next-films.ru/films/Dom.s.paranormalnymi.javlenijami/logo.png",
+      "type": "films",
+      "films": "https://next-films.ru/films/Dom.s.paranormalnymi.javlenijami/Dom.s.paranormalnymi.javlenijami.2013.mp4",
+      "trailer": "https://www.youtube.com/watch?v=9y_FAjGIDlA",
+      "name": "Дом с паранормальными явлениями",
+      "date": "11/01/2013", 
+      "filtr": ["Ужасы","Комедия"]
+   }, {
+      "id": "Dom.s.paranormalnymi.javlenijami.2",
+      "backgroundImg": "https://next-films.ru/films/Dom.s.paranormalnymi.javlenijami.2/trailer.webm",
+      "cardImg": "https://next-films.ru/films/Dom.s.paranormalnymi.javlenijami.2/poster.jpeg",
+      "description": "Малькольм, изгнавший демонов из своей бывшей подружки, начинает новую жизнь с другой девушкой и ее двумя детьми. После переезда в дом мечты с Малькольмом снова начинают случаться загадочные происшествия. И, похоже, паранормальные явления теперь преследуют его не только в собственном доме.",
+      "subTitle": "2014 г. ‧ Фантастика/Боевик ‧ 1 ч 27 мин",
+      "title": "Дом с паранормальными явлениями 2",
+      "titleImg": "https://next-films.ru/films/Dom.s.paranormalnymi.javlenijami.2/logo.png",
+      "type": "films",
+      "films": "https://next-films.ru/films/Dom.s.paranormalnymi.javlenijami.2/D0m.C.paPaH0PmaLHymi.YaBLeHiYami.2.2014.mp4",
+      "trailer": "https://www.youtube.com/watch?v=kO1ma5APUMU",
+      "name": "Дом с паранормальными явлениями 2",
+      "date": "17/04/2014", 
+      "filtr": ["Ужасы","Комедия"]
    }
 ]
