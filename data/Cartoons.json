@@ -98,20 +98,6 @@
      "date": "13/06/2022", 
      "filtr": ["Криминал", "Комедия","Семейный"]
      },{
-        "id": "TheGarfieldMovie",
-     "backgroundImg": "https://next-films.ru/cartoons/Minions:TheRiseofGru/trailer.webm",
-     "cardImg": "https://next-films.ru/cartoons/Minions:TheRiseofGru/poster.jpeg",
-     "description": "После неожиданного воссоединения со своим давно потерянным отцом — уличным котом Виком — Гарфилд вместе с другом-псом Оди вынужден отказаться от своей идеально тепличной жизни и присоединиться к весёлому и опасному приключению.",
-     "subTitle": "2024 г. ‧ Фэнтэзи/Комедия/Семейный ‧ 1 ч 41 мин",
-     "title": "Гарфилд",
-     "titleImg": "https://next-films.ru/cartoons/Minions:TheRiseofGru/logo.png",
-     "type": "cartoons",
-     "films": "https://next-films.ru/cartoons/Minions:TheRiseofGru/films.mp4",
-     "trailer": "https://www.youtube.com/watch?v=bsQcGpZwHl4",
-     "name": "The Garfield Movie, Гарфилд",
-     "date": "29/04/2024", 
-     "filtr": ["Фэнтэзи", "Комедия","Семейный"]
-     },{
       "id": "TheGarfieldMovie",
    "backgroundImg": "https://next-films.ru/cartoons/TheGarfieldMovie2024/trailer.webm",
    "cardImg": "https://next-films.ru/cartoons/TheGarfieldMovie2024/poster.jpeg",
@@ -181,5 +167,47 @@
    "name": "Братья Супер Марио в кино, The Super Mario Bros",
    "date": "27/05/2023", 
    "filtr": ["Комедия","Фэнтэзи","Приключения"]
+   },{
+      "id": "Cars.3.(2017)",
+   "backgroundImg": "https://next-films.ru/cartoons/Cars.3.%282017%29/trailer.webm",
+   "cardImg": "https://next-films.ru/cartoons/Cars.3.%282017%29/poster.webp",
+   "description": "Встречайте самого знаменитого гонщика всех времен, легенду гоночного трека Молнию Маккуина! Герой все еще продолжает показывать лучшие результаты на всех турнирах, однако победы даются ему не так легко, а конкуренция становится все жестче. Молнию Маккуина ждут захватывающие приключения, где он встретит новых друзей, а также поймет, что не только скорость и мощность мотора делают гонщика чемпионом.",
+   "subTitle": "2017 г. ‧ Спорт/Комедия/Приключения ‧ 1 ч 43 мин",
+   "title": "Тачки 3",
+   "titleImg": "https://next-films.ru/cartoons/Cars.3.%282017%29/logo.webp",
+   "type": "cartoons",
+   "films": "https://next-films.ru/cartoons/Cars.3.%282017%29/Cars.3.%282017%29.mp4",
+   "trailer": "https://www.youtube.com/watch?v=GsPexsfWI0A",
+   "name": "Тачки 3",
+   "date": "10/06/2017", 
+   "filtr": ["Комедия","Спорт","Приключения"]
+   },{
+      "id": "Coco.(2017).MegaPeer",
+   "backgroundImg": "https://next-films.ru/cartoons/Coco.%282017%29.MegaPeer/trailer.webm",
+   "cardImg": "https://next-films.ru/cartoons/Coco.%282017%29.MegaPeer/poster.webp",
+   "description": "12-летний Мигель живёт в мексиканской деревушке в семье сапожников и тайно мечтает стать музыкантом. Тайно, потому что в его семье музыка считается проклятием. Когда-то его прапрадед оставил жену, прапрабабку Мигеля, ради мечты, которая теперь не даёт спокойно жить и его праправнуку. С тех пор музыкальная тема в семье стала табу. Мигель обнаруживает, что между ним и его любимым певцом Эрнесто де ла Крусом, ныне покойным, существует некая связь. Паренёк отправляется к своему кумиру в Страну Мёртвых, где встречает души предков. Мигель знакомится там с духом-скелетом по имени Гектор, который становится его проводником. Вдвоём они отправляются на поиски де ла Круса.",
+   "subTitle": "2017 г. ‧ Музыка/Комедия/Приключения ‧ 1 ч 45 мин",
+   "title": "Тайна Коко",
+   "titleImg": "https://next-films.ru/cartoons/Coco.%282017%29.MegaPeer/logo.webp",
+   "type": "cartoons",
+   "films": "https://next-films.ru/cartoons/Coco.%282017%29.MegaPeer/Coco.%282017%29.MegaPeer.mp4",
+   "trailer": "https://www.youtube.com/watch?v=HMnUSq3dC1g",
+   "name": "Тайна Коко, Тайна коко",
+   "date": "20/10/2017", 
+   "filtr": ["Комедия","Музыка","Приключения"]
+   },{
+      "id": "grinch 2018",
+   "backgroundImg": "https://next-films.ru/cartoons/grinch%202018/trailer.webm",
+   "cardImg": "https://next-films.ru/cartoons/grinch%202018/poster.jpeg",
+   "description": "Любой бы на месте Гринча позеленел и взбесился. Как порядочный интроверт он живёт в тёмной пещере на самой вершине горы подальше ото всех, но эти «все» готовят грандиознейшее празднование нового года. Они шумят, всё украшают и дико бесят. Кто бы отказал себе в удовольствии испортить праздник? Гринч решает украсть Новый год.",
+   "subTitle": "2018 г. ‧ Комедия/Фэнтези ‧ 1 ч 25 мин",
+   "title": "Тайна Коко",
+   "titleImg": "https://next-films.ru/cartoons/grinch%202018/logo.png",
+   "type": "cartoons",
+   "films": "https://next-films.ru/cartoons/grinch%202018/The.Grinch.2018.mp4",
+   "trailer": "https://www.youtube.com/watch?v=nrgyL7RqHyg",
+   "name": "Тайна Коко, Тайна коко",
+   "date": "03/11/2018", 
+   "filtr": ["Комедия","Фэнтези"]
    }
 ]
