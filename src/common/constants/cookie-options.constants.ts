@@ -7,3 +7,7 @@ export const COOKIE_REFRESH_BASIC_OPTIONS: CookieOptions = {
   secure: true,
   maxAge: 24 * 60 * 60 * 1000,
 };
+
+export const COOKIE_REFRESH_TOKEN_ADMIN_OPTIONS: CookieOptions = {
+  ...COOKIE_REFRESH_BASIC_OPTIONS,
+};

@@ -16,7 +16,8 @@
     "assets": [
       "**/*.hbs",
       "**/*.html",
-      "**/*.svg"
+      "**/*.svg",
+      "**/*.json"
     ],
     "watchAssets": false,
     "plugins": ["@nestjs/swagger"]

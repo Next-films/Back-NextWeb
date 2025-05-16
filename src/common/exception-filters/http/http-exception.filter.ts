@@ -16,7 +16,7 @@ export class ValidationErrorsDto {
   errorsMessages: ErrorFieldExceptionDto[];
 }
 
-export class BadRequestExceptionDto {
+export class RequestExceptionDto {
   @ApiProperty()
   message: string;
   @ApiProperty({ example: 400 })
@@ -71,7 +71,7 @@ export class HttpExceptionsFilter implements ExceptionFilter {
       }
     }
 
-    const errorResponse: BadRequestExceptionDto = {
+    const errorResponse: RequestExceptionDto = {
       message: exception?.message || 'An unexpected error occurred',
       statusCode: status,
       errorField,
@@ -81,7 +81,7 @@ export class HttpExceptionsFilter implements ExceptionFilter {
   }
 
   handleOther(exception: any, response: Response): void {
-    const errorResponse: BadRequestExceptionDto = {
+    const errorResponse: RequestExceptionDto = {
       message: exception?.message || 'An unexpected error occurred',
       statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
       errorField: null,

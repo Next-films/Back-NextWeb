@@ -16,7 +16,17 @@
     "incremental": true,
     "paths": {
       "@/common/*": ["common/*"],
-      "@/settings/*": ["settings/*"]
+      "@/settings/*": ["settings/*"],
+      "@/films/*": ["modules/cinema/film/*"],
+      "@/cartoons/*": ["modules/cinema/cartoon/*"],
+      "@/serials/*": ["modules/cinema/serial/*"],
+      "@/movies/*": ["modules/cinema/movies/*"],
+      "@/data-migrations/*": ["migrations/data-migration/*"],
+      "@/admin/*": ["modules/admin/*"],
+      "@/bcrypt-module/*": ["modules/bcrypt/*"],
+      "@/admin-auth/*": ["modules/auth/admin/*"],
+      "@/sessions/*": ["modules/auth/session/*"],
+      "@/jwt-module/*": ["modules/jwt/*"],
     }
   }
 }
