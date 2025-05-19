@@ -21,17 +21,18 @@ export enum EXCEPTION_KEYS_ENUM {
    * Input validation error
    *
    */
-  searchName = 'error_input.searchName',
+  searchName = 'error_input.search_name',
+  searchGenreIds = 'error_input.search_genre_ids',
   page = 'error_input.page',
   size = 'error_input.size',
-  sortDirection = 'error_input.sortDirection',
-  sortField = 'error_input.sortField',
+  sortDirection = 'error_input.sort_direction',
+  sortField = 'error_input.sort_field',
   email = 'error_input.email',
   password = 'error_input.password',
   username = 'error_input.username',
   name = 'error_input.name',
-  filmId = 'error_input.filmId',
-  serialId = 'error_input.serialId',
-  cartoonId = 'error_input.cartoonId',
-  episodeId = 'error_input.episodeId',
+  filmId = 'error_input.film_id',
+  serialId = 'error_input.serial_id',
+  cartoonId = 'error_input.cartoon_id',
+  episodeId = 'error_input.episode_id',
 }
