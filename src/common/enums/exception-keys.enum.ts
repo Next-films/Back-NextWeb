@@ -12,6 +12,7 @@ export enum EXCEPTION_KEYS_ENUM {
   USERNAME_IS_EXIST = 'error.username_is_exist',
   LOGIN_OR_PASSWORD_NOT_CORRECT = 'error.login_or_password_not_correct',
   UNAUTHORIZED = 'error.unauthorized',
+  FILM_NOT_FOUND = 'error.film_not_found',
   /*
    *
    * Input validation error
@@ -26,4 +27,5 @@ export enum EXCEPTION_KEYS_ENUM {
   password = 'error_input.password',
   username = 'error_input.username',
   name = 'error_input.name',
+  filmId = 'error_input.filmId',
 }

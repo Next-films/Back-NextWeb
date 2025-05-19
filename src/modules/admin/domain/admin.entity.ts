@@ -21,14 +21,13 @@ export class Admin {
   @OneToMany(() => AdminSession, (adminSession: AdminSession) => adminSession.admin)
   sessions: AdminSession[];
 
-
   static create(email: string, username: string, password: string): Admin {
-    const admin = new this()
-    admin.email = email
-    admin.username = username
-    admin.password = password
-    admin.createdAt = new Date()
+    const admin = new this();
+    admin.email = email;
+    admin.username = username;
+    admin.password = password;
+    admin.createdAt = new Date();
 
-    return admin
+    return admin;
   }
 }

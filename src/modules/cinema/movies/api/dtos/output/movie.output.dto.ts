@@ -1,54 +1,73 @@
 import { Injectable } from '@nestjs/common';
 import { ApiProperty } from '@nestjs/swagger';
+import { MovieEntity } from '@/movies/domain/movie.entity';
 
-// TODO:
 export class MovieOutputDto {
   @ApiProperty()
   id: number;
 
   @ApiProperty()
-  backgroundImg: string; // "https://next-films.ru/films/djoker/trailer.webm"
+  title: string;
 
   @ApiProperty()
-  cardImg: string; // "https://next-films.ru/films/djoker/poster.jpg"
+  originalTitle: string;
 
   @ApiProperty()
-  description: string; // "Находясь на принудительном лечении в больнице Аркхем..."
+  trailerUrl: string;
 
   @ApiProperty()
-  subTitle: string; // "2024 г. ‧ Дрма/Криминал/Триллер ‧ 2 ч 18 мин"
+  alternativeTitles: string;
 
   @ApiProperty()
-  title: string; // "Джокер: Безумие на двоих"
+  backgroundImg: string;
 
   @ApiProperty()
-  originalTitle: string; // "Joker: Madness for two"
+  cardImg: string;
 
   @ApiProperty()
-  titleImg: string; // "https://next-films.ru/films/djoker/logo.png"
+  description: string;
 
   @ApiProperty()
-  type: string; // "films"
+  subTitle: string;
 
   @ApiProperty()
-  films: string; // "https://next-films.ru/films/djoker/..."
+  titleImg: string;
 
   @ApiProperty()
-  trailer: string; // "https://www.youtube.com/watch?v=j7jPnwVGdZ8"
+  releaseDate: Date;
 
   @ApiProperty()
-  name: string; // "Джокер: Безумие на двоих, Джокер 2, ..."
+  genres: string[];
 
   @ApiProperty()
-  date: string; // "04/09/2024"
+  duration: number;
 
   @ApiProperty()
-  filter: string[]; // ["Драма", "Криминал", "Триллер"]
+  country: string[];
 }
 
 @Injectable()
 export class MovieOutputDtoMapper {
-  mapMovie(): any {}
+  mapMovie(movie: MovieEntity): MovieOutputDto {
+    return {
+      id: movie.id,
+      title: movie.title,
+      originalTitle: movie.originalTitle,
+      backgroundImg: movie.backgroundImg,
+      alternativeTitles: movie.alternativeTitles,
+      releaseDate: movie.releaseDate,
+      cardImg: movie.cardImg,
+      description: movie.description,
+      trailerUrl: movie.trailerUrl,
+      subTitle: movie.subTitle,
+      titleImg: movie.titleImg,
+      genres: movie.genres?.map(g => g.name) || [],
+      country: movie.country,
+      duration: movie.duration,
+    };
+  }
 
-  mapMovies(): any {}
+  mapMovies(movies: MovieEntity[]): MovieOutputDto[] {
+    return movies.map(m => this.mapMovie(m));
+  }
 }

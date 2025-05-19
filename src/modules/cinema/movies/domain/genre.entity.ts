@@ -1,4 +1,5 @@
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, ManyToMany, PrimaryGeneratedColumn } from 'typeorm';
+import { Film } from '@/films/domain/film.entity';
 
 @Entity()
 export class Genre {
@@ -7,6 +8,9 @@ export class Genre {
 
   @Column({ unique: true })
   name: string;
+
+  @ManyToMany(() => Film, film => film.genres)
+  films: Film[];
 
   static create(name: string): Genre {
     const genre = new this();

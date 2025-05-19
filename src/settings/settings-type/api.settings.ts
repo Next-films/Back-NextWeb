@@ -14,7 +14,7 @@ export class ApiSettings {
   FRIEND_FRONT_URLS: string = this.environmentVariables.FRIEND_FRONT_URLS;
 
   @IsString()
-  ADMIN_EMAIL:  string = this.environmentVariables.ADMIN_EMAIL;
+  ADMIN_EMAIL: string = this.environmentVariables.ADMIN_EMAIL;
 
   @IsString()
   ADMIN_USERNAME: string = this.environmentVariables.ADMIN_USERNAME;

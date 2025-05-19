@@ -2,8 +2,8 @@ import { ConsoleLogger, ConsoleLoggerOptions, Injectable, Scope } from '@nestjs/
 import { WinstonService } from '@/common/utils/logger/winston.service';
 import { AsyncLocalStorageService } from '@/common/utils/logger/als.service';
 import { REQUEST_ID_KEY } from '@/common/utils/logger/request-context.middleware';
-import {ConfigService} from "@nestjs/config";
-import {ConfigurationType} from "@/settings/configuration";
+import { ConfigService } from '@nestjs/config';
+import { ConfigurationType } from '@/settings/configuration';
 
 /*
  Scope.TRANSIENT indicates that the LoggerService instance
@@ -31,7 +31,7 @@ export class LoggerService extends ConsoleLogger {
       logLevels: ['verbose', 'debug', 'log', 'warn', 'error'],
     });
 
-    this.isLogging = this.configService.get('loggerSettings', {infer: true}).LOGGING;
+    this.isLogging = this.configService.get('loggerSettings', { infer: true }).LOGGING;
   }
 
   // Method to get the request ID from an asynchronous context.
@@ -54,7 +54,7 @@ export class LoggerService extends ConsoleLogger {
   }
 
   trace(message: string, functionName?: string) {
-    if (!this.isLogging) return
+    if (!this.isLogging) return;
 
     super.verbose(message, this.getSourceContext() || functionName);
 
@@ -62,7 +62,7 @@ export class LoggerService extends ConsoleLogger {
   }
 
   debug(message: string, functionName?: string) {
-    if (!this.isLogging) return
+    if (!this.isLogging) return;
 
     super.debug(message, this.getSourceContext() || functionName);
 
@@ -70,7 +70,7 @@ export class LoggerService extends ConsoleLogger {
   }
 
   log(message: string, functionName?: string) {
-    if (!this.isLogging) return
+    if (!this.isLogging) return;
 
     super.log(message, this.getSourceContext() || functionName);
 
@@ -78,7 +78,7 @@ export class LoggerService extends ConsoleLogger {
   }
 
   warn(message: string, functionName?: string) {
-    if (!this.isLogging) return
+    if (!this.isLogging) return;
 
     super.warn(message, this.getSourceContext() || functionName);
 
@@ -86,7 +86,7 @@ export class LoggerService extends ConsoleLogger {
   }
 
   error(error: any, functionName?: string) {
-    if (!this.isLogging) return
+    if (!this.isLogging) return;
 
     const jsonError = error instanceof Error ? JSON.stringify(error) : error;
     const stack = this.getStack(error);
