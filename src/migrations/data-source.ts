@@ -2,7 +2,7 @@ import { DataSource } from 'typeorm';
 import * as dotenv from 'dotenv';
 import { EnvironmentVariable } from '@/settings/configuration';
 import { DatabaseSettings } from '../settings/settings-type/database.settings';
-dotenv.config({ path: 'src/.env.dev' });
+dotenv.config({ path: './.env.dev' });
 
 const dbSettings = new DatabaseSettings(process.env as EnvironmentVariable);
 const dataSource = new DataSource({

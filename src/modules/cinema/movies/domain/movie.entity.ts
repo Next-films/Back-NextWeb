@@ -18,9 +18,6 @@ export class MovieEntity {
   originalTitle: string;
 
   @Column()
-  subTitle: string;
-
-  @Column()
   description: string;
 
   @Column()
