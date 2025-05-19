@@ -5,8 +5,8 @@ import { BASIC_QUERY_VALIDATION_RULES } from '@/common/constants/validation-rule
 const DEFAULT_QUERY_SORTED_FIELD = 'id';
 
 export enum SortDirectionEnum {
-  ASC = 'asc',
-  DESC = 'desc',
+  ASC = 'ASC',
+  DESC = 'DESC',
 }
 
 export class QueryFilterUtil {

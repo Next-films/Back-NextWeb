@@ -1,5 +1,6 @@
 import { Column, JoinTable, ManyToMany, PrimaryGeneratedColumn } from 'typeorm';
 import { Genre } from '@/movies/domain/genre.entity';
+import { RU_PG_COLLATION } from '@/common/constants/collation.constant';
 
 export class MovieEntity {
   @PrimaryGeneratedColumn()
@@ -11,13 +12,13 @@ export class MovieEntity {
   @Column()
   trailerUrl: string;
 
-  @Column()
+  @Column({ collation: RU_PG_COLLATION })
   title: string;
 
   @Column()
   originalTitle: string;
 
-  @Column()
+  @Column({ collation: RU_PG_COLLATION })
   description: string;
 
   @Column()

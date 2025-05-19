@@ -38,10 +38,13 @@ export class GetFilmsQueryHandler
   ): Promise<
     AppNotificationResult<PaginationUtil<FilmsOutputDto[]>, ErrorFieldExceptionDto | null>
   > {
-    const { page, size, sortField, sortDirection, searchName } = query.query;
+    const { page, size, sortField, sortDirection, searchName, searchGenreIds } = query.query;
     this.logger.log(`Get films command`, this.execute.name);
     try {
-      const totalCount = await this.filmQueryRepository.getFilmsCount(searchName || null);
+      const totalCount = await this.filmQueryRepository.getFilmsCount(
+        searchName || null,
+        searchGenreIds || null,
+      );
       const pagesCount = this.paginationUtil.calculatePageCount(totalCount, size);
 
       const isValidPage = this.paginationUtil.isValidPage(page, pagesCount, totalCount);
@@ -53,10 +56,15 @@ export class GetFilmsQueryHandler
           errorKey: EXCEPTION_KEYS_ENUM.INCORRECT_PAGE,
         });
 
+      const skip = this.paginationUtil.calculatePaginationSkip(page, size);
+
       const films = await this.filmQueryRepository.getFilms(
         sortField,
         sortDirection,
+        skip,
+        size,
         searchName || null,
+        searchGenreIds || null,
       );
 
       const result = this.paginationUtil.create(

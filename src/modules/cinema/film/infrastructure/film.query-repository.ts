@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { ILike, Repository } from 'typeorm';
+import { Brackets, Repository, SelectQueryBuilder } from 'typeorm';
 import { Film } from '@/films/domain/film.entity';
 import { SortDirectionEnum } from '@/common/utils/query-filter.util';
 import { GetFilmsSortFieldEnum } from '@/films/api/dtos/input/get-films.input-query';
@@ -9,14 +9,43 @@ import { GetFilmsSortFieldEnum } from '@/films/api/dtos/input/get-films.input-qu
 export class FilmQueryRepository {
   constructor(@InjectRepository(Film) private readonly filmRepository: Repository<Film>) {}
 
-  private getSearchFilmClause(searchName: string | null) {
-    return searchName
-      ? [
-          { title: ILike(`%${searchName}%`) },
-          { originalTitle: ILike(`%${searchName}%`) },
-          { alternativeTitles: ILike(`%${searchName}%`) },
-        ]
-      : {};
+  private getSearchFilmClause(
+    qb: SelectQueryBuilder<Film>,
+    searchName: string | null,
+    searchGenreIds: number[] | null,
+  ): SelectQueryBuilder<Film> {
+    if (searchGenreIds && searchGenreIds.length > 0) {
+      qb.where(qb => {
+        const subQuery = qb
+          .subQuery()
+          .select('f_sub.id')
+          .from(this.filmRepository.target, 'f_sub')
+          .innerJoin('f_sub.genres', 'ge')
+          .where('ge.id IN (:...searchGenreIds)', { searchGenreIds })
+          .getQuery();
+        return 'f.id IN ' + subQuery;
+      });
+    }
+
+    if (searchName) {
+      const searchValue = `%${searchName}%`;
+
+      const searchCondition = new Brackets(qb => {
+        qb.where('f.title ILIKE :search')
+          .orWhere('f.originalTitle ILIKE :search')
+          .orWhere('f.alternativeTitles ILIKE :search');
+      });
+
+      if (searchGenreIds && searchGenreIds.length > 0) {
+        qb.andWhere(searchCondition);
+      } else {
+        qb.where(searchCondition);
+      }
+
+      qb.setParameter('search', searchValue);
+    }
+
+    return qb;
   }
 
   async getFilmById(id: number): Promise<Film | null> {
@@ -26,21 +55,22 @@ export class FilmQueryRepository {
   async getFilms(
     sortField: GetFilmsSortFieldEnum,
     sortDirection: SortDirectionEnum,
+    skip: number,
+    take: number,
     searchName: string | null,
+    searchGenreIds: number[] | null,
   ): Promise<Film[] | null> {
-    const where = this.getSearchFilmClause(searchName);
+    let qb = this.filmRepository.createQueryBuilder('f').leftJoinAndSelect('f.genres', 'g');
+    qb = this.getSearchFilmClause(qb, searchName, searchGenreIds);
 
-    return this.filmRepository.find({
-      where,
-      relations: { genres: true },
-      order: { [sortField]: sortDirection },
-    });
+    qb.offset(skip).limit(take).orderBy(`f."${sortField}"`, sortDirection);
+    return qb.getMany();
   }
 
-  async getFilmsCount(searchName: string | null): Promise<number> {
-    const where = this.getSearchFilmClause(searchName);
-    const result = await this.filmRepository.count({ where });
-
+  async getFilmsCount(searchName: string | null, searchGenreIds: number[] | null): Promise<number> {
+    let qb = this.filmRepository.createQueryBuilder('f').leftJoinAndSelect('f.genres', 'g');
+    qb = this.getSearchFilmClause(qb, searchName, searchGenreIds);
+    const result = await qb.getCount();
     return result || 0;
   }
 }
