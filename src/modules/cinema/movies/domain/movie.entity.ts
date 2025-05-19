@@ -1,4 +1,4 @@
-import { Column, JoinTable, ManyToMany, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, PrimaryGeneratedColumn } from 'typeorm';
 import { Genre } from '@/movies/domain/genre.entity';
 import { RU_PG_COLLATION } from '@/common/constants/collation.constant';
 
@@ -42,7 +42,5 @@ export class MovieEntity {
   @Column({ type: 'date' })
   releaseDate: Date;
 
-  @ManyToMany(() => Genre, genre => genre.films, { cascade: true })
-  @JoinTable()
   genres: Genre[];
 }

@@ -13,6 +13,7 @@ export enum EXCEPTION_KEYS_ENUM {
   LOGIN_OR_PASSWORD_NOT_CORRECT = 'error.login_or_password_not_correct',
   UNAUTHORIZED = 'error.unauthorized',
   FILM_NOT_FOUND = 'error.film_not_found',
+  CARTOON_NOT_FOUND = 'error.cartoon_not_found',
   /*
    *
    * Input validation error
