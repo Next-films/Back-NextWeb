@@ -55,6 +55,10 @@ describe('Admin auth', () => {
     await migrationService.onModuleInit();
   });
 
+  afterAll(async () => {
+    await app.close();
+  });
+
   describe('Admin auth => Login', () => {
     it('Should login by main admin', async () => {
       const result = await request(app.getHttpServer())
