@@ -2,14 +2,12 @@ import 'reflect-metadata';
 import dataSource from '../data-source';
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { Column, JoinColumn, ManyToOne, QueryRunner } from 'typeorm';
+import { QueryRunner } from 'typeorm';
 import { Genre } from '@/movies/domain/genre.entity';
 import { Film } from '@/films/domain/film.entity';
 import { MovieDurationUtil } from '@/common/utils/movie-duration.util';
 import { Cartoon } from '@/cartoons/domain/cartoon.entity';
 import { Serial } from '@/serials/domain/serial.entity';
-import { SerialEpisode } from '@/serials/domain/serial-episode.entity';
-import { RU_PG_COLLATION } from '@/common/constants/collation.constant';
 
 type FilmJsonType = {
   id: string;
@@ -215,7 +213,6 @@ async function importSerials(queryRunner: QueryRunner): Promise<void> {
   for (const serialData of serials) {
     const {
       filtr,
-      subTitle,
       id,
       cardImg,
       date,
