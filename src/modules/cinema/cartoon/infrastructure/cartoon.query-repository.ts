@@ -63,7 +63,7 @@ export class CartoonQueryRepository {
     let qb = this.cartoonRepository.createQueryBuilder('f').leftJoinAndSelect('f.genres', 'g');
     qb = this.getSearchCartoonClause(qb, searchName, searchGenreIds);
 
-    qb.offset(skip).limit(take).orderBy(`f."${sortField}"`, sortDirection);
+    qb.skip(skip).take(take).orderBy(`f.${sortField}`, sortDirection);
     return qb.getMany();
   }
 

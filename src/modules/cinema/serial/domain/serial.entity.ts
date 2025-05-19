@@ -1,7 +1,7 @@
-import {Column, Entity, JoinTable, ManyToMany, OneToMany, PrimaryGeneratedColumn} from 'typeorm';
+import { Column, Entity, JoinTable, ManyToMany, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
 import { Genre } from '@/movies/domain/genre.entity';
 import { RU_PG_COLLATION } from '@/common/constants/collation.constant';
-import {SerialEpisode} from "@/serials/domain/serial-episode.entity";
+import { SerialEpisode } from '@/serials/domain/serial-episode.entity';
 
 @Entity()
 export class Serial {
@@ -42,6 +42,6 @@ export class Serial {
   @JoinTable()
   genres: Genre[];
 
-  @OneToMany(()=> SerialEpisode, episode => episode.serial, { cascade: true })
+  @OneToMany(() => SerialEpisode, episode => episode.serial, { cascade: true })
   episodes: SerialEpisode[];
 }

@@ -49,7 +49,10 @@ export class FilmQueryRepository {
   }
 
   async getFilmById(id: number): Promise<Film | null> {
-    return this.filmRepository.findOne({ where: { id }, relations: { genres: true } });
+    return this.filmRepository.findOne({
+      where: { id },
+      relations: { genres: true },
+    });
   }
 
   async getFilms(
@@ -63,7 +66,8 @@ export class FilmQueryRepository {
     let qb = this.filmRepository.createQueryBuilder('f').leftJoinAndSelect('f.genres', 'g');
     qb = this.getSearchFilmClause(qb, searchName, searchGenreIds);
 
-    qb.offset(skip).limit(take).orderBy(`f."${sortField}"`, sortDirection);
+    qb.orderBy(`f.${sortField}`, sortDirection).skip(skip).take(take);
+
     return qb.getMany();
   }
 

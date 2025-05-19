@@ -4,19 +4,19 @@ import { Brackets, Repository, SelectQueryBuilder } from 'typeorm';
 import { SortDirectionEnum } from '@/common/utils/query-filter.util';
 import { GetSerialSortFieldEnum } from '@/serials/api/dtos/input/get-serial.input-query';
 import { Serial } from '@/serials/domain/serial.entity';
-import {SerialEpisode} from "@/serials/domain/serial-episode.entity";
+import { SerialEpisode } from '@/serials/domain/serial-episode.entity';
 
 @Injectable()
 export class SerialQueryRepository {
   constructor(
-      @InjectRepository(Serial) private readonly serialRepository: Repository<Serial>,
-      @InjectRepository(SerialEpisode) private readonly episodeRepository: Repository<SerialEpisode>) {
-  }
+    @InjectRepository(Serial) private readonly serialRepository: Repository<Serial>,
+    @InjectRepository(SerialEpisode) private readonly episodeRepository: Repository<SerialEpisode>,
+  ) {}
 
   private getSearchSerialClause(
-      qb: SelectQueryBuilder<Serial>,
-      searchName: string | null,
-      searchGenreIds: number[] | null,
+    qb: SelectQueryBuilder<Serial>,
+    searchName: string | null,
+    searchGenreIds: number[] | null,
   ): SelectQueryBuilder<Serial> {
     if (searchGenreIds && searchGenreIds.length > 0) {
       qb.where(qb => {
@@ -79,9 +79,9 @@ export class SerialQueryRepository {
     qb.leftJoin(`f.episodes`, 'e')
       .addSelect('e.id')
       .groupBy('f.id, g.id, e.id')
-      .offset(skip)
-      .limit(take)
-      .orderBy(`f."${sortField}"`, sortDirection);
+      .skip(skip)
+      .take(take)
+      .orderBy(`f.${sortField}`, sortDirection);
 
     return qb.getMany();
   }
