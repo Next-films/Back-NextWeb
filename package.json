@@ -19,7 +19,8 @@
     "test:e2e": "ENV=TEST jest -i --config src/test/jest-e2e.json",
     "generate-migragion": "ts-node ./src/migrations/generate-migration.ts",
     "apply-migration": "typeorm-ts-node-commonjs migration:run -d ./src/migrations/data-source.ts",
-    "rollback-migration": "typeorm-ts-node-commonjs migration:revert -d ./src/migrations/data-source.ts"
+    "rollback-migration": "typeorm-ts-node-commonjs migration:revert -d ./src/migrations/data-source.ts",
+    "migrate-movies": "ts-node -r tsconfig-paths/register ./src/migrations/data-migration/generate-movies.ts"
   },
   "dependencies": {
     "@nestjs/common": "11.1.1",
