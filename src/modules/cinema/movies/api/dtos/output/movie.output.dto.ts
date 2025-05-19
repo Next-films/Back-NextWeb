@@ -2,6 +2,15 @@ import { Injectable } from '@nestjs/common';
 import { ApiProperty } from '@nestjs/swagger';
 import { MovieEntity } from '@/movies/domain/movie.entity';
 import { MovieDurationUtil } from '@/common/utils/movie-duration.util';
+import { Genre } from '@/movies/domain/genre.entity';
+
+class MovieGenreOutputDto {
+  @ApiProperty()
+  id: number;
+
+  @ApiProperty()
+  name: string;
+}
 
 export class MovieOutputDto {
   @ApiProperty()
@@ -31,8 +40,8 @@ export class MovieOutputDto {
   @ApiProperty()
   releaseDate: Date;
 
-  @ApiProperty()
-  genres: string[];
+  @ApiProperty({ type: MovieGenreOutputDto, isArray: true })
+  genres: MovieGenreOutputDto[];
 
   @ApiProperty()
   duration: number;
@@ -43,18 +52,25 @@ export class MovieOutputDto {
 
 @Injectable()
 export class MovieOutputDtoMapper {
-  private mapSubtitle(releaseDate: Date, genres: string[], duration: number): string {
+  private mapSubtitle(releaseDate: Date, genres: string, duration: number): string {
     const date = new Date(releaseDate);
     const year = date.getFullYear();
 
-    const genreString = genres.join('/');
     const durationString = MovieDurationUtil.formatDuration(duration);
 
-    return `${year} г. ‧ ${genreString} ‧ ${durationString}`;
+    return `${year} г. ‧ ${genres} ‧ ${durationString}`;
+  }
+
+  private mapMovieGenres(genres: Genre[] = []): MovieGenreOutputDto[] {
+    return genres.map(({ id, name }) => ({ id, name }));
+  }
+
+  private formatGenresString(genres: Genre[] = []): string {
+    return genres.map(g => g.name.charAt(0).toUpperCase() + g.name.slice(1)).join('/');
   }
 
   mapMovie(movie: MovieEntity): MovieOutputDto {
-    const genres = movie.genres?.map(g => g.name.charAt(0).toUpperCase() + g.name.slice(1)) || [];
+    const genres = movie.genres ?? [];
 
     return {
       id: movie.id,
@@ -64,9 +80,13 @@ export class MovieOutputDtoMapper {
       cardImg: movie.cardImg,
       description: movie.description,
       trailerUrl: movie.trailerUrl,
-      subTitle: this.mapSubtitle(movie.releaseDate, genres, movie.duration),
+      subTitle: this.mapSubtitle(
+        movie.releaseDate,
+        this.formatGenresString(genres),
+        movie.duration,
+      ),
       titleImg: movie.titleImg,
-      genres,
+      genres: this.mapMovieGenres(genres),
       country: movie.country,
       duration: movie.duration,
     };
