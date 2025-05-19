@@ -4,7 +4,7 @@ import { MovieEntity } from '@/movies/domain/movie.entity';
 import { MovieDurationUtil } from '@/common/utils/movie-duration.util';
 import { Genre } from '@/movies/domain/genre.entity';
 
-class MovieGenreOutputDto {
+export class MovieGenreOutputDto {
   @ApiProperty()
   id: number;
 
@@ -61,11 +61,11 @@ export class MovieOutputDtoMapper {
     return `${year} г. ‧ ${genres} ‧ ${durationString}`;
   }
 
-  private mapMovieGenres(genres: Genre[] = []): MovieGenreOutputDto[] {
+  protected mapMovieGenres(genres: Genre[] = []): MovieGenreOutputDto[] {
     return genres.map(({ id, name }) => ({ id, name }));
   }
 
-  private formatGenresString(genres: Genre[] = []): string {
+  protected formatGenresString(genres: Genre[] = []): string {
     return genres.map(g => g.name.charAt(0).toUpperCase() + g.name.slice(1)).join('/');
   }
 

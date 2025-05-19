@@ -14,6 +14,8 @@ export enum EXCEPTION_KEYS_ENUM {
   UNAUTHORIZED = 'error.unauthorized',
   FILM_NOT_FOUND = 'error.film_not_found',
   CARTOON_NOT_FOUND = 'error.cartoon_not_found',
+  SERIAL_NOT_FOUND = 'error.serial_not_found',
+  EPISODE_NOT_FOUND = 'error.episode_not_found',
   /*
    *
    * Input validation error
@@ -29,4 +31,7 @@ export enum EXCEPTION_KEYS_ENUM {
   username = 'error_input.username',
   name = 'error_input.name',
   filmId = 'error_input.filmId',
+  serialId = 'error_input.serialId',
+  cartoonId = 'error_input.cartoonId',
+  episodeId = 'error_input.episodeId',
 }

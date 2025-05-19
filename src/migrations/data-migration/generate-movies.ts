@@ -2,11 +2,14 @@ import 'reflect-metadata';
 import dataSource from '../data-source';
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { QueryRunner } from 'typeorm';
+import { Column, JoinColumn, ManyToOne, QueryRunner } from 'typeorm';
 import { Genre } from '@/movies/domain/genre.entity';
 import { Film } from '@/films/domain/film.entity';
 import { MovieDurationUtil } from '@/common/utils/movie-duration.util';
 import { Cartoon } from '@/cartoons/domain/cartoon.entity';
+import { Serial } from '@/serials/domain/serial.entity';
+import { SerialEpisode } from '@/serials/domain/serial-episode.entity';
+import { RU_PG_COLLATION } from '@/common/constants/collation.constant';
 
 type FilmJsonType = {
   id: string;
@@ -26,6 +29,28 @@ type FilmJsonType = {
 };
 
 type CartoonsJsonType = FilmJsonType;
+
+type SerialEpisodeType = {
+  videoUrl: string;
+  previewUrl: string;
+};
+
+type SerialsJsonType = FilmJsonType & {
+  id: string;
+  backgroundImg: string;
+  cardImg: string;
+  description: string;
+  subTitle: string;
+  title: string;
+  titleImg: string;
+  type: string;
+  ads: string;
+  trailer: string;
+  name: string;
+  filtr: string[];
+  date: string;
+  films: SerialEpisodeType[];
+};
 
 function parseDate(dateStr: string): Date {
   const [day, month, year] = dateStr.split('/').map(Number);
@@ -67,6 +92,7 @@ async function importMovies() {
 
     await importFilms(queryRunner);
     await importCartoons(queryRunner);
+    await importSerials(queryRunner);
 
     await queryRunner.commitTransaction();
     console.log('=>Commit transaction');
@@ -177,6 +203,61 @@ async function importCartoons(queryRunner: QueryRunner): Promise<void> {
   }
 
   console.log('=>All cartoons have been saved!');
+}
+
+async function importSerials(queryRunner: QueryRunner): Promise<void> {
+  console.log('=>Serials import');
+
+  const serialsFilePath = path.resolve(__dirname, './data/serials.json');
+  const jsonData = await fs.readFile(serialsFilePath, 'utf-8');
+  const serials: SerialsJsonType[] = JSON.parse(jsonData);
+
+  for (const serialData of serials) {
+    const {
+      filtr,
+      subTitle,
+      id,
+      cardImg,
+      date,
+      titleImg,
+      title,
+      backgroundImg,
+      name,
+      films,
+      trailer,
+      description,
+    } = serialData;
+    const genres = await getGenres(queryRunner, filtr);
+
+    const serial = queryRunner.manager.create(Serial, {
+      country: ['Неизвестно'],
+      titleImg,
+      title,
+      originalTitle: id,
+      cardImg,
+      releaseDate: parseDate(date),
+      backgroundImg,
+      alternativeTitles: name,
+      trailerUrl: trailer,
+      description,
+      genres,
+      episodes: films.map((e, i) => {
+        return {
+          title: `Эпизод ${i + 1}`,
+          originalTitle: id,
+          description,
+          previewUrl: e.previewUrl,
+          releaseDate: parseDate(date),
+          videoUrl: e.videoUrl,
+          duration: 0,
+        };
+      }),
+    });
+
+    await queryRunner.manager.save(Serial, serial);
+  }
+
+  console.log('=>All serials have been saved!');
 }
 
 importMovies();

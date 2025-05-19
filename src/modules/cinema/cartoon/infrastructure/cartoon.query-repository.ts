@@ -7,7 +7,7 @@ import { GetCartoonSortFieldEnum } from '@/cartoons/api/dtos/input/get-cartoon.i
 
 @Injectable()
 export class CartoonQueryRepository {
-  constructor(@InjectRepository(Cartoon) private readonly filmRepository: Repository<Cartoon>) {}
+  constructor(@InjectRepository(Cartoon) private readonly cartoonRepository: Repository<Cartoon>) {}
 
   private getSearchCartoonClause(
     qb: SelectQueryBuilder<Cartoon>,
@@ -19,7 +19,7 @@ export class CartoonQueryRepository {
         const subQuery = qb
           .subQuery()
           .select('f_sub.id')
-          .from(this.filmRepository.target, 'f_sub')
+          .from(this.cartoonRepository.target, 'f_sub')
           .innerJoin('f_sub.genres', 'ge')
           .where('ge.id IN (:...searchGenreIds)', { searchGenreIds })
           .getQuery();
@@ -49,7 +49,7 @@ export class CartoonQueryRepository {
   }
 
   async getCartoonById(id: number): Promise<Cartoon | null> {
-    return this.filmRepository.findOne({ where: { id }, relations: { genres: true } });
+    return this.cartoonRepository.findOne({ where: { id }, relations: { genres: true } });
   }
 
   async getCartoons(
@@ -60,7 +60,7 @@ export class CartoonQueryRepository {
     searchName: string | null,
     searchGenreIds: number[] | null,
   ): Promise<Cartoon[] | null> {
-    let qb = this.filmRepository.createQueryBuilder('f').leftJoinAndSelect('f.genres', 'g');
+    let qb = this.cartoonRepository.createQueryBuilder('f').leftJoinAndSelect('f.genres', 'g');
     qb = this.getSearchCartoonClause(qb, searchName, searchGenreIds);
 
     qb.offset(skip).limit(take).orderBy(`f."${sortField}"`, sortDirection);
@@ -71,7 +71,7 @@ export class CartoonQueryRepository {
     searchName: string | null,
     searchGenreIds: number[] | null,
   ): Promise<number> {
-    let qb = this.filmRepository.createQueryBuilder('f').leftJoinAndSelect('f.genres', 'g');
+    let qb = this.cartoonRepository.createQueryBuilder('f').leftJoinAndSelect('f.genres', 'g');
     qb = this.getSearchCartoonClause(qb, searchName, searchGenreIds);
     const result = await qb.getCount();
     return result || 0;
