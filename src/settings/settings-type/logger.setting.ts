@@ -1,8 +1,11 @@
 import { EnvironmentVariable } from '@/settings/configuration';
-import { IsString } from 'class-validator';
+import { IsBoolean, IsString } from 'class-validator';
 
 export class LoggerSettings {
   constructor(private environmentVariables: EnvironmentVariable) {}
+
+  @IsBoolean()
+  LOGGING: boolean = this.environmentVariables.LOGGING === 'true';
 
   @IsString()
   LOGGER_HOST: string = this.environmentVariables.LOGGER_HOST;

@@ -12,7 +12,9 @@ export class RequestsContextMiddleware implements NestMiddleware {
   use(req: Request, res: Response, next: NextFunction): void {
     let requestId = req.headers['x-request-id'] as string;
     const date: Date = new Date();
-    const format: string = `${date.getDate()}-${date.getMonth() + 1}-${date.getFullYear()}-${date.getHours()}-${date.getMinutes()}-${date.getSeconds()}`;
+    const format: string = `${date.getDate()}-${
+      date.getMonth() + 1
+    }-${date.getFullYear()}-${date.getHours()}-${date.getMinutes()}-${date.getSeconds()}`;
     if (!requestId) {
       requestId = `${format}-${randomUUID()}`;
       req.headers['x-request-id'] = requestId;

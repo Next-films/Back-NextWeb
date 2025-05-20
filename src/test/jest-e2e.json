@@ -21,6 +21,16 @@
   "testEnvironment": "node",
   "moduleNameMapper": {
     "@/common/(.*)$": "<rootDir>/common/$1",
-    "@/settings/(.*)$": "<rootDir>/settings/$1"
+    "@/settings/(.*)$": "<rootDir>/settings/$1",
+    "@/films/(.*)$": "<rootDir>/modules/cinema/film/$1",
+    "@/cartoons/(.*)$": "<rootDir>/modules/cinema/cartoon/$1",
+    "@/serials/(.*)$": "<rootDir>/modules/cinema/serial/$1",
+    "@/movies/(.*)$": "<rootDir>/modules/cinema/movies/$1",
+    "@/data-migrations/(.*)$": "<rootDir>/migrations/data-migration/$1",
+    "@/admin/(.*)$": "<rootDir>/modules/admin/$1",
+    "@/bcrypt-module/(.*)$": "<rootDir>/modules/bcrypt/$1",
+    "@/admin-auth/(.*)$": "<rootDir>/modules/auth/admin/$1",
+    "@/sessions/(.*)$": "<rootDir>/modules/auth/session/$1",
+    "@/jwt-module/(.*)$": "<rootDir>/modules/jwt/$1"
   }
 }

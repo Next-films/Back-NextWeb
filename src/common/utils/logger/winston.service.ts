@@ -47,13 +47,12 @@ export class WinstonService {
       ),
     });
 
-    const transports: Transport[] = []; // An array of transportites that will be used for logging
+    const transports: Transport[] = [];
 
     if (!isProduction) {
       transports.push(consoleTransport);
     }
 
-    // In a production environment, you can add additional transports
     if (isProduction) {
       // const httpTransport: HttpTransportInstance = new winston.transports.Http({
       //   host: loggerSettings.HOST,
@@ -63,7 +62,6 @@ export class WinstonService {
       // transports.push(httpTransport);
     }
 
-    // Create a logger with the specified logging levels and protractors
     this.logger = winston.createLogger({
       format: winston.format.timestamp({ format: timeFormat }),
       level: 'trace',
@@ -113,21 +111,6 @@ export class WinstonService {
     stack?: string,
   ) {
     this.logger.error(message, {
-      sourceName,
-      functionName,
-      requestId,
-      stack,
-    });
-  }
-
-  fatal(
-    message: string,
-    requestId: string | null,
-    functionName?: string,
-    sourceName?: string,
-    stack?: string,
-  ) {
-    this.logger.log('fatal', message, {
       sourceName,
       functionName,
       requestId,
