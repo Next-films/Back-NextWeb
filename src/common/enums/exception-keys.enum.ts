@@ -35,4 +35,7 @@ export enum EXCEPTION_KEYS_ENUM {
   serialId = 'error_input.serial_id',
   cartoonId = 'error_input.cartoon_id',
   episodeId = 'error_input.episode_id',
+  email_password = 'error_input.email_password',
+  token = 'error_input.token',
+  genreId = 'error_input.genreId',
 }

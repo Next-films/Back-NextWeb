@@ -9,7 +9,7 @@ export function SwaggerDecoratorGetAllGenre(): MethodDecorator {
     ApiOperation({ summary: 'Get all genres' }),
     ApiOkResponsePaginated(GenreOutputDto),
     ApiBadRequestResponse({
-      description: 'Bad input data or genre already exists',
+      description: 'Bad input data',
       type: RequestExceptionDto,
     }),
   );
