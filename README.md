@@ -1,73 +1,334 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="200" alt="Nest Logo" /></a>
-</p>
+# 🎬 Backend - Next films
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+Это серверное приложение разработано с использованием фреймворка [NestJS](https://nestjs.com/).
+Используется пакетный менеджер `yarn`.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://coveralls.io/github/nestjs/nest?branch=master" target="_blank"><img src="https://coveralls.io/repos/github/nestjs/nest/badge.svg?branch=master#9" alt="Coverage" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+---
 
-## Description
+## 🚀 Быстрый старт
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+1. Установите зависимости.
 
-## Installation
+2. Укажите необходимые **env** в файл **.env.dev**. 
 
+_Смотреть пример актульаной версии env в .env.example_
+3. Запустите приложение в режиме разработки:
 ```bash
-$ yarn install
+yarn start:dev
 ```
 
-## Running the app
+---
 
+## 🧹 Форматирование кода
+
+Перед пушем изменений запускайте:
 ```bash
-# development
-$ yarn run start
+yarn lint
+```
+Это гарантирует соблюдение общего кодстайла проекта.
 
-# watch mode
-$ yarn run start:dev
+---
 
-# production mode
-$ yarn run start:prod
+## ⚙️ Работа с ENV
+
+При добавлении новых переменных окружения:
+
+- Обязательно добавляйте их в `.env.example`
+- Если переменная нужна при тестировании — дублируйте её в `.env.test`
+- Используйте разные `.env` файлы для разных окружений
+- Для запуска всех тестов используйте:
+```bash
+yarn test
+```
+⚠️ Желательно использовать **локальную БД** при тестах, чтобы избежать случайного удаления данных на удалённой базе.
+
+**Важно:**  
+Используйте конфигурационный модуль NestJS (`@nestjs/config`) вместо прямого обращения к `process.env`.
+
+✅ Используйте:
+```ts
+class ExampleClas {
+    private readonly admin_salt_round: number;
+    private readonly apiSettings: ApiSettingsType;
+    constructor(private readonly configService: ConfigService<ConfigurationType, true>) {
+        const businessRules = this.configService.get('businessRulesSettings', { infer: true });
+        this.apiSettings = this.configService.get('apiSettings', { infer: true });
+        this.admin_salt_round = businessRules.ADMIN_HASH_SALT_ROUND;
+    }
+}
 ```
 
-## Test
-
-```bash
-# unit tests
-$ yarn run test
-
-# e2e tests
-$ yarn run test:e2e
-
-# test coverage
-$ yarn run test:cov
+❌ Не используйте:
+```ts
+class ExampleClas {
+    private readonly admin_salt_round: process.env.ADMIN_HASH_SALT_ROUND;
+    constructor() {}
+}
 ```
 
-## Support
+Также не забывайте обновлять конфигурационные файлы при добавлении новых ENV.
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+---
 
-## Stay in touch
+## 📥 Обработка данных и ошибок
 
-- Author - [Kamil Myśliwiec](https://kamilmysliwiec.com)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+При добавлении:
 
-## License
+- input моделей
+- строковых параметров
+- новых ошибок
 
-Nest is [MIT licensed](LICENSE).
+обязательно добавляйте соответствующие ключи в `exception-keys.enum.ts`. Это позволяет фронтенду ориентироваться на ключи, а не на строки, и делает API стабильным при изменениях текста ошибок.
+
+---
+
+## 📦 Работа с модулями и провайдерами
+
+**Важно:**  
+При использовании провайдера из одного модуля в другом:
+
+✅ Правильно:
+- Экспортировать провайдер в `ModuleA`
+- Импортировать `ModuleA` в `ModuleB`
+
+❌ Неправильно:
+- Импортировать класс провайдера напрямую — это приведёт к созданию нового экземпляра, что нежелательно.
+
+---
+
+## 🎲 Генерация тестовых данных
+
+Для генерации тестовых данных (фильмы, сериалы, мультфильмы):
+
+```bash
+yarn migrate-movies
+```
+---
+
+# 📬 Работа между сервисами — используем appNotification, а не throw
+В проекте принят единый подход обработки ошибок и результатов с помощью класса ApplicationNotification.
+Это улучшает читаемость, контроль бизнес-логики и предсказуемость ответа API.
+
+❌ Не делаем так:
+```ts
+    if (!user) {
+        throw new Error('User not found'); // ❌ — бросает сырую ошибку
+    }
+```
+
+✅ Правильный подход:
+1. Вся бизнес-логика обрабатывается в команде (CommandHandler)
+
+2. Вместо throw возвращается структурированный результат через appNotification
+
+3. Контроллер получает единый формат результата и сам решает, как его обработать
+
+🔧 Пример:
+```ts
+class Auth {
+    @Post('/login')
+    async login(@Body() input: LoginInputModel): Promise<LoginOutputModel | void> {
+        const result = await this.commandBus.execute(new LoginCommand(input));
+
+        if (result.appResult === AppNotificationResultEnum.Success) {
+            return result.data;
+        }
+
+        this.appNotification.handleHttpResult(result); // Возвращает корректный HTTP-ответ с ошибкой
+    } 
+}
+```
+
+Обработчик команды
+```ts
+@CommandHandler(LoginCommand)
+export class LoginHandler implements ICommandHandler<LoginCommand, AppNotificationResult<void>> {
+    constructor(
+        private readonly appNotification: ApplicationNotification,
+        //...
+    ) {}
+
+    async execute(command: LoginCommand): Promise<AppNotificationResult<void>> {
+        try {
+            const user = await this.userRepo.findByEmail(command.email);
+
+            if (!user) {
+                return this.appNotification.notFound({
+                    field: 'email',
+                    message: 'User not found',
+                    errorKey: EXCEPTION_KEYS_ENUM.USER_NOT_FOUND,
+                });
+            }
+            return this.appNotification.success();
+        } catch (e) {
+            this.logger.error(e, this.execute.name); // Логируем ошибку
+            return this.appNotification.internalServerError()
+        }
+    }
+}
+```
+
+💡 Зачем это нужно:
+🔄 Единый способ возврата ошибок и успешных данных
+
+🧪 Удобство в тестировании и мокинге
+
+🚦 Гибкость в контроллерах — мы не "вылетаем" из метода
+
+🔐 Больше контроля и читаемости бизнес-логики
+
+
+---
+
+## 🪵 Логгирование: обязательная часть новой функциональности
+Для удобства отладки и аудита выполнения кода обязательно добавляйте логгирование при создании новых контроллеров, обработчиков команд, сервисов и других элементов бизнес-логики.
+
+### 📌 Общие рекомендации:
+
+Используйте **LoggerService** и задавайте контекст через **setContext(...)**
+
+Логируйте ключевые действия: **вход в метод, вызов команды, результат выполнения, ошибки**
+
+Для ошибок используйте **logger.error(...)** с передачей ошибки и названия метода
+
+**_Не логируйте чувствительные данные (например, пароли)_**
+
+✅ auth.controller.ts:
+```ts
+import { LoggerService } from '@/common/utils/logger/logger.service';
+
+@Controller(ADMIN_AUTH_ROUTES.MAIN)
+export class AdminAuthController {
+    constructor(
+        private readonly logger: LoggerService,
+    ) {
+        this.logger.setContext(AdminAuthController.name); // Устанавливаем контекст
+    }
+
+    @Post(ADMIN_AUTH_ROUTES.LOGIN)
+    async login(@Body() body: AdminLoginInputModel): Promise<void> {
+        this.logger.log('Execute: login', this.login.name); // Логируем вызов метода
+            //...
+        this.logger.log(result.appResult, this.login.name); // Логируем результат
+    }
+}
+```
+
+✅ login.handler.ts:
+```ts
+import { LoggerService } from '@/common/utils/logger/logger.service';
+
+@CommandHandler(AdminLoginCommand)
+export class AdminLoginHandler implements ICommandHandler<void> {
+    constructor(
+        private readonly logger: LoggerService,
+        //...
+    ) {
+        this.logger.setContext(AdminLoginCommand.name); // Контекст команды
+    }
+
+    async execute(command: AdminLoginCommand): Promise<void> {
+        this.logger.log('Login admin command', this.execute.name); // Логируем старт
+        try {
+            //...
+        } catch (e) {
+            this.logger.error(e, this.execute.name); // Логируем ошибку
+        }
+    }
+}
+```
+
+---
+
+## 🧭 Добавление новых модулей: не забывай про алиасы
+При добавлении новых модулей бизнес-логики обязательно прописывайте алиасы путей для корректной работы импорта в проекте, тестах и IDE.
+
+Это позволяет:
+
+🔍 Упростить чтение кода и импорты (@/films/film.service вместо ../../../../modules/cinema/film/film.service)
+
+✅ Избежать проблем в тестах (jest использует moduleNameMapper)
+
+⚙️ Где нужно настраивать алиасы?
+
+**1. tsconfig.json**
+
+```json
+{
+       "compilerOptions": {
+       ...
+       "paths": {
+           "@/common/*": ["common/*"],
+           "@/settings/*": ["settings/*"],
+           "@/films/*": ["modules/cinema/film/*"],
+           "@/cartoons/*": ["modules/cinema/cartoon/*"],
+           "@/serials/*": ["modules/cinema/serial/*"],
+           "@/movies/*": ["modules/cinema/movies/*"]
+       }
+    }
+}
+```
+**2. package.json (раздел jest > moduleNameMapper)**
+```json
+   "jest": {
+        ...
+       "moduleNameMapper": {
+           "@/common/(.*)$": "<rootDir>/common/$1",
+           "@/settings/(.*)$": "<rootDir>/settings/$1",
+           "@/films/(.*)$": "<rootDir>/modules/cinema/film/$1",
+           "@/cartoons/(.*)$": "<rootDir>/modules/cinema/cartoon/$1",
+           "@/serials/(.*)$": "<rootDir>/modules/cinema/serial/$1",
+           "@/movies/(.*)$": "<rootDir>/modules/cinema/movies/$1"
+       }
+   }
+```
+**3. jest-e2e.json**
+```json
+   {
+        ...
+       "moduleNameMapper": {
+           "@/common/(.*)$": "<rootDir>/common/$1",
+           "@/settings/(.*)$": "<rootDir>/settings/$1",
+           "@/films/(.*)$": "<rootDir>/modules/cinema/film/$1",
+           "@/cartoons/(.*)$": "<rootDir>/modules/cinema/cartoon/$1",
+           "@/serials/(.*)$": "<rootDir>/modules/cinema/serial/$1",
+           "@/movies/(.*)$": "<rootDir>/modules/cinema/movies/$1"
+       }
+   }
+```
+_**При добавлении нового модуля: сразу заводите алиас.**_
+
+_Следите, чтобы все три файла были синхронизированы (tsconfig.json, package.json, jest-e2e.json)_
+
+_Проверяйте сборку и запуск тестов после изменений_
+
+📌 **Важно: несоблюдение этих правил может привести к сбоям при запуске Jest, ESLint и даже самой сборки проекта.**
+
+---
+
+## 💡 Рекомендации
+
+- Соблюдайте единый стиль написания кода
+- Используйте типизацию и DTO для всех входящих данных
+- Покрывайте функциональность тестами, особенно при работе с критичными модулями
+- Не забывайте про читаемость: пишем код для людей, а не только для компилятора 😊
+
+---
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
