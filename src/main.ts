@@ -16,6 +16,8 @@ async function bootstrap(): Promise<void> {
   await applySettings(app);
   await app.listen(PORT || 4000);
 
+  console.log('TEST');
+
   logger.setContext('App');
   logger.log(`App started on port ${PORT}`, bootstrap.name);
 }
