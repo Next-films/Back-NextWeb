@@ -21,7 +21,7 @@
     "apply-migration": "typeorm-ts-node-commonjs migration:run -d ./src/migrations/data-source.ts",
     "rollback-migration": "typeorm-ts-node-commonjs migration:revert -d ./src/migrations/data-source.ts",
     "migrate-movies": "ts-node -r tsconfig-paths/register ./src/migrations/data-migration/generate-movies.ts",
-    "prepare": "[ \"$NODE_ENV\" != \"production\" ] && husky init || echo 'Skipping husky install in production'"
+    "prepare": "[ \"$NODE_ENV\" != \"PRODUCTION\" ] && husky || echo 'Skipping husky install in production'"
   },
   "lint-staged": {
     "**/*.ts": [
