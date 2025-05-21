@@ -20,7 +20,17 @@
     "generate-migragion": "ts-node ./src/migrations/generate-migration.ts",
     "apply-migration": "typeorm-ts-node-commonjs migration:run -d ./src/migrations/data-source.ts",
     "rollback-migration": "typeorm-ts-node-commonjs migration:revert -d ./src/migrations/data-source.ts",
-    "migrate-movies": "ts-node -r tsconfig-paths/register ./src/migrations/data-migration/generate-movies.ts"
+    "migrate-movies": "ts-node -r tsconfig-paths/register ./src/migrations/data-migration/generate-movies.ts",
+    "prepare": "[ \"$NODE_ENV\" != \"production\" ] && husky init || echo 'Skipping husky install in production'"
+  },
+  "lint-staged": {
+    "**/*.ts": [
+      "eslint --fix --color",
+      "prettier --ignore-path ./.prettierignore --write"
+    ],
+    "packages/**/*.json": [
+      "prettier --ignore-path ./.prettierignore --write"
+    ]
   },
   "dependencies": {
     "@nestjs/common": "11.1.1",
@@ -62,7 +72,9 @@
     "eslint": "9.18.0",
     "eslint-config-prettier": "10.0.1",
     "eslint-plugin-prettier": "5.2.2",
+    "husky": "9.1.7",
     "jest": "29.5.0",
+    "lint-staged": "16.0.0",
     "prettier": "3.0.0",
     "source-map-support": "0.5.21",
     "supertest": "7.0.0",
