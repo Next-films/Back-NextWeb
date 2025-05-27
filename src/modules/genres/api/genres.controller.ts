@@ -1,6 +1,6 @@
 import { Controller, Patch, Param, Body, ParseIntPipe } from '@nestjs/common';
-import { GenresService } from './genres.service';
-import { UpdateGenreDto } from './dto/update-genre.dto';
+import { GenresService } from '../genres.service';
+import { UpdateGenreDto } from './dtos/update-genre.dto';
 
 @Controller('genres')
 export class GenresController {
