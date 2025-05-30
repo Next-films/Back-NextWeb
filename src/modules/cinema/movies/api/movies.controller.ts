@@ -1,4 +1,4 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, Query, Patch, Param, Body, ParseIntPipe } from '@nestjs/common';
 import { MOVIES_ROUTE } from '@/common/constants/route.constants';
 import {
   ApplicationNotification,
@@ -14,6 +14,8 @@ import { PaginationUtil } from '@/common/utils/pagination.util';
 import { GetAllGenreQuery } from '@/movies/application/query-handlers/get-all-genre.query-handler';
 import { GetAllGenreInputQueryDto } from '@/movies/api/dtos/input/get-all-genre.input-query.dto';
 import { ApiTags } from '@nestjs/swagger';
+import { MoviesService } from '../movies.service';
+import { UpdateMovieDto } from './dtos/output/update-movie.output.dto';
 
 @ApiTags('Public - movies')
 @Controller(MOVIES_ROUTE.MAIN)
@@ -24,6 +26,15 @@ export class MoviesController {
     private readonly logger: LoggerService,
   ) {
     this.logger.setContext(MoviesController.name);
+  }
+
+  @Patch(':id')
+  async updateMovie(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateMovieDto,
+  ) {
+    const updated = await this.moviesService.update(id, dto);
+    return this.movieOutputDtoMapper.mapMovie(updated);
   }
 
   @Get(MOVIES_ROUTE.GENRE)
