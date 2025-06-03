@@ -1,6 +1,7 @@
 import { Column, JoinTable, ManyToMany, PrimaryGeneratedColumn } from 'typeorm';
 import { RU_PG_COLLATION } from '@/common/constants/collation.constant';
 import { GenreEntity } from 'modules/genres/domain/genre.entity';
+import { EpisodeEntity } from 'modules/episodes/domain/episode.entity';
 
 export class MovieEntity {
   @PrimaryGeneratedColumn()
@@ -45,4 +46,5 @@ export class MovieEntity {
   @ManyToMany(() => GenreEntity, (genre) => genre.movies, { cascade: true })
   @JoinTable()
   genres: GenreEntity[];
+  episodes: EpisodeEntity[];
 }
