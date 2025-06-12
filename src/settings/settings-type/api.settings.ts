@@ -27,4 +27,7 @@ export class ApiSettings {
 
   @IsString()
   ADMIN_REFRESH_JWT_SECRET: string = this.environmentVariables.ADMIN_REFRESH_JWT_SECRET;
+
+  @IsString()
+  EXTERNAL_ACCESS_JWT_SECRET: string = this.environmentVariables.EXTERNAL_ACCESS_JWT_SECRET;
 }

@@ -1,4 +1,4 @@
 export class JWTTokenOptions {
   secret: string;
-  expiresIn: string;
+  expiresIn?: string | number;
 }

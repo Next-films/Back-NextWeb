@@ -6,7 +6,7 @@ module.exports = {
     sourceType: 'module',
     tsconfigRootDir: __dirname,
   },
-  ignorePatterns: ['/*.*'],
+  ignorePatterns: ['/*.*', '.eslintrc.js'],
   plugins: ['@typescript-eslint/eslint-plugin', 'prettier', 'unicorn', 'import', 'no-secrets','simple-import-sort'],
   extends: [
     "eslint:recommended",
@@ -69,8 +69,7 @@ module.exports = {
     '@typescript-eslint/no-inferrable-types': 'off',
     '@typescript-eslint/ban-ts-comment': 'off',
     '@typescript-eslint/no-duplicate-enum-values':'off',
-    '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
-    '@typescript-eslint/no-unsafe-member-access': 'off',
+    '@typescript-eslint/no-unused-vars': ['warn', { varsIgnorePattern: '^_', argsIgnorePattern: '^_',  ignoreRestSiblings: true }],
     'no-secrets/no-secrets': ['off'],
     'no-multi-spaces': 'error',
     'linebreak-style': ['error', 'unix'],

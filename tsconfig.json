@@ -25,6 +25,7 @@
       "@/admin/*": ["modules/admin/*"],
       "@/bcrypt-module/*": ["modules/bcrypt/*"],
       "@/admin-auth/*": ["modules/auth/admin/*"],
+      "@/external-auth/*": ["modules/auth/external/*"],
       "@/sessions/*": ["modules/auth/session/*"],
       "@/jwt-module/*": ["modules/jwt/*"],
     }

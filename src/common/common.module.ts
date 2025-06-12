@@ -4,14 +4,21 @@ import { CqrsModule } from '@nestjs/cqrs';
 import { ApplicationNotification } from '@/common/utils/app-notification.util';
 import { typeOrmModule } from '@/common/infrastructure/db/typeorm-pg.module';
 import { PaginationUtil } from '@/common/utils/pagination.util';
+import { JwtExpirationUtil } from '@/common/utils/jwt-expiration.util';
 
-const exportProviders = [LoggerModule, ApplicationNotification, CqrsModule, PaginationUtil];
+const exportProviders = [
+  LoggerModule,
+  ApplicationNotification,
+  CqrsModule,
+  PaginationUtil,
+  JwtExpirationUtil,
+];
 
 @Global()
 @Module({
   imports: [typeOrmModule, LoggerModule.forRoot('App'), CqrsModule],
   controllers: [],
-  providers: [ApplicationNotification, PaginationUtil],
+  providers: [ApplicationNotification, PaginationUtil, JwtExpirationUtil],
   exports: [...exportProviders],
 })
 export class CommonModule {}
