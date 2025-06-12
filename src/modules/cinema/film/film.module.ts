@@ -6,12 +6,18 @@ import { Film } from '@/films/domain/film.entity';
 import { FilmQueryRepository } from '@/films/infrastructure/film.query-repository';
 import { FilmsOutputDtoMapper } from '@/films/api/dtos/output/films.output.dto';
 import { GetFilmsQueryHandler } from '@/films/application/query-handlers/get-films.query-handler';
+import { GetFilmByKinopoiskIdQueryHandler } from '@/films/application/query-handlers/get-film-by-kinopoisk-id.query-handler';
+import { FilmPrivateController } from '@/films/api/private-film.controller';
 
-const queryHandlers = [GetFilmByIdQueryHandler, GetFilmsQueryHandler];
+const queryHandlers = [
+  GetFilmByIdQueryHandler,
+  GetFilmsQueryHandler,
+  GetFilmByKinopoiskIdQueryHandler,
+];
 
 @Module({
   imports: [TypeOrmModule.forFeature([Film])],
-  controllers: [FilmController],
+  controllers: [FilmController, FilmPrivateController],
   providers: [...queryHandlers, FilmQueryRepository, FilmsOutputDtoMapper],
   exports: [],
 })

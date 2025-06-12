@@ -6,6 +6,9 @@ export class MovieEntity {
   @PrimaryGeneratedColumn()
   id: number;
 
+  @Column({ nullable: true })
+  kpId: string;
+
   @Column()
   videoUrl: string;
 

@@ -55,6 +55,13 @@ export class FilmQueryRepository {
     });
   }
 
+  async getFilmByKinopoiskId(kpId: string): Promise<Film | null> {
+    return this.filmRepository.findOne({
+      where: { kpId },
+      relations: { genres: true },
+    });
+  }
+
   async getFilms(
     sortField: GetFilmsSortFieldEnum,
     sortDirection: SortDirectionEnum,
