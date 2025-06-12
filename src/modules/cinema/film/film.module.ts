@@ -8,6 +8,7 @@ import { FilmsOutputDtoMapper } from '@/films/api/dtos/output/films.output.dto';
 import { GetFilmsQueryHandler } from '@/films/application/query-handlers/get-films.query-handler';
 import { GetFilmByKinopoiskIdQueryHandler } from '@/films/application/query-handlers/get-film-by-kinopoisk-id.query-handler';
 import { FilmPrivateController } from '@/films/api/private-film.controller';
+import { FilmPrivateRpcController } from '@/films/api/private-film-rpc.controller';
 
 const queryHandlers = [
   GetFilmByIdQueryHandler,
@@ -17,7 +18,7 @@ const queryHandlers = [
 
 @Module({
   imports: [TypeOrmModule.forFeature([Film])],
-  controllers: [FilmController, FilmPrivateController],
+  controllers: [FilmController, FilmPrivateController, FilmPrivateRpcController],
   providers: [...queryHandlers, FilmQueryRepository, FilmsOutputDtoMapper],
   exports: [],
 })

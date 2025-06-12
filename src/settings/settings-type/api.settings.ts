@@ -36,4 +36,14 @@ export class ApiSettings {
 
   @IsString()
   EXTERNAL_TOKEN_NAME: string = this.environmentVariables.EXTERNAL_TOKEN_NAME;
+
+  @IsString()
+  RMQ_URI: string = this.environmentVariables.RMQ_URI;
+
+  @IsString()
+  DOWNLOAD_SERVICE_RMQ_QUEUE_NAME: string =
+    this.environmentVariables.DOWNLOAD_SERVICE_RMQ_QUEUE_NAME;
+
+  @IsString()
+  CINEMA_SERVICE_RMQ_QUEUE_NAME: string = this.environmentVariables.CINEMA_SERVICE_RMQ_QUEUE_NAME;
 }

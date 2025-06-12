@@ -8,6 +8,7 @@ import { ExternalApiAuthController } from '@/external-auth/api/external-api-auth
 import { ApiCinemaCheckAccessTokenStrategy } from '@/external-auth/application/guards/jwt/api-cinema-check-token.strategy';
 import { ApiCinemaAccessTokenStrategy } from '@/external-auth/application/guards/jwt/api-cinema-access-token.strategy';
 import { GenerateExternalTokenMigration } from '@/data-migrations/generate-external-token.migration';
+import { ApiCinemaRmqAccessTokenStrategy } from '@/external-auth/application/guards/jwt/api-cinema-rmq-access-token.strategy';
 
 export const AdminExternalApiProvider = {
   provide: 'ExternalApiAuth',
@@ -23,7 +24,11 @@ const exportProviders = [
 
 const providers = [AdminExternalApiProvider];
 
-const guards = [ApiCinemaCheckAccessTokenStrategy, ApiCinemaAccessTokenStrategy];
+const guards = [
+  ApiCinemaCheckAccessTokenStrategy,
+  ApiCinemaAccessTokenStrategy,
+  ApiCinemaRmqAccessTokenStrategy,
+];
 
 @Module({
   imports: [TypeOrmModule.forFeature([ExternalApiAuth])],
