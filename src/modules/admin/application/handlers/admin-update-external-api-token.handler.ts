@@ -76,7 +76,7 @@ export class AdminUpdateExternalApiTokenCommandHandler
 
       const [header, payload] = accessToken.split('.');
 
-      token.update(`${header}.${payload}`);
+      token.update(`${header}.${payload}`, expAt);
 
       await this.externalApiAuthRepository.save(token);
 

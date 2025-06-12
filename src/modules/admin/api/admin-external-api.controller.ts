@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
@@ -34,6 +35,8 @@ import { AdminUpdateExternalApiTokenCommand } from '@/admin/application/handlers
 import { ParseIntPatchPipe } from '@/common/pipes/validation-parse-int.pipe';
 import { ExternalApiTokenUpdateInputDto } from '@/admin/api/dtos/input/external-api-token-update.input.dto';
 import { SwaggerDecoratorExternalTokenUpdate } from '@/admin/api/swagger/external-token-update.swagger.decorator';
+import { AdminRemoveExternalApiTokenCommand } from '@/admin/application/handlers/admin-remove-external-api-token.handler';
+import { SwaggerDecoratorExternalTokenRemove } from '@/admin/api/swagger/external-token-remove.swagger.decorator';
 
 @ApiTags('Admin external api')
 @ApiBearerAuth()
@@ -105,6 +108,21 @@ export class AdminExternalApiController {
     this.logger.log(result.appResult, this.updateToken.name);
 
     if (result.appResult === AppNotificationResultEnum.Success) return result.data!;
+
+    this.appNotification.handleHttpResult(result);
+  }
+
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Delete(`:tokenId/${ADMIN_EXTERNAL_API_ROUTE.TOKEN}`)
+  @SwaggerDecoratorExternalTokenRemove()
+  async removeToken(@Param('tokenId', ParseIntPatchPipe) tokenId: number): Promise<void> {
+    this.logger.log('Execute: remove external api token by admin', this.removeToken.name);
+    const result = await this.commandBus.execute<
+      AdminRemoveExternalApiTokenCommand,
+      AppNotificationResult<null, ErrorFieldExceptionDto | null>
+    >(new AdminRemoveExternalApiTokenCommand(tokenId));
+
+    this.logger.log(result.appResult, this.removeToken.name);
 
     this.appNotification.handleHttpResult(result);
   }

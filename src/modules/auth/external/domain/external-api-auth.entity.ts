@@ -33,8 +33,10 @@ export class ExternalApiAuth {
     return token;
   }
 
-  update(token: string): void {
+  update(token: string, exp?: ExternalApiTokenExpAtEnum): void {
     this.token = token;
     this.updatedAt = new Date();
+
+    if (exp) this.exp = exp;
   }
 }

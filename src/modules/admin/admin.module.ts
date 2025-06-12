@@ -13,6 +13,7 @@ import { AdminExternalApiController } from '@/admin/api/admin-external-api.contr
 import { AdminGetAllExternalTokensQueryHandler } from '@/admin/application/query-handlers/admin-get-all-external-tokens.query-handler';
 import { ExternalApiTokenOutputModelMapper } from '@/admin/api/dtos/output/external-api-tokens.output.dto';
 import { AdminUpdateExternalApiTokenCommandHandler } from '@/admin/application/handlers/admin-update-external-api-token.handler';
+import { AdminRemoveExternalApiTokenCommandHandler } from '@/admin/application/handlers/admin-remove-external-api-token.handler';
 
 export const AdminProvider = {
   provide: 'Admin',
@@ -25,6 +26,7 @@ const handlers = [
   AdminGenreCreateCommandHandler,
   AdminCreateExternalApiTokenCommandHandler,
   AdminUpdateExternalApiTokenCommandHandler,
+  AdminRemoveExternalApiTokenCommandHandler,
 ];
 const queryHandlers = [AdminGetAllExternalTokensQueryHandler];
 

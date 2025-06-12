@@ -14,6 +14,10 @@ export class ExternalApiAuthRepository {
     await this.externalApiAuthRepository.save(token);
   }
 
+  async removeById(tokenId: number): Promise<void> {
+    await this.externalApiAuthRepository.delete({ id: tokenId });
+  }
+
   async getTokenById(id: number): Promise<ExternalApiAuth | null> {
     return this.externalApiAuthRepository.findOne({
       where: { id },

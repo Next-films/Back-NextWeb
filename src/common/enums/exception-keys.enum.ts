@@ -42,4 +42,5 @@ export enum EXCEPTION_KEYS_ENUM {
   genreId = 'error_input.genreId',
   kpId = 'error_input.kpId',
   tokenId = 'error_input.tokenId',
+  expAt = 'error_input.expAt',
 }
