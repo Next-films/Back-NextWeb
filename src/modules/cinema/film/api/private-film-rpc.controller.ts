@@ -1,5 +1,4 @@
 import { Controller, UseFilters, UseGuards } from '@nestjs/common';
-import { PRIVATE_FILMS_ROUTE } from '@/common/constants/route.constants';
 import { ApiExcludeController } from '@nestjs/swagger';
 import { LoggerService } from '@/common/utils/logger/logger.service';
 import { AppNotificationResult } from '@/common/utils/app-notification.util';
@@ -16,7 +15,7 @@ import { RpcExceptionsFilter } from '@/common/exception-filters/rpc/rpc-exceptio
 @ApiExcludeController()
 @UseFilters(RpcExceptionsFilter)
 @UseGuards(ApiCinemaRmqAccessTokenGuard)
-@Controller(PRIVATE_FILMS_ROUTE.MAIN)
+@Controller('private-films-rpc')
 export class FilmPrivateRpcController {
   constructor(
     private readonly logger: LoggerService,

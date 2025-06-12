@@ -14,6 +14,7 @@ import { AdminGetAllExternalTokensQueryHandler } from '@/admin/application/query
 import { ExternalApiTokenOutputModelMapper } from '@/admin/api/dtos/output/external-api-tokens.output.dto';
 import { AdminUpdateExternalApiTokenCommandHandler } from '@/admin/application/handlers/admin-update-external-api-token.handler';
 import { AdminRemoveExternalApiTokenCommandHandler } from '@/admin/application/handlers/admin-remove-external-api-token.handler';
+import { AdminCinemaRpcController } from '@/admin/api/admin-cinema-rpc.controller';
 
 export const AdminProvider = {
   provide: 'Admin',
@@ -40,7 +41,7 @@ const exportProviders = [TypeOrmModule.forFeature([Admin]), AdminProvider];
     JwtModule,
     ExternalApiAuthModule,
   ],
-  controllers: [AdminGenreController, AdminExternalApiController],
+  controllers: [AdminGenreController, AdminExternalApiController, AdminCinemaRpcController],
   providers: [
     ...handlers,
     GenerateAdminMigration,
