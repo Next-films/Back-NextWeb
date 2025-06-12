@@ -18,7 +18,7 @@ export class JwtExpirationUtil {
       case ExternalApiTokenExpAtEnum['1Y']:
         return 60 * 60 * 24 * 365;
       case ExternalApiTokenExpAtEnum['F']:
-        return null;
+        return 3000 * 365 * 24 * 60 * 60;
       default:
         return null;
     }
