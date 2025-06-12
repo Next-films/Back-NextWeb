@@ -10,7 +10,6 @@ import { ApiBearerAuth, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger
 
 @ApiBearerAuth()
 @ApiUnauthorizedResponse({ description: 'Unauthorized' })
-@UseGuards(ApiCinemaCheckAccessTokenGuard)
 @ApiTags('External api')
 @Controller(EXTERNAL_API_ROUTE.MAIN)
 export class ExternalApiAuthController {
@@ -18,6 +17,7 @@ export class ExternalApiAuthController {
     this.logger.setContext(ExternalApiAuthController.name);
   }
 
+  @UseGuards(ApiCinemaCheckAccessTokenGuard)
   @Get(`${EXTERNAL_API_ROUTE.TOKEN}/${EXTERNAL_API_ROUTE.CHECK}`)
   @SwaggerDecoratorExternalTokenCheck()
   checkToken(

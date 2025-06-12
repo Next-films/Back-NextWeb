@@ -7,6 +7,7 @@ import { ExternalApiTokenCheckOutputModelMapper } from '@/external-auth/api/dtos
 import { ExternalApiAuthController } from '@/external-auth/api/external-api-auth.controller';
 import { ApiCinemaCheckAccessTokenStrategy } from '@/external-auth/application/guards/jwt/api-cinema-check-token.strategy';
 import { ApiCinemaAccessTokenStrategy } from '@/external-auth/application/guards/jwt/api-cinema-access-token.strategy';
+import { GenerateExternalTokenMigration } from '@/data-migrations/generate-external-token.migration';
 
 export const AdminExternalApiProvider = {
   provide: 'ExternalApiAuth',
@@ -33,6 +34,7 @@ const guards = [ApiCinemaCheckAccessTokenStrategy, ApiCinemaAccessTokenStrategy]
     ...providers,
     ExternalApiTokenCheckOutputModelMapper,
     ...guards,
+    GenerateExternalTokenMigration,
   ],
   exports: [...exportProviders],
 })

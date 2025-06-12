@@ -30,4 +30,10 @@ export class ApiSettings {
 
   @IsString()
   EXTERNAL_ACCESS_JWT_SECRET: string = this.environmentVariables.EXTERNAL_ACCESS_JWT_SECRET;
+
+  @IsString()
+  EXTERNAL_TOKEN: string = this.environmentVariables.EXTERNAL_TOKEN;
+
+  @IsString()
+  EXTERNAL_TOKEN_NAME: string = this.environmentVariables.EXTERNAL_TOKEN_NAME;
 }
