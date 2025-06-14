@@ -92,14 +92,14 @@ export type TorApiMovieById = {
   Registration?: string; // nonameclub
 };
 
-export enum ModerateMovieTypesEnum {
+export enum MovieTypesEnum {
   FILM = 'film',
   CARTOON = 'cartoon',
   SERIAL = 'serial',
 }
 
 export class ModerateRequestPayloadDto {
-  type: ModerateMovieTypesEnum;
+  type: MovieTypesEnum;
   kpId: string;
   movieName: string;
   torrent: FindTorApiTorrentFilmType;
