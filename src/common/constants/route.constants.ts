@@ -54,6 +54,10 @@ export const SERIALS_ROUTE = {
 export const CARTOONS_ROUTE = {
   MAIN: `${CINEMA_PREFIX}/cartoons`,
 };
+
+export const PRIVATE_CARTOONS_ROUTE = {
+  MAIN: `${CINEMA_PREFIX}/private/cartoons`,
+};
 /*
 *
 *

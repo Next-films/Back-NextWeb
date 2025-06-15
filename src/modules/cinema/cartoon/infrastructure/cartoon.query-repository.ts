@@ -76,4 +76,11 @@ export class CartoonQueryRepository {
     const result = await qb.getCount();
     return result || 0;
   }
+
+  async getCartoonByKinopoiskId(kpId: string): Promise<Cartoon | null> {
+    return this.cartoonRepository.findOne({
+      where: { kpId },
+      relations: { genres: true },
+    });
+  }
 }
