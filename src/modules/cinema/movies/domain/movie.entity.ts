@@ -35,7 +35,7 @@ export class MovieEntity {
   @Column({ type: 'date', nullable: true })
   releaseDate: string | null;
 
-  @Column()
+  @Column({ type: 'double precision', default: 0 })
   duration: number;
 
   @Column({ type: 'varchar', nullable: true })
