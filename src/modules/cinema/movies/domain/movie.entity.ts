@@ -1,8 +1,8 @@
 import { Column, PrimaryGeneratedColumn } from 'typeorm';
 import { Genre } from '@/movies/domain/genre.entity';
-import { RU_PG_COLLATION } from '@/common/constants/collation.constant';
 import { CartonCreateDto } from '@/cartoons/domain/types';
 import { FilmCreateDto } from '@/films/domain/types';
+import { RU_PG_COLLATION } from '@/common/constants/collation.constant';
 
 export class MovieEntity {
   @PrimaryGeneratedColumn()

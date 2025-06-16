@@ -1,8 +1,12 @@
 import { EnvironmentVariable } from '@/settings/configuration';
-import { IsBoolean, IsNumber, IsString } from 'class-validator';
+import { IsBoolean, IsNumber, IsOptional, IsString } from 'class-validator';
 
 export class DatabaseSettings {
   constructor(private environmentVariables: EnvironmentVariable) {}
+  @IsOptional()
+  @IsString()
+  POSTGRES_URL: string = this.environmentVariables.POSTGRES_URL;
+
   @IsString()
   POSTGRES_HOST: string = this.environmentVariables.POSTGRES_HOST;
 

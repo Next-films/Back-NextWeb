@@ -11,12 +11,22 @@ export const typeOrmModule = TypeOrmModule.forRootAsync({
     const database = dbSettings.POSTGRES_DB;
     const synchronize = dbSettings.SYNCHRONIZE_DB;
     const logging = dbSettings.LOGGING_DB;
+    const POSTGRES_URL = dbSettings.POSTGRES_URL;
+
+    const hostConnection = !POSTGRES_URL
+      ? {
+          host: dbSettings.POSTGRES_HOST,
+          port: dbSettings.POSTGRES_PORT,
+          username: dbSettings.POSTGRES_USER,
+          password: dbSettings.POSTGRES_PASSWORD,
+        }
+      : {
+          url: POSTGRES_URL,
+        };
+
     return {
       type: 'postgres',
-      host: dbSettings.POSTGRES_HOST,
-      port: dbSettings.POSTGRES_PORT,
-      username: dbSettings.POSTGRES_USER,
-      password: dbSettings.POSTGRES_PASSWORD,
+      ...hostConnection,
       autoLoadEntities: true,
       database,
       synchronize,
