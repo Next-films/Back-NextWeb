@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  nest-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        PORT: ${PORT}
+    image: nextfilms/cinema-app:latest
+    ports:
+      - "${PORT}:${PORT}"
+    env_file:
+      - .env
