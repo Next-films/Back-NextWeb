@@ -62,6 +62,7 @@ export class FilmQueryRepository {
     });
   }
 
+  // TODO: Для публичного роута добавить обработку hidden
   async getFilms(
     sortField: GetFilmsSortFieldEnum,
     sortDirection: SortDirectionEnum,

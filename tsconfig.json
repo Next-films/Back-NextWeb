@@ -28,6 +28,7 @@
       "@/external-auth/*": ["modules/auth/external/*"],
       "@/sessions/*": ["modules/auth/session/*"],
       "@/jwt-module/*": ["modules/jwt/*"],
+      "@/external-api/*": ["modules/external-api/*"],
     }
   }
 }

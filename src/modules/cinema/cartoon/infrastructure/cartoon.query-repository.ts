@@ -52,6 +52,7 @@ export class CartoonQueryRepository {
     return this.cartoonRepository.findOne({ where: { id }, relations: { genres: true } });
   }
 
+  // TODO: Для публичного роута добавить обработку hidden
   async getCartoons(
     sortField: GetCartoonSortFieldEnum,
     sortDirection: SortDirectionEnum,

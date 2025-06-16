@@ -7,6 +7,7 @@ import { PaginationUtil } from '@/common/utils/pagination.util';
 import { JwtExpirationUtil } from '@/common/utils/jwt-expiration.util';
 import { rmqClients } from '@/common/infrastructure/rmq/rmq.client';
 import { DownloaderServiceAdapter } from '@/common/infrastructure/rmq/downloader-service.adapter';
+import { DateUtil } from '@/common/utils/date.util';
 
 const exportProviders = [
   LoggerModule,
@@ -15,13 +16,20 @@ const exportProviders = [
   PaginationUtil,
   JwtExpirationUtil,
   DownloaderServiceAdapter,
+  DateUtil,
 ];
 
 @Global()
 @Module({
   imports: [typeOrmModule, LoggerModule.forRoot('App'), CqrsModule, rmqClients],
   controllers: [],
-  providers: [ApplicationNotification, PaginationUtil, JwtExpirationUtil, DownloaderServiceAdapter],
+  providers: [
+    ApplicationNotification,
+    PaginationUtil,
+    JwtExpirationUtil,
+    DownloaderServiceAdapter,
+    DateUtil,
+  ],
   exports: [...exportProviders],
 })
 export class CommonModule {}

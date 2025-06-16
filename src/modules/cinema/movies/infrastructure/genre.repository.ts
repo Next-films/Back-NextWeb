@@ -10,12 +10,17 @@ export class GenreRepository {
     private readonly genreRepository: Repository<Genre>,
   ) {}
 
-  async save(genre: Genre): Promise<number> {
-    const newGenre = await this.genreRepository.save(genre);
-    return newGenre.id;
+  async save(genre: Genre): Promise<Genre> {
+    return this.genreRepository.save(genre);
   }
 
   async getByName(name: string): Promise<Genre | null> {
     return this.genreRepository.findOne({ where: { name } });
+  }
+
+  async getByNames(names: string[]): Promise<Genre[]> {
+    return this.genreRepository.find({
+      where: names.map(name => ({ name })),
+    });
   }
 }

@@ -8,6 +8,7 @@ import { Film } from '@/films/domain/film.entity';
 import { MovieDurationUtil } from '@/common/utils/movie-duration.util';
 import { Cartoon } from '@/cartoons/domain/cartoon.entity';
 import { Serial } from '@/serials/domain/serial.entity';
+import { randomUUID } from 'node:crypto';
 
 type FilmJsonType = {
   id: string;
@@ -142,13 +143,15 @@ async function importFilms(queryRunner: QueryRunner) {
       title,
       originalTitle: id,
       cardImg,
-      releaseDate: parseDate(date),
+      releaseDate: parseDate(date).toISOString(),
       backgroundImg,
       alternativeTitles: name,
       videoUrl: films,
       trailerUrl: trailer,
       description,
       genres,
+      isHidden: false,
+      kpId: randomUUID(),
     });
 
     await queryRunner.manager.save(Film, film);
@@ -188,13 +191,15 @@ async function importCartoons(queryRunner: QueryRunner): Promise<void> {
       title,
       originalTitle: id,
       cardImg,
-      releaseDate: parseDate(date),
+      releaseDate: parseDate(date).toISOString(),
       backgroundImg,
       alternativeTitles: name,
       videoUrl: films,
       trailerUrl: trailer,
       description,
       genres,
+      isHidden: false,
+      kpId: randomUUID(),
     });
 
     await queryRunner.manager.save(Cartoon, cartoon);

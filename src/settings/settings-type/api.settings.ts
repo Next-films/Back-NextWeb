@@ -46,4 +46,10 @@ export class ApiSettings {
 
   @IsString()
   CINEMA_SERVICE_RMQ_QUEUE_NAME: string = this.environmentVariables.CINEMA_SERVICE_RMQ_QUEUE_NAME;
+
+  @IsString()
+  KINOPOISK_API_URL: string = this.environmentVariables.KINOPOISK_API_URL;
+
+  @IsString()
+  KINOPOISK_API_TOKEN: string = this.environmentVariables.KINOPOISK_API_TOKEN;
 }

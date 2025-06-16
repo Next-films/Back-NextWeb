@@ -9,6 +9,17 @@ import { GetCartoonsQueryHandler } from '@/cartoons/application/query-handlers/g
 import { CartoonPrivateRpcController } from '@/cartoons/api/private-cartoon-rpc.controller';
 import { GetCartoonByKinopoiskIdQueryHandler } from '@/cartoons/application/query-handlers/get-cartoon-by-kinopoisk-id.query-handler';
 import { CartoonPrivateController } from '@/cartoons/api/private-cartoon.controller';
+import { NewCartoonNotificationCommandHandler } from '@/cartoons/application/handlers/new-cartoon-notification.handler';
+import { CartoonRepository } from '@/cartoons/infrastructure/cartoon.repository';
+import { MoviesModules } from '@/movies/movies.modules';
+import { KinopoiskModule } from '@/external-api/kinopoisk/kinopoisk.module';
+
+const cartoonProvider = {
+  provide: 'Cartoon',
+  useValue: Cartoon,
+};
+
+const providers = [cartoonProvider];
 
 const queryHandlers = [
   GetCartoonByIdQueryHandler,
@@ -16,10 +27,19 @@ const queryHandlers = [
   GetCartoonByKinopoiskIdQueryHandler,
 ];
 
+const handlers = [NewCartoonNotificationCommandHandler];
+
 @Module({
-  imports: [TypeOrmModule.forFeature([Cartoon])],
+  imports: [TypeOrmModule.forFeature([Cartoon]), MoviesModules, KinopoiskModule],
   controllers: [CartoonController, CartoonPrivateRpcController, CartoonPrivateController],
-  providers: [CartoonQueryRepository, CartoonsOutputDtoMapper, ...queryHandlers],
+  providers: [
+    CartoonQueryRepository,
+    CartoonsOutputDtoMapper,
+    ...queryHandlers,
+    ...handlers,
+    ...providers,
+    CartoonRepository,
+  ],
   exports: [],
 })
 export class CartoonModule {}

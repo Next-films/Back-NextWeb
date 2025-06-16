@@ -19,26 +19,26 @@ export class MovieOutputDto {
   @ApiProperty()
   title: string;
 
-  @ApiProperty()
-  trailerUrl: string;
+  @ApiProperty({ nullable: true })
+  trailerUrl: string | null;
 
-  @ApiProperty()
-  backgroundImg: string;
+  @ApiProperty({ nullable: true })
+  backgroundImg: string | null;
 
-  @ApiProperty()
-  cardImg: string;
+  @ApiProperty({ nullable: true })
+  cardImg: string | null;
 
-  @ApiProperty()
-  description: string;
+  @ApiProperty({ nullable: true })
+  description: string | null;
 
-  @ApiProperty()
-  subTitle: string;
+  @ApiProperty({ nullable: true })
+  subTitle: string | null;
 
-  @ApiProperty()
-  titleImg: string;
+  @ApiProperty({ nullable: true })
+  titleImg: string | null;
 
-  @ApiProperty()
-  releaseDate: Date;
+  @ApiProperty({ nullable: true })
+  releaseDate: string | null;
 
   @ApiProperty({ type: MovieGenreOutputDto, isArray: true })
   genres: MovieGenreOutputDto[];
@@ -46,13 +46,13 @@ export class MovieOutputDto {
   @ApiProperty()
   duration: number;
 
-  @ApiProperty()
-  country: string[];
+  @ApiProperty({ nullable: true })
+  country: string[] | null;
 }
 
 @Injectable()
 export class MovieOutputDtoMapper {
-  private mapSubtitle(releaseDate: Date, genres: string, duration: number): string {
+  private mapSubtitle(releaseDate: string, genres: string, duration: number): string {
     const date = new Date(releaseDate);
     const year = date.getFullYear();
 
@@ -72,23 +72,33 @@ export class MovieOutputDtoMapper {
   mapMovie(movie: MovieEntity): MovieOutputDto {
     const genres = movie.genres ?? [];
 
+    const {
+      id,
+      title,
+      releaseDate,
+      description,
+      backgroundImg,
+      cardImg,
+      trailerUrl,
+      country,
+      duration,
+      titleImg,
+    } = movie;
     return {
-      id: movie.id,
-      title: movie.title,
-      backgroundImg: movie.backgroundImg,
-      releaseDate: movie.releaseDate,
-      cardImg: movie.cardImg,
-      description: movie.description,
-      trailerUrl: movie.trailerUrl,
-      subTitle: this.mapSubtitle(
-        movie.releaseDate,
-        this.formatGenresString(genres),
-        movie.duration,
-      ),
-      titleImg: movie.titleImg,
+      id: id,
+      title: title,
+      backgroundImg: backgroundImg,
+      releaseDate: releaseDate,
+      cardImg: cardImg,
+      description: description,
+      trailerUrl: trailerUrl,
+      subTitle: releaseDate
+        ? this.mapSubtitle(releaseDate, this.formatGenresString(genres), duration)
+        : null,
+      titleImg: titleImg,
       genres: this.mapMovieGenres(genres),
-      country: movie.country,
-      duration: movie.duration,
+      country: country,
+      duration: duration,
     };
   }
 

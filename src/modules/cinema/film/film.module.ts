@@ -9,6 +9,10 @@ import { GetFilmsQueryHandler } from '@/films/application/query-handlers/get-fil
 import { GetFilmByKinopoiskIdQueryHandler } from '@/films/application/query-handlers/get-film-by-kinopoisk-id.query-handler';
 import { FilmPrivateController } from '@/films/api/private-film.controller';
 import { FilmPrivateRpcController } from '@/films/api/private-film-rpc.controller';
+import { FilmRepository } from '@/films/infrastructure/film.repository';
+import { NewFilmNotificationCommandHandler } from '@/films/application/handlers/new-film-notification.handler';
+import { MoviesModules } from '@/movies/movies.modules';
+import { KinopoiskModule } from '@/external-api/kinopoisk/kinopoisk.module';
 
 const queryHandlers = [
   GetFilmByIdQueryHandler,
@@ -16,10 +20,26 @@ const queryHandlers = [
   GetFilmByKinopoiskIdQueryHandler,
 ];
 
+const filmProvider = {
+  provide: 'Film',
+  useValue: Film,
+};
+
+const providers = [filmProvider];
+
+const handlers = [NewFilmNotificationCommandHandler];
+
 @Module({
-  imports: [TypeOrmModule.forFeature([Film])],
+  imports: [TypeOrmModule.forFeature([Film]), MoviesModules, KinopoiskModule],
   controllers: [FilmController, FilmPrivateController, FilmPrivateRpcController],
-  providers: [...queryHandlers, FilmQueryRepository, FilmsOutputDtoMapper],
+  providers: [
+    ...queryHandlers,
+    FilmQueryRepository,
+    FilmsOutputDtoMapper,
+    FilmRepository,
+    ...handlers,
+    ...providers,
+  ],
   exports: [],
 })
 export class FilmModule {}
