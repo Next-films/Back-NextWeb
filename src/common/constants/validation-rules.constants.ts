@@ -22,9 +22,6 @@ export const BASIC_QUERY_VALIDATION_RULES /* as ValidationRulesConstantsType */ 
     LENGTH_MAX: 50,
   },
 } as const;
-type _BasicQueryValidationRulesType = typeof BASIC_QUERY_VALIDATION_RULES &
-  ValidationRulesConstantsType;
-
 /*
 *
 *
@@ -38,7 +35,6 @@ export const GENRE_VALIDATION_RULES /* as ValidationRulesConstantsType */ = {
     LENGTH_MAX: 100,
   },
 } as const;
-type _GenreValidationRulesType = typeof GENRE_VALIDATION_RULES & ValidationRulesConstantsType;
 /*
 *
 *
@@ -61,5 +57,16 @@ export const ADMIN_AUTH_VALIDATION_RULES /* as ValidationRulesConstantsType */ =
     PATTERN: /^[a-zA-Z0-9_&#\-!@]+$/,
   },
 } as const;
-type _AdminAuthValidationRulesType = typeof ADMIN_AUTH_VALIDATION_RULES &
-  ValidationRulesConstantsType;
+/*
+*
+*
+        External auth tokens admin
+*
+*
+*/
+export const ADMIN_EXTERNAL_AUTH_TOKEN_VALIDATION_RULES /* as ValidationRulesConstantsType */ = {
+  NAME: {
+    LENGTH_MIN: 3,
+    LENGTH_MAX: 30,
+  },
+} as const;

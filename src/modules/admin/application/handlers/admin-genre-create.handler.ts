@@ -50,7 +50,7 @@ export class AdminGenreCreateCommandHandler
 
       const result = await this.genreRepository.save(newGenre);
 
-      return this.appNotification.success(result);
+      return this.appNotification.success(result.id);
     } catch (e) {
       this.logger.error(e, this.execute.name);
       return this.appNotification.internalServerError();

@@ -25,7 +25,7 @@ export class RequestExceptionDto {
   errorField: ErrorFieldExceptionDto[] | null;
 }
 
-const isBadRequestError = (error: any): error is ErrorFieldExceptionDto => {
+export const isBadRequestError = (error: any): error is ErrorFieldExceptionDto => {
   return (
     error &&
     typeof error === 'object' &&

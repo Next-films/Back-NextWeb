@@ -55,6 +55,14 @@ export class FilmQueryRepository {
     });
   }
 
+  async getFilmByKinopoiskId(kpId: string): Promise<Film | null> {
+    return this.filmRepository.findOne({
+      where: { kpId },
+      relations: { genres: true },
+    });
+  }
+
+  // TODO: Для публичного роута добавить обработку hidden
   async getFilms(
     sortField: GetFilmsSortFieldEnum,
     sortDirection: SortDirectionEnum,

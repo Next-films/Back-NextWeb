@@ -13,9 +13,14 @@ export enum EXCEPTION_KEYS_ENUM {
   LOGIN_OR_PASSWORD_NOT_CORRECT = 'error.login_or_password_not_correct',
   UNAUTHORIZED = 'error.unauthorized',
   FILM_NOT_FOUND = 'error.film_not_found',
+  FILM_ALREADY_EXIST = 'error.film_already_exist',
   CARTOON_NOT_FOUND = 'error.cartoon_not_found',
+  CARTOON_ALREADY_EXIST = 'error.cartoon_already_exist',
   SERIAL_NOT_FOUND = 'error.serial_not_found',
   EPISODE_NOT_FOUND = 'error.episode_not_found',
+  EXTERNAL_API_TOKEN_ALREADY_EXIST = 'error.external_api_token_already_exist',
+  EXTERNAL_API_TOKEN_NOT_FOUND = 'error.external_api_token_not_found',
+  KP_MOVIE_NOT_FOUND = 'error.kp_movie_not_found', // Kinopoisk
   /*
    *
    * Input validation error
@@ -38,4 +43,7 @@ export enum EXCEPTION_KEYS_ENUM {
   email_password = 'error_input.email_password',
   token = 'error_input.token',
   genreId = 'error_input.genreId',
+  kpId = 'error_input.kpId',
+  tokenId = 'error_input.tokenId',
+  expAt = 'error_input.expAt',
 }

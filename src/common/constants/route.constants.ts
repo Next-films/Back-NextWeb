@@ -19,6 +19,12 @@ export const ADMIN_AUTH_ROUTES = {
 export const ADMIN_GENRE_ROUTE = {
   MAIN: `${ADMIN_PREFIX}/genre`,
 };
+
+export const ADMIN_EXTERNAL_API_ROUTE = {
+  MAIN: `${ADMIN_PREFIX}/external-api`,
+  CREATE_TOKEN: 'create-token',
+  TOKEN: 'token',
+};
 /*
 *
 *
@@ -37,10 +43,32 @@ export const FILMS_ROUTE = {
   MAIN: `${CINEMA_PREFIX}/films`,
 };
 
+export const PRIVATE_FILMS_ROUTE = {
+  MAIN: `${CINEMA_PREFIX}/private/films`,
+};
+
 export const SERIALS_ROUTE = {
   MAIN: `${CINEMA_PREFIX}/serials`,
 };
 
 export const CARTOONS_ROUTE = {
   MAIN: `${CINEMA_PREFIX}/cartoons`,
+};
+
+export const PRIVATE_CARTOONS_ROUTE = {
+  MAIN: `${CINEMA_PREFIX}/private/cartoons`,
+};
+/*
+*
+*
+        External api auth
+*
+*
+*/
+const EXTERNAL_API_PREFIX = 'external-api';
+
+export const EXTERNAL_API_ROUTE = {
+  MAIN: `${EXTERNAL_API_PREFIX}`,
+  TOKEN: 'token',
+  CHECK: 'check',
 };

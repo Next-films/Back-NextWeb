@@ -52,6 +52,7 @@ export class CartoonQueryRepository {
     return this.cartoonRepository.findOne({ where: { id }, relations: { genres: true } });
   }
 
+  // TODO: Для публичного роута добавить обработку hidden
   async getCartoons(
     sortField: GetCartoonSortFieldEnum,
     sortDirection: SortDirectionEnum,
@@ -75,5 +76,12 @@ export class CartoonQueryRepository {
     qb = this.getSearchCartoonClause(qb, searchName, searchGenreIds);
     const result = await qb.getCount();
     return result || 0;
+  }
+
+  async getCartoonByKinopoiskId(kpId: string): Promise<Cartoon | null> {
+    return this.cartoonRepository.findOne({
+      where: { kpId },
+      relations: { genres: true },
+    });
   }
 }

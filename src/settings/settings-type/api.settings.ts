@@ -27,4 +27,29 @@ export class ApiSettings {
 
   @IsString()
   ADMIN_REFRESH_JWT_SECRET: string = this.environmentVariables.ADMIN_REFRESH_JWT_SECRET;
+
+  @IsString()
+  EXTERNAL_ACCESS_JWT_SECRET: string = this.environmentVariables.EXTERNAL_ACCESS_JWT_SECRET;
+
+  @IsString()
+  EXTERNAL_TOKEN: string = this.environmentVariables.EXTERNAL_TOKEN;
+
+  @IsString()
+  EXTERNAL_TOKEN_NAME: string = this.environmentVariables.EXTERNAL_TOKEN_NAME;
+
+  @IsString()
+  RMQ_URI: string = this.environmentVariables.RMQ_URI;
+
+  @IsString()
+  DOWNLOAD_SERVICE_RMQ_QUEUE_NAME: string =
+    this.environmentVariables.DOWNLOAD_SERVICE_RMQ_QUEUE_NAME;
+
+  @IsString()
+  CINEMA_SERVICE_RMQ_QUEUE_NAME: string = this.environmentVariables.CINEMA_SERVICE_RMQ_QUEUE_NAME;
+
+  @IsString()
+  KINOPOISK_API_URL: string = this.environmentVariables.KINOPOISK_API_URL;
+
+  @IsString()
+  KINOPOISK_API_TOKEN: string = this.environmentVariables.KINOPOISK_API_TOKEN;
 }
