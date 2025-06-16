@@ -50,8 +50,8 @@ jobs:
 
       - name: Transfer image, .env and compose file to remote server
         run: |
-          ssh -p ${{ secrets.DEV_SSH_PORT }} ${{ secrets.DEV_SSH_USERNAME }}@${{ secrets.DEV_SSH_HOST }} "mkdir -p ${{ secrets.DEV_REMOTE_PATH }}"
-          scp -P ${{ secrets.DEV_SSH_PORT }} images/app.tar ${{ secrets.DEV_SSH_USERNAME }}@${{ secrets.DEV_SSH_HOST }}:/tmp/
+          ssh -p ${{ secrets.DEV_SSH_PORT }} ${{ secrets.DEV_SSH_USERNAME }}@${{ secrets.DEV_SSH_HOST }} "mkdir -p ${{ secrets.DEV_REMOTE_PATH }}/upload"
+          scp -P ${{ secrets.DEV_SSH_PORT }} images/app.tar ${{ secrets.DEV_SSH_USERNAME }}@${{ secrets.DEV_SSH_HOST }}:${{ secrets.DEV_REMOTE_PATH }}/upload/app.tar
           scp -P ${{ secrets.DEV_SSH_PORT }} .env ${{ secrets.DEV_SSH_USERNAME }}@${{ secrets.DEV_SSH_HOST }}:${{ secrets.DEV_REMOTE_PATH }}/.env
           scp -P ${{ secrets.DEV_SSH_PORT }} docker-compose.dev.yml ${{ secrets.DEV_SSH_USERNAME }}@${{ secrets.DEV_SSH_HOST }}:${{ secrets.DEV_REMOTE_PATH }}/docker-compose.dev.yml
 
@@ -59,8 +59,8 @@ jobs:
         run: |
           ssh -p ${{ secrets.DEV_SSH_PORT }} ${{ secrets.DEV_SSH_USERNAME }}@${{ secrets.DEV_SSH_HOST }} << EOF
             cd ${{ secrets.DEV_REMOTE_PATH }}
-            docker load -i /tmp/app.tar
+            docker load -i upload/app.tar
             docker compose -f docker-compose.dev.yml --env-file .env down
             docker compose -f docker-compose.dev.yml --env-file .env up -d --remove-orphans
-            rm /tmp/app.tar
+            rm upload/app.tar
           EOF
