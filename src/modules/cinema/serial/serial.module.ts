@@ -9,6 +9,7 @@ import { Serial } from '@/serials/domain/serial.entity';
 import { SerialEpisode } from '@/serials/domain/serial-episode.entity';
 import { SerialEpisodesOutputDtoMapper } from '@/serials/api/dtos/output/serial-episode.output.dto';
 import { GetSerialEpisodeByIdQueryHandler } from '@/serials/application/query-handlers/get-serial-episode-by-id.query-handler';
+import { SerialsBridgeRmqController } from '@/serials/api/bridge-rpc-serial.controller';
 
 const queryHandlers = [
   GetSerialByIdQueryHandler,
@@ -18,7 +19,7 @@ const queryHandlers = [
 
 @Module({
   imports: [TypeOrmModule.forFeature([Serial, SerialEpisode])],
-  controllers: [SerialController],
+  controllers: [SerialController, SerialsBridgeRmqController],
   providers: [
     SerialQueryRepository,
     SerialsOutputDtoMapper,

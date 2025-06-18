@@ -47,8 +47,20 @@ export const PRIVATE_FILMS_ROUTE = {
   MAIN: `${CINEMA_PREFIX}/private/films`,
 };
 
+export const BRIDGE_RMG_FILMS_ROUTE = {
+  MAIN: `${CINEMA_PREFIX}/bridge-rmq/films`,
+  FIND: 'find',
+  DOWNLOAD: 'download',
+};
+
 export const SERIALS_ROUTE = {
   MAIN: `${CINEMA_PREFIX}/serials`,
+};
+
+export const BRIDGE_RMG_SERIALS_ROUTE = {
+  MAIN: `${CINEMA_PREFIX}/bridge-rmq/serials`,
+  FIND: 'find',
+  DOWNLOAD: 'download',
 };
 
 export const CARTOONS_ROUTE = {
@@ -57,6 +69,12 @@ export const CARTOONS_ROUTE = {
 
 export const PRIVATE_CARTOONS_ROUTE = {
   MAIN: `${CINEMA_PREFIX}/private/cartoons`,
+};
+
+export const BRIDGE_RMG_CARTOON_ROUTE = {
+  MAIN: `${CINEMA_PREFIX}/bridge-rmq/cartoon`,
+  FIND: 'find',
+  DOWNLOAD: 'download',
 };
 /*
 *

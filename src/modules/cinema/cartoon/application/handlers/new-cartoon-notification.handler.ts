@@ -120,7 +120,7 @@ export class NewCartoonNotificationCommandHandler
         alternativeName,
         country,
         description: description || null,
-        releaseDate: worldReleaseDate ? this.dateUtil.formatDateDdMmYy(worldReleaseDate) : null,
+        releaseDate: worldReleaseDate ? this.dateUtil.formatDateYyMmDd(worldReleaseDate) : null,
       };
 
       const newCartoon = this.cartoonEntity.create(cartonDto);

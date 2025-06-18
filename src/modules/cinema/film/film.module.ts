@@ -13,6 +13,7 @@ import { FilmRepository } from '@/films/infrastructure/film.repository';
 import { NewFilmNotificationCommandHandler } from '@/films/application/handlers/new-film-notification.handler';
 import { MoviesModules } from '@/movies/movies.modules';
 import { KinopoiskModule } from '@/external-api/kinopoisk/kinopoisk.module';
+import { FilmBridgeRmqController } from '@/films/api/bridge-rpc-film.controller';
 
 const queryHandlers = [
   GetFilmByIdQueryHandler,
@@ -31,7 +32,12 @@ const handlers = [NewFilmNotificationCommandHandler];
 
 @Module({
   imports: [TypeOrmModule.forFeature([Film]), MoviesModules, KinopoiskModule],
-  controllers: [FilmController, FilmPrivateController, FilmPrivateRpcController],
+  controllers: [
+    FilmController,
+    FilmPrivateController,
+    FilmPrivateRpcController,
+    FilmBridgeRmqController,
+  ],
   providers: [
     ...queryHandlers,
     FilmQueryRepository,
