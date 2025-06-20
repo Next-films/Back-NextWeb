@@ -14,6 +14,7 @@ import { NewFilmNotificationCommandHandler } from '@/films/application/handlers/
 import { MoviesModules } from '@/movies/movies.modules';
 import { KinopoiskModule } from '@/external-api/kinopoisk/kinopoisk.module';
 import { FilmBridgeRmqController } from '@/films/api/bridge-rpc-film.controller';
+import { NewFilmIsHandleNotificationCommandHandler } from '@/films/application/handlers/new-film-is-handle-notification.handler';
 
 const queryHandlers = [
   GetFilmByIdQueryHandler,
@@ -28,7 +29,7 @@ const filmProvider = {
 
 const providers = [filmProvider];
 
-const handlers = [NewFilmNotificationCommandHandler];
+const handlers = [NewFilmNotificationCommandHandler, NewFilmIsHandleNotificationCommandHandler];
 
 @Module({
   imports: [TypeOrmModule.forFeature([Film]), MoviesModules, KinopoiskModule],

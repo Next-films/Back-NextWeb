@@ -5,9 +5,13 @@ export class NewMovieNotificationPayloadDto {
   key: string;
 }
 
+export class NewMovieIsHandleNotificationPayloadDto {
+  kpIds: string[];
+}
+
 export class MovieCreateDto {
   kpId: string;
-  key: string;
+  key: string | null;
   name: string;
   originalName: string | null;
   alternativeName: string;
@@ -18,4 +22,11 @@ export class MovieCreateDto {
   genres: Genre[] | null;
 
   hidden: boolean;
+  handleStatus: MovieHandleStatus;
+}
+
+export enum MovieHandleStatus {
+  PROCESSING = 'processing',
+  MODERATE = 'moderate',
+  PRODUCTION = 'production',
 }
