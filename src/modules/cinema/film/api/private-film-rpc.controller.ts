@@ -3,9 +3,7 @@ import { ApiExcludeController } from '@nestjs/swagger';
 import { LoggerService } from '@/common/utils/logger/logger.service';
 import { AppNotificationResult } from '@/common/utils/app-notification.util';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
-import { FilmsOutputDto } from '@/films/api/dtos/output/films.output.dto';
 import { ErrorFieldExceptionDto } from '@/common/exception-filters/http/http-exception.filter';
-import { GetFilmByKinopoiskIdQuery } from '@/films/application/query-handlers/get-film-by-kinopoisk-id.query-handler';
 import { MessagePattern } from '@nestjs/microservices';
 import { ApiCinemaRmqAccessTokenGuard } from '@/external-auth/application/guards/jwt/api-cinema-rmq-access-token.guard';
 import {
@@ -19,6 +17,8 @@ import { NewFilmNotificationPayloadDto } from '@/films/domain/types';
 import { NewFilmNotificationCommand } from '@/films/application/handlers/new-film-notification.handler';
 import { NewFilmIsHandleNotificationCommand } from '@/films/application/handlers/new-film-is-handle-notification.handler';
 import { NewMovieIsHandleNotificationPayloadDto } from '@/movies/domain/types';
+import { GetRpcFilmByKinopoiskIdQuery } from '@/films/application/query-handlers/get-rpc-film-by-kinopoisk-id.query-handler';
+import { FilmsRpcOutputDto } from '@/films/api/dtos/output/films-rpc.output.dto';
 
 @ApiExcludeController()
 @UseFilters(RpcExceptionsFilter)
@@ -36,13 +36,13 @@ export class FilmPrivateRpcController {
   @MessagePattern({ cmd: GET_FILM_BY_KP_ID_CMD })
   async getFilmByKpId(
     @RpcPayload() kpId: string,
-  ): Promise<AppNotificationResult<FilmsOutputDto, ErrorFieldExceptionDto | null>> {
-    this.logger.log(`Execute: Get film by kinopoisk id`, this.getFilmByKpId.name);
+  ): Promise<AppNotificationResult<FilmsRpcOutputDto, ErrorFieldExceptionDto | null>> {
+    this.logger.log(`Execute: Get film by kinopoisk id (rpc)`, this.getFilmByKpId.name);
 
     const result = await this.queryBus.execute<
-      GetFilmByKinopoiskIdQuery,
-      AppNotificationResult<FilmsOutputDto, ErrorFieldExceptionDto | null>
-    >(new GetFilmByKinopoiskIdQuery(kpId));
+      GetRpcFilmByKinopoiskIdQuery,
+      AppNotificationResult<FilmsRpcOutputDto, ErrorFieldExceptionDto | null>
+    >(new GetRpcFilmByKinopoiskIdQuery(kpId));
 
     this.logger.log(result.appResult, this.getFilmByKpId.name);
 

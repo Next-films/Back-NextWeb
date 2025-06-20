@@ -10,6 +10,7 @@ import { GenreQueryRepository } from '@/movies/infrastructure/genre.query-reposi
 import { GenreOutputDtoMapper } from '@/movies/api/dtos/output/genre.output.dto';
 import { GetAllGenreQueryHandler } from '@/movies/application/query-handlers/get-all-genre.query-handler';
 import { MoviesService } from '@/movies/application/movies.service';
+import { MovieRpcOutputDtoMapper } from '@/movies/api/dtos/output/movie-rpc.output.dto';
 
 export const GenreProvider = {
   provide: 'Genre',
@@ -33,6 +34,7 @@ const queryCommands = [GetGenreByIdQueryHandler, GetAllGenreQueryHandler];
   providers: [
     MovieOutputDtoMapper,
     GenreOutputDtoMapper,
+    MovieRpcOutputDtoMapper,
     GenerateGenreMigration,
     GenreRepository,
     GenreQueryRepository,

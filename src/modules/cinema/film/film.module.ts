@@ -15,11 +15,14 @@ import { MoviesModules } from '@/movies/movies.modules';
 import { KinopoiskModule } from '@/external-api/kinopoisk/kinopoisk.module';
 import { FilmBridgeRmqController } from '@/films/api/bridge-rpc-film.controller';
 import { NewFilmIsHandleNotificationCommandHandler } from '@/films/application/handlers/new-film-is-handle-notification.handler';
+import { FilmsRpcOutputDtoMapper } from '@/films/api/dtos/output/films-rpc.output.dto';
+import { GetRpcFilmByKinopoiskIdQueryHandler } from '@/films/application/query-handlers/get-rpc-film-by-kinopoisk-id.query-handler';
 
 const queryHandlers = [
   GetFilmByIdQueryHandler,
   GetFilmsQueryHandler,
   GetFilmByKinopoiskIdQueryHandler,
+  GetRpcFilmByKinopoiskIdQueryHandler,
 ];
 
 const filmProvider = {
@@ -44,6 +47,7 @@ const handlers = [NewFilmNotificationCommandHandler, NewFilmIsHandleNotification
     FilmQueryRepository,
     FilmsOutputDtoMapper,
     FilmRepository,
+    FilmsRpcOutputDtoMapper,
     ...handlers,
     ...providers,
   ],
