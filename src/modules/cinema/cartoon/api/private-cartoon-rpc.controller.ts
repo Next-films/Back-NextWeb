@@ -13,12 +13,12 @@ import {
 } from '@/common/constants/rmq.constants';
 import { RpcPayload } from '@/common/decorators/rpc-payload.decorator';
 import { RpcExceptionsFilter } from '@/common/exception-filters/rpc/rpc-exception.filter';
-import { GetCartoonByKinopoiskIdQuery } from '@/cartoons/application/query-handlers/get-cartoon-by-kinopoisk-id.query-handler';
-import { CartoonsOutputDto } from '@/cartoons/api/dtos/output/cartoons.output.dto';
 import { NewCartoonNotificationPayloadDto } from '@/cartoons/domain/types';
 import { NewCartoonNotificationCommand } from '@/cartoons/application/handlers/new-cartoon-notification.handler';
 import { NewMovieIsHandleNotificationPayloadDto } from '@/movies/domain/types';
 import { NewCartoonIsHandleNotificationCommand } from '@/cartoons/application/handlers/new-cartoon-is-handle-notification.handler';
+import { CartoonsRpcOutputDto } from '@/cartoons/api/dtos/output/cartoons-rpc.output.dto';
+import { GetRpcCartoonsByKinopoiskIdQuery } from '@/cartoons/application/query-handlers/get-rpc-cartoons-by-kinopoisk-id.query-handler';
 
 @ApiExcludeController()
 @UseFilters(RpcExceptionsFilter)
@@ -36,13 +36,13 @@ export class CartoonPrivateRpcController {
   @MessagePattern({ cmd: GET_CARTOON_BY_KP_ID_CMD })
   async getCartoonByKpId(
     @RpcPayload() kpId: string,
-  ): Promise<AppNotificationResult<CartoonsOutputDto, ErrorFieldExceptionDto | null>> {
-    this.logger.log(`Execute: Get cartoon by kinopoisk id`, this.getCartoonByKpId.name);
+  ): Promise<AppNotificationResult<CartoonsRpcOutputDto, ErrorFieldExceptionDto | null>> {
+    this.logger.log(`Execute: Get cartoon by kinopoisk id (rpc)`, this.getCartoonByKpId.name);
 
     const result = await this.queryBus.execute<
-      GetCartoonByKinopoiskIdQuery,
-      AppNotificationResult<CartoonsOutputDto, ErrorFieldExceptionDto | null>
-    >(new GetCartoonByKinopoiskIdQuery(kpId));
+      GetRpcCartoonsByKinopoiskIdQuery,
+      AppNotificationResult<CartoonsRpcOutputDto, ErrorFieldExceptionDto | null>
+    >(new GetRpcCartoonsByKinopoiskIdQuery(kpId));
 
     this.logger.log(result.appResult, this.getCartoonByKpId.name);
 

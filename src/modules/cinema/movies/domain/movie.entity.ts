@@ -54,6 +54,12 @@ export class MovieEntity {
   @Column({ enum: MovieHandleStatus, default: MovieHandleStatus.PROCESSING })
   handleStatus: MovieHandleStatus;
 
+  @Column({ type: 'timestamp with time zone', default: () => 'CURRENT_TIMESTAMP' })
+  createdAt: Date;
+
+  @Column({ type: 'timestamp with time zone', default: () => 'CURRENT_TIMESTAMP' })
+  updatedAt: Date;
+
   genres: Genre[];
 
   // TODO:
@@ -61,6 +67,7 @@ export class MovieEntity {
     this: new () => T,
     inputDto: CartonCreateDto | FilmCreateDto,
   ): T {
+    const currentDate = new Date();
     const {
       kpId,
       key,
@@ -87,6 +94,8 @@ export class MovieEntity {
     instance.country = country;
     instance.alternativeTitles = alternativeName;
     instance.releaseDate = releaseDate;
+    instance.createdAt = currentDate;
+    instance.updatedAt = currentDate;
 
     instance.trailerUrl = '';
     instance.backgroundImg = '';
@@ -126,6 +135,7 @@ export class MovieEntity {
     this.country = country;
     this.alternativeTitles = alternativeName;
     this.releaseDate = releaseDate;
+    this.updatedAt = new Date();
 
     this.trailerUrl = '';
     this.backgroundImg = '';
