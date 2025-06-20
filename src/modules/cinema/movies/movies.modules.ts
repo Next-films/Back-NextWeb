@@ -9,6 +9,7 @@ import { GetGenreByIdQueryHandler } from '@/movies/application/query-handlers/ge
 import { GenreQueryRepository } from '@/movies/infrastructure/genre.query-repository';
 import { GenreOutputDtoMapper } from '@/movies/api/dtos/output/genre.output.dto';
 import { GetAllGenreQueryHandler } from '@/movies/application/query-handlers/get-all-genre.query-handler';
+import { MoviesService } from '@/movies/application/movies.service';
 
 export const GenreProvider = {
   provide: 'Genre',
@@ -17,7 +18,12 @@ export const GenreProvider = {
 
 const providers = [GenreProvider];
 
-const exportProviders = [GenreProvider, TypeOrmModule.forFeature([Genre]), GenreRepository];
+const exportProviders = [
+  GenreProvider,
+  TypeOrmModule.forFeature([Genre]),
+  GenreRepository,
+  MoviesService,
+];
 
 const queryCommands = [GetGenreByIdQueryHandler, GetAllGenreQueryHandler];
 
@@ -30,6 +36,7 @@ const queryCommands = [GetGenreByIdQueryHandler, GetAllGenreQueryHandler];
     GenerateGenreMigration,
     GenreRepository,
     GenreQueryRepository,
+    MoviesService,
     ...providers,
     ...queryCommands,
   ],

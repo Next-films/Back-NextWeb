@@ -6,8 +6,76 @@ on:
       - dev
 
 jobs:
-  deploy:
+  test:
+    name: Run Tests
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:14
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: sa
+          POSTGRES_DB: next_films
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      rabbitmq:
+        image: rabbitmq:3-management
+        ports:
+          - 5672:5672
+          - 15672:15672
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Install dotenv-cli
+        run: yarn global add dotenv-cli
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Wait for PostgreSQL
+        run: |
+          until pg_isready -h localhost -p 5432; do
+            echo "⏳ Waiting for Postgres..."
+            sleep 1
+          done
+
+      - name: Wait for RabbitMQ
+        run: |
+          for i in {1..30}; do
+            if curl -s http://localhost:15672 > /dev/null; then
+              echo "✅ RabbitMQ is up!"
+              break
+            fi
+            echo "⏳ Waiting for RabbitMQ..."
+            sleep 2
+          done
+
+      - name: Run tests with .env.test
+        run: dotenv -e .env.test -- yarn test --runInBand
+
+  deploy:
+    name: Deploy to STG
+    runs-on: ubuntu-latest
+    needs: test
 
     env:
       COMPOSE_FILE: docker-compose.dev.yml

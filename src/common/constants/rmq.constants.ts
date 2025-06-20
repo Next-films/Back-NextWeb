@@ -19,3 +19,12 @@ export const BRIDGE_FIND_CARTOONS_CMD = 'bridge_find_cartoon_cmd';
 export const BRIDGE_DOWNLOAD_CARTOONS_CMD = 'bridge_download_cartoon_cmd';
 export const BRIDGE_FIND_SERIALS_CMD = 'bridge_find_serials_cmd';
 export const BRIDGE_DOWNLOAD_SERIALS_CMD = 'bridge_download_serials_cmd';
+
+/*
+ *
+ * Notification that the movie has been added to the queue for processing, so as not to pick up duplicates from kinopoisk
+ *
+ */
+export const NEW_FILM_IS_HANDLE_CMD = 'new_film_is_handle_cmd';
+export const NEW_CARTOON_IS_HANDLE_CMD = 'new_cartoon_is_handle_cmd';
+export const NEW_SERIAL_IS_HANDLE_CMD = 'new_serial_is_handle_cmd';

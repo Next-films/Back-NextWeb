@@ -14,6 +14,7 @@ import { CartoonRepository } from '@/cartoons/infrastructure/cartoon.repository'
 import { MoviesModules } from '@/movies/movies.modules';
 import { KinopoiskModule } from '@/external-api/kinopoisk/kinopoisk.module';
 import { CartoonBridgeRmqController } from '@/cartoons/api/bridge-rpc-cartoon.controller';
+import { NewCartoonIsHandleNotificationCommandHandler } from '@/cartoons/application/handlers/new-cartoon-is-handle-notification.handler';
 
 const cartoonProvider = {
   provide: 'Cartoon',
@@ -28,7 +29,10 @@ const queryHandlers = [
   GetCartoonByKinopoiskIdQueryHandler,
 ];
 
-const handlers = [NewCartoonNotificationCommandHandler];
+const handlers = [
+  NewCartoonNotificationCommandHandler,
+  NewCartoonIsHandleNotificationCommandHandler,
+];
 
 @Module({
   imports: [TypeOrmModule.forFeature([Cartoon]), MoviesModules, KinopoiskModule],
