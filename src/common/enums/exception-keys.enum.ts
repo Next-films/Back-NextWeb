@@ -21,6 +21,9 @@ export enum EXCEPTION_KEYS_ENUM {
   EXTERNAL_API_TOKEN_ALREADY_EXIST = 'error.external_api_token_already_exist',
   EXTERNAL_API_TOKEN_NOT_FOUND = 'error.external_api_token_not_found',
   KP_MOVIE_NOT_FOUND = 'error.kp_movie_not_found', // Kinopoisk
+  BANNED_MOVIE_BY_PROVIDER_NOT_FOUND = 'error.banned_movie_by_provider_not_found',
+  MOVIE_NOT_BANNED_CANNOT_UNBAN = 'error.movie_not_banned_cannot_unban',
+  BANNED_PROVIDER_MOVIE_NOT_FOUND = 'error.banned_provider_movie_not_found',
   /*
    *
    * Input validation error
@@ -46,4 +49,8 @@ export enum EXCEPTION_KEYS_ENUM {
   kpId = 'error_input.kpId',
   tokenId = 'error_input.tokenId',
   expAt = 'error_input.expAt',
+  provider = 'error_input.provider',
+  isBan = 'error_input.isBan',
+  providerId = 'error_input.providerId',
+  bannedProviderMovieId = 'error_input.bannedProviderMovieId',
 }

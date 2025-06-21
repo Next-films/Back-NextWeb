@@ -45,6 +45,10 @@ describe('NewFilmNotificationCommandHandler (integration)', () => {
     await testService.clearDb();
   });
 
+  afterAll(async () => {
+    await app.close();
+  });
+
   it('should add new film', async () => {
     const kinopoiskServiceSpy = jest.spyOn(kinopoiskService, 'getMovieById');
 

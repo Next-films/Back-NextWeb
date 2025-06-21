@@ -45,6 +45,10 @@ describe('NewCartoonNotificationCommandHandler (integration)', () => {
     await testService.clearDb();
   });
 
+  afterAll(async () => {
+    await app.close();
+  });
+
   it('should add new cartoon', async () => {
     const kinopoiskServiceSpy = jest.spyOn(kinopoiskService, 'getMovieById');
 

@@ -70,3 +70,21 @@ export const ADMIN_EXTERNAL_AUTH_TOKEN_VALIDATION_RULES /* as ValidationRulesCon
     LENGTH_MAX: 30,
   },
 } as const;
+/*
+*
+*
+        Admin banned providers movies
+*
+*
+*/
+export const ADMIN_BANNED_PROVIDERS_MOVIES_VALIDATION_RULES /* as ValidationRulesConstantsType */ =
+  {
+    PROVIDER_ID: {
+      LENGTH_MIN: 1,
+      LENGTH_MAX: 50,
+    },
+    MOVIE_NAME: {
+      LENGTH_MIN: 1,
+      LENGTH_MAX: 100,
+    },
+  } as const;

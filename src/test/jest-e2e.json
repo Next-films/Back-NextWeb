@@ -33,6 +33,8 @@
     "@/external-auth/(.*)$": "<rootDir>/modules/auth/external/$1",
     "@/sessions/(.*)$": "<rootDir>/modules/auth/session/$1",
     "@/jwt-module/(.*)$": "<rootDir>/modules/jwt/$1",
-    "@/external-api/(.*)$": "<rootDir>/modules/external-api/$1"
+    "@/external-api/(.*)$": "<rootDir>/modules/external-api/$1",
+    "@/converter-logs/(.*)$": "<rootDir>/modules/converter-logs/$1",
+    "@/banned-providers-movie/(.*)$": "<rootDir>/modules/banned-providers-movie/$1"
   }
 }

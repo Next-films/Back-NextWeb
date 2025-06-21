@@ -9,6 +9,8 @@ import { AdminModule } from '@/admin/admin.module';
 import { AdminAuthModule } from '@/admin-auth/admin-auth.module';
 import { RequestsContextMiddleware } from './common/utils/logger/request-context.middleware';
 import { AsyncLocalStorageService } from '@/common/utils/logger/als.service';
+import { ConverterLogsModule } from '@/converter-logs/converter-logs.module';
+import { BandedProvidersMovieModule } from '@/banned-providers-movie/banned-providers-movie.module';
 
 @Module({
   imports: [
@@ -24,6 +26,8 @@ import { AsyncLocalStorageService } from '@/common/utils/logger/als.service';
     SerialModule,
     AdminModule,
     AdminAuthModule,
+    ConverterLogsModule,
+    BandedProvidersMovieModule,
   ],
   controllers: [],
   providers: [AsyncLocalStorageService],
