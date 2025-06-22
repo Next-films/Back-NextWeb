@@ -6,7 +6,7 @@ import {
 import { ErrorFieldExceptionDto } from '@/common/exception-filters/http/http-exception.filter';
 import { LoggerService } from '@/common/utils/logger/logger.service';
 import { Inject } from '@nestjs/common';
-import { CartonCreateDto, NewCartoonNotificationPayloadDto } from '@/cartoons/domain/types';
+import { CartonCreateDto } from '@/cartoons/domain/types';
 import { Cartoon } from '@/cartoons/domain/cartoon.entity';
 import { CartoonRepository } from '@/cartoons/infrastructure/cartoon.repository';
 import { KinopoiskService } from '@/external-api/kinopoisk/application/kinopoisk.service';
@@ -14,6 +14,7 @@ import { DateUtil } from '@/common/utils/date.util';
 import { EXCEPTION_KEYS_ENUM } from '@/common/enums/exception-keys.enum';
 import { MovieHandleStatus } from '@/movies/domain/types';
 import { MoviesService } from '@/movies/application/movies.service';
+import { NewCartoonNotificationPayloadDto } from '@/cartoons/api/dtos/input/new-cartoon-notification.input.dto';
 
 export class NewCartoonNotificationCommand implements ICommand {
   constructor(public inputDto: NewCartoonNotificationPayloadDto) {}

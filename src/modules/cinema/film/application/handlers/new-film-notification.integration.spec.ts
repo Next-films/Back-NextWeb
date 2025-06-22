@@ -6,7 +6,6 @@ import { TestService } from 'test/test.service';
 import { MovieHandleStatus } from '@/movies/domain/types';
 import { EXCEPTION_KEYS_ENUM } from '@/common/enums/exception-keys.enum';
 import { FilmRepository } from '@/films/infrastructure/film.repository';
-import { NewFilmNotificationPayloadDto } from '@/films/domain/types';
 import {
   NewFilmNotificationCommand,
   NewFilmNotificationCommandHandler,
@@ -15,6 +14,7 @@ import {
   NewFilmIsHandleNotificationCommand,
   NewFilmIsHandleNotificationCommandHandler,
 } from '@/films/application/handlers/new-film-is-handle-notification.handler';
+import { NewFilmNotificationPayloadDto } from '@/films/api/dtos/input/new-film-notification.input.dto';
 
 describe('NewFilmNotificationCommandHandler (integration)', () => {
   let app: INestApplication;
@@ -43,6 +43,10 @@ describe('NewFilmNotificationCommandHandler (integration)', () => {
 
   beforeEach(async () => {
     await testService.clearDb();
+  });
+
+  afterAll(async () => {
+    await app.close();
   });
 
   it('should add new film', async () => {

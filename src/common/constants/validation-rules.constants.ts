@@ -38,6 +38,45 @@ export const GENRE_VALIDATION_RULES /* as ValidationRulesConstantsType */ = {
 /*
 *
 *
+        Films validation
+*
+*
+*/
+export const FILMS_VALIDATION_RULES /* as ValidationRulesConstantsType */ = {
+  NAME: {
+    LENGTH_MIN: 1,
+    LENGTH_MAX: 100,
+  },
+} as const;
+/*
+*
+*
+        Cartoons validation
+*
+*
+*/
+export const CARTOONS_VALIDATION_RULES /* as ValidationRulesConstantsType */ = {
+  NAME: {
+    LENGTH_MIN: 1,
+    LENGTH_MAX: 100,
+  },
+} as const;
+/*
+*
+*
+        Serials validation
+*
+*
+*/
+export const SERIALS_VALIDATION_RULES /* as ValidationRulesConstantsType */ = {
+  NAME: {
+    LENGTH_MIN: 1,
+    LENGTH_MAX: 100,
+  },
+} as const;
+/*
+*
+*
         Auth admin
 *
 *
@@ -69,4 +108,26 @@ export const ADMIN_EXTERNAL_AUTH_TOKEN_VALIDATION_RULES /* as ValidationRulesCon
     LENGTH_MIN: 3,
     LENGTH_MAX: 30,
   },
+  SEARCH_NAME: {
+    LENGTH_MIN: 1,
+    LENGTH_MAX: 100,
+  },
 } as const;
+/*
+*
+*
+        Admin banned providers movies
+*
+*
+*/
+export const ADMIN_BANNED_PROVIDERS_MOVIES_VALIDATION_RULES /* as ValidationRulesConstantsType */ =
+  {
+    PROVIDER_ID: {
+      LENGTH_MIN: 1,
+      LENGTH_MAX: 50,
+    },
+    MOVIE_NAME: {
+      LENGTH_MIN: 1,
+      LENGTH_MAX: 100,
+    },
+  } as const;

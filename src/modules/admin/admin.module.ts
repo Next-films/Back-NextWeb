@@ -15,6 +15,12 @@ import { ExternalApiTokenOutputModelMapper } from '@/admin/api/dtos/output/exter
 import { AdminUpdateExternalApiTokenCommandHandler } from '@/admin/application/handlers/admin-update-external-api-token.handler';
 import { AdminRemoveExternalApiTokenCommandHandler } from '@/admin/application/handlers/admin-remove-external-api-token.handler';
 import { AdminCinemaRpcController } from '@/admin/api/admin-cinema-rpc.controller';
+import { AdminBannedProvidersMovieController } from '@/admin/api/admin-banned-providers-movie.controller';
+import { AdminBanOrUnbanProviderMovieCommandHandler } from '@/admin/application/handlers/admin-ban-or-unban-provider-movie.handler';
+import { BandedProvidersMovieModule } from '@/banned-providers-movie/banned-providers-movie.module';
+import { AdminGetAllBannedProvidersMoviesQueryHandler } from '@/admin/application/query-handlers/admin-get-all-banned-providers-movies.query-handler';
+import { AdminBannedProvidersMoviesOutputDtoMapper } from '@/admin/api/dtos/output/admin-banned-providers-movies.output.dto';
+import { AdminUpdateBannedProviderMovieCommandHandler } from '@/admin/application/handlers/admin-update-banned-provider-movie.handler';
 
 export const AdminProvider = {
   provide: 'Admin',
@@ -28,8 +34,13 @@ const handlers = [
   AdminCreateExternalApiTokenCommandHandler,
   AdminUpdateExternalApiTokenCommandHandler,
   AdminRemoveExternalApiTokenCommandHandler,
+  AdminBanOrUnbanProviderMovieCommandHandler,
+  AdminUpdateBannedProviderMovieCommandHandler,
 ];
-const queryHandlers = [AdminGetAllExternalTokensQueryHandler];
+const queryHandlers = [
+  AdminGetAllExternalTokensQueryHandler,
+  AdminGetAllBannedProvidersMoviesQueryHandler,
+];
 
 const exportProviders = [TypeOrmModule.forFeature([Admin]), AdminProvider];
 
@@ -40,14 +51,21 @@ const exportProviders = [TypeOrmModule.forFeature([Admin]), AdminProvider];
     BcryptModule,
     JwtModule,
     ExternalApiAuthModule,
+    BandedProvidersMovieModule,
   ],
-  controllers: [AdminGenreController, AdminExternalApiController, AdminCinemaRpcController],
+  controllers: [
+    AdminGenreController,
+    AdminExternalApiController,
+    AdminCinemaRpcController,
+    AdminBannedProvidersMovieController,
+  ],
   providers: [
     ...handlers,
     GenerateAdminMigration,
     ...providers,
     ...queryHandlers,
     ExternalApiTokenOutputModelMapper,
+    AdminBannedProvidersMoviesOutputDtoMapper,
   ],
   exports: [...exportProviders],
 })

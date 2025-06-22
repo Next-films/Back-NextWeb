@@ -2,6 +2,13 @@ export type FindTorApiTorrentFilmType = Partial<
   Record<keyof TorApiSearchByTitleAllProviders, TorApiMovieById[] | null>
 >;
 
+export enum TorApiProvidersEnum {
+  'RUTRACKER' = 'rutracker',
+  'KINOZAL' = 'kinozal',
+  'RUTOR' = 'rutor',
+  'NONAMECLUB' = 'nonameclub',
+}
+
 export type TorApiSearchByTitleAllProviders = {
   RuTracker: TorApiSearchByTitle[] | TorApiSearchNotFoundResult;
   Kinozal: TorApiSearchByTitle[] | TorApiSearchNotFoundResult;
@@ -98,9 +105,7 @@ export enum MovieTypesEnum {
   SERIAL = 'serial',
 }
 
-export class ModerateRequestPayloadDto {
-  type: MovieTypesEnum;
-  kpId: string;
-  movieName: string;
-  torrent: FindTorApiTorrentFilmType;
-}
+export type HandledRmqErrorType = {
+  isError: boolean;
+  isStopProcess: boolean;
+};

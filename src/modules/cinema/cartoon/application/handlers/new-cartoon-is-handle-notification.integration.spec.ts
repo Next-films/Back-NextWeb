@@ -33,6 +33,10 @@ describe('NewCartoonIsHandleNotificationCommandHandler (integration)', () => {
     await testService.clearDb();
   });
 
+  afterAll(async () => {
+    await app.close();
+  });
+
   it('should process all kpIds and commit transaction', async () => {
     const kinopoiskServiceSpy = jest.spyOn(kinopoiskService, 'getMovieById');
     const kpIds = ['1', '2'];

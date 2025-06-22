@@ -25,6 +25,10 @@ export const ADMIN_EXTERNAL_API_ROUTE = {
   CREATE_TOKEN: 'create-token',
   TOKEN: 'token',
 };
+
+export const ADMIN_BANNED_PROVIDERS_MOVIES_ROUTE = {
+  MAIN: `${ADMIN_PREFIX}/banned-providers-movies`,
+};
 /*
 *
 *

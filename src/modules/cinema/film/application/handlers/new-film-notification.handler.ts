@@ -10,10 +10,11 @@ import { KinopoiskService } from '@/external-api/kinopoisk/application/kinopoisk
 import { DateUtil } from '@/common/utils/date.util';
 import { EXCEPTION_KEYS_ENUM } from '@/common/enums/exception-keys.enum';
 import { FilmRepository } from '@/films/infrastructure/film.repository';
-import { FilmCreateDto, NewFilmNotificationPayloadDto } from '@/films/domain/types';
+import { FilmCreateDto } from '@/films/domain/types';
 import { Film } from '@/films/domain/film.entity';
 import { MovieHandleStatus } from '@/movies/domain/types';
 import { MoviesService } from '@/movies/application/movies.service';
+import { NewFilmNotificationPayloadDto } from '@/films/api/dtos/input/new-film-notification.input.dto';
 
 export class NewFilmNotificationCommand implements ICommand {
   constructor(public inputDto: NewFilmNotificationPayloadDto) {}

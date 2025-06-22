@@ -13,12 +13,12 @@ import {
 } from '@/common/constants/rmq.constants';
 import { RpcPayload } from '@/common/decorators/rpc-payload.decorator';
 import { RpcExceptionsFilter } from '@/common/exception-filters/rpc/rpc-exception.filter';
-import { NewCartoonNotificationPayloadDto } from '@/cartoons/domain/types';
 import { NewCartoonNotificationCommand } from '@/cartoons/application/handlers/new-cartoon-notification.handler';
-import { NewMovieIsHandleNotificationPayloadDto } from '@/movies/domain/types';
 import { NewCartoonIsHandleNotificationCommand } from '@/cartoons/application/handlers/new-cartoon-is-handle-notification.handler';
 import { CartoonsRpcOutputDto } from '@/cartoons/api/dtos/output/cartoons-rpc.output.dto';
 import { GetRpcCartoonsByKinopoiskIdQuery } from '@/cartoons/application/query-handlers/get-rpc-cartoons-by-kinopoisk-id.query-handler';
+import { NewMovieIsHandleNotificationPayloadDto } from '@/movies/api/dtos/input/new-movie-is-handle-notification.input.dto';
+import { NewCartoonNotificationPayloadDto } from '@/cartoons/api/dtos/input/new-cartoon-notification.input.dto';
 
 @ApiExcludeController()
 @UseFilters(RpcExceptionsFilter)

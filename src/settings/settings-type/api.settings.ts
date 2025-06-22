@@ -52,4 +52,7 @@ export class ApiSettings {
 
   @IsString()
   KINOPOISK_API_TOKEN: string = this.environmentVariables.KINOPOISK_API_TOKEN;
+
+  @IsString()
+  DOWNLOAD_SERVICE_TOKEN: string = this.environmentVariables.DOWNLOAD_SERVICE_TOKEN;
 }
