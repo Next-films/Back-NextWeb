@@ -8,13 +8,14 @@ import { LoggerService } from '@/common/utils/logger/logger.service';
 import { Inject } from '@nestjs/common';
 import { KinopoiskService } from '@/external-api/kinopoisk/application/kinopoisk.service';
 import { DateUtil } from '@/common/utils/date.util';
-import { MovieHandleStatus, NewMovieIsHandleNotificationPayloadDto } from '@/movies/domain/types';
+import { MovieHandleStatus } from '@/movies/domain/types';
 import { DataSource, QueryRunner } from 'typeorm';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { MoviesService } from '@/movies/application/movies.service';
 import { Cartoon } from '@/cartoons/domain/cartoon.entity';
 import { CartoonRepository } from '@/cartoons/infrastructure/cartoon.repository';
 import { CartonCreateDto } from '@/cartoons/domain/types';
+import { NewMovieIsHandleNotificationPayloadDto } from '@/movies/api/dtos/input/new-movie-is-handle-notification.input.dto';
 
 export class NewCartoonIsHandleNotificationCommand implements ICommand {
   constructor(public inputDto: NewMovieIsHandleNotificationPayloadDto) {}

@@ -53,4 +53,5 @@ export enum EXCEPTION_KEYS_ENUM {
   isBan = 'error_input.isBan',
   providerId = 'error_input.providerId',
   bannedProviderMovieId = 'error_input.bannedProviderMovieId',
+  movieName = 'error_input.movieName',
 }

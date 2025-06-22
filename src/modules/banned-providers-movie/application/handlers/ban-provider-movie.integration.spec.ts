@@ -5,10 +5,10 @@ import {
   BanProviderMovieCommand,
   BanProviderMovieCommandHandler,
 } from '@/banned-providers-movie/application/handlers/ban-provider-movie.handler';
-import { BanProviderMoviePayloadDto } from '@/banned-providers-movie/domain/types';
 import { TorApiProvidersEnum } from '@/common/types/types';
 import { BannedProvidersMovieQueryRepository } from '@/banned-providers-movie/infrastructure/banned-providers-movie.query-repository';
 import { initTestSettings } from '../../../../test/test-init-settings';
+import { BanProviderMoviePayloadDto } from '@/banned-providers-movie/api/dtos/input/ban-provider-movie-rpc.input.dto';
 
 describe('BanProviderMovieCommandHandler (integration)', () => {
   let app: INestApplication;

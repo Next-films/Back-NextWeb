@@ -6,8 +6,8 @@ import {
 import { LoggerService } from '@/common/utils/logger/logger.service';
 import { Inject } from '@nestjs/common';
 import { BannedProvidersMovie } from '@/banned-providers-movie/domain/banned-providers-movie.entity';
-import { BanProviderMoviePayloadDto } from '@/banned-providers-movie/domain/types';
 import { BannedProvidersMovieRepository } from '@/banned-providers-movie/infrastructure/banned-providers-movie.repository';
+import { BanProviderMoviePayloadDto } from '@/banned-providers-movie/api/dtos/input/ban-provider-movie-rpc.input.dto';
 
 export class BanProviderMovieCommand implements ICommand {
   constructor(public inputDto: BanProviderMoviePayloadDto) {}

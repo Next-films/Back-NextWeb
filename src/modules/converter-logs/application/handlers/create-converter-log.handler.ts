@@ -6,8 +6,8 @@ import {
 import { LoggerService } from '@/common/utils/logger/logger.service';
 import { Inject } from '@nestjs/common';
 import { ConverterLogs } from '@/converter-logs/domain/converter-logs.entity';
-import { UploadedLogFilePayloadDto } from '@/converter-logs/domain/types';
 import { ConverterLogsRepository } from '@/converter-logs/infrastructure/converter-logs.repository';
+import { UploadedLogFilePayloadDto } from '@/converter-logs/api/dtos/input/create-converter-log-file.input.dto';
 
 export class CreateConverterLogCommand implements ICommand {
   constructor(public inputDto: UploadedLogFilePayloadDto) {}

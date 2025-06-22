@@ -9,7 +9,7 @@ import { UPLOADED_LOG_FILES_CMD } from '@/common/constants/rmq.constants';
 import { RpcPayload } from '@/common/decorators/rpc-payload.decorator';
 import { AppNotificationResult } from '@/common/utils/app-notification.util';
 import { CreateConverterLogCommand } from '@/converter-logs/application/handlers/create-converter-log.handler';
-import { UploadedLogFilePayloadDto } from '@/converter-logs/domain/types';
+import { UploadedLogFilePayloadDto } from '@/converter-logs/api/dtos/input/create-converter-log-file.input.dto';
 
 @ApiExcludeController()
 @UseFilters(RpcExceptionsFilter)

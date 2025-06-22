@@ -1,7 +1,3 @@
-import { MovieCreateDto, NewMovieNotificationPayloadDto } from '@/movies/domain/types';
-
-export class NewCartoonNotificationPayloadDto extends NewMovieNotificationPayloadDto {
-  duration: number | null;
-}
+import { MovieCreateDto } from '@/movies/domain/types';
 
 export class CartonCreateDto extends MovieCreateDto {}

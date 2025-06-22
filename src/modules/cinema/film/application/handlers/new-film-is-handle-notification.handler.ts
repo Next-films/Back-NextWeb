@@ -11,10 +11,11 @@ import { DateUtil } from '@/common/utils/date.util';
 import { FilmRepository } from '@/films/infrastructure/film.repository';
 import { FilmCreateDto } from '@/films/domain/types';
 import { Film } from '@/films/domain/film.entity';
-import { MovieHandleStatus, NewMovieIsHandleNotificationPayloadDto } from '@/movies/domain/types';
+import { MovieHandleStatus } from '@/movies/domain/types';
 import { DataSource, QueryRunner } from 'typeorm';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { MoviesService } from '@/movies/application/movies.service';
+import { NewMovieIsHandleNotificationPayloadDto } from '@/movies/api/dtos/input/new-movie-is-handle-notification.input.dto';
 
 export class NewFilmIsHandleNotificationCommand implements ICommand {
   constructor(public inputDto: NewMovieIsHandleNotificationPayloadDto) {}

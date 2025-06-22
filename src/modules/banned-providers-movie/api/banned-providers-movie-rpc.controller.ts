@@ -12,13 +12,11 @@ import {
 import { RpcPayload } from '@/common/decorators/rpc-payload.decorator';
 import { AppNotificationResult } from '@/common/utils/app-notification.util';
 import { BanProviderMovieCommand } from '@/banned-providers-movie/application/handlers/ban-provider-movie.handler';
-import {
-  BanProviderMoviePayloadDto,
-  GetBannedMovieByProviderPayloadDto,
-} from '@/banned-providers-movie/domain/types';
 import { GetBannedMovieByProviderRpcQuery } from '@/banned-providers-movie/application/query-handlers/get-banned-movie-by-provider-rpc.query-handler';
 import { BannedMoviesByProviderRpcOutputDto } from '@/banned-providers-movie/api/dtos/output/banned-movies-by-provider-rpc.output.dto';
 import { ErrorFieldExceptionDto } from '@/common/exception-filters/http/http-exception.filter';
+import { BanProviderMoviePayloadDto } from '@/banned-providers-movie/api/dtos/input/ban-provider-movie-rpc.input.dto';
+import { GetBannedMovieByProviderPayloadDto } from '@/banned-providers-movie/api/dtos/input/get-banned-provider-movie-rpc.input.dto';
 
 @ApiExcludeController()
 @UseFilters(RpcExceptionsFilter)

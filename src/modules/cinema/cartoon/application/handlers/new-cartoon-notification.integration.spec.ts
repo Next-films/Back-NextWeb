@@ -13,8 +13,8 @@ import {
   NewCartoonNotificationCommand,
   NewCartoonNotificationCommandHandler,
 } from '@/cartoons/application/handlers/new-cartoon-notification.handler';
-import { NewCartoonNotificationPayloadDto } from '@/cartoons/domain/types';
 import { EXCEPTION_KEYS_ENUM } from '@/common/enums/exception-keys.enum';
+import { NewCartoonNotificationPayloadDto } from '@/cartoons/api/dtos/input/new-cartoon-notification.input.dto';
 
 describe('NewCartoonNotificationCommandHandler (integration)', () => {
   let app: INestApplication;

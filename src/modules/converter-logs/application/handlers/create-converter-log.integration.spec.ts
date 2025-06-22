@@ -7,7 +7,7 @@ import {
   CreateConverterLogCommandHandler,
 } from '@/converter-logs/application/handlers/create-converter-log.handler';
 import { ConverterLogsRepository } from '@/converter-logs/infrastructure/converter-logs.repository';
-import { UploadedLogFilePayloadDto } from '@/converter-logs/domain/types';
+import { UploadedLogFilePayloadDto } from '@/converter-logs/api/dtos/input/create-converter-log-file.input.dto';
 
 describe('CreateConverterLogCommandHandler (integration)', () => {
   let app: INestApplication;

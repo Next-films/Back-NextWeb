@@ -8,6 +8,7 @@ import {
   Post,
   Put,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApplicationNotification,
@@ -30,10 +31,13 @@ import { AdminBannedProvidersMoviesOutputDto } from '@/admin/api/dtos/output/adm
 import { AdminUpdateBannedProviderMovieCommand } from '@/admin/application/handlers/admin-update-banned-provider-movie.handler';
 import { AdminUpdateBannedProviderMovieInputDto } from '@/admin/api/dtos/input/admin-update-banned-provider-movie.input.dto';
 import { SwaggerDecoratorAdminUpdateBannedProviderMovie } from '@/admin/api/swagger/admin-update-banned-provider-movie.swagger.decorator';
+import { AdminAccessTokenGuard } from '@/admin-auth/application/guards/jwt/admin-access-token.guard';
+import { ParseIntPatchPipe } from '@/common/pipes/validation-parse-int.pipe';
 
 @ApiTags('Admin - banned providers movies')
 @ApiBearerAuth()
 @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+@UseGuards(AdminAccessTokenGuard)
 @Controller(ADMIN_BANNED_PROVIDERS_MOVIES_ROUTE.MAIN)
 export class AdminBannedProvidersMovieController {
   constructor(
@@ -64,7 +68,7 @@ export class AdminBannedProvidersMovieController {
   @Put(':bannedProviderMovieId')
   @SwaggerDecoratorAdminUpdateBannedProviderMovie()
   async updateBannedProviderMovie(
-    @Param('bannedProviderMovieId') bannedProviderMovieId: number,
+    @Param('bannedProviderMovieId', ParseIntPatchPipe) bannedProviderMovieId: number,
     @Body() body: AdminUpdateBannedProviderMovieInputDto,
   ): Promise<void> {
     this.logger.log('Execute: ban or unban provider movie', this.updateBannedProviderMovie.name);

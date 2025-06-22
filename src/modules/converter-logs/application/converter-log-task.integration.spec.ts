@@ -9,11 +9,11 @@ import {
   CreateConverterLogCommandHandler,
 } from '@/converter-logs/application/handlers/create-converter-log.handler';
 import { ConverterLogsRepository } from '@/converter-logs/infrastructure/converter-logs.repository';
-import { UploadedLogFilePayloadDto } from '@/converter-logs/domain/types';
 import { ConverterLogsTaskService } from '@/converter-logs/application/converter-logs.task.service';
 import { DownloaderServiceAdapter } from '@/common/infrastructure/rmq/downloader-service.adapter';
 import { subMonths } from 'date-fns';
 import { initTestSettings } from '../../../test/test-init-settings';
+import { UploadedLogFilePayloadDto } from '@/converter-logs/api/dtos/input/create-converter-log-file.input.dto';
 
 describe('ConverterLogsTaskService (integration)', () => {
   let app: INestApplication;

@@ -1,14 +1,5 @@
 import { Genre } from '@/movies/domain/genre.entity';
 
-export class NewMovieNotificationPayloadDto {
-  kpId: string;
-  key: string;
-}
-
-export class NewMovieIsHandleNotificationPayloadDto {
-  kpIds: string[];
-}
-
 export class MovieCreateDto {
   kpId: string;
   key: string | null;
