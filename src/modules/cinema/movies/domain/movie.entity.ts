@@ -43,13 +43,18 @@ export class MovieEntity {
   trailerUrl: string | null;
 
   @Column({ type: 'varchar', nullable: true })
-  backgroundImg: string | null;
+  backgroundContentUrl: string | null; // TODO: Либо картинка либо трейлер. // Подумать качать ли к нам или тянуть от других.
 
   @Column({ type: 'varchar', nullable: true })
-  cardImg: string | null;
+  previewUrl: string | null; // TODO: Превью фильма Подумать качать ли к нам или тянуть от других.
+  //TODO:
+  //   "poster": {
+  //   "previewUrl": "https://image.openmoviedb.com/kinopoisk-images/10809116/f2d658c0-1af5-4e65-9de4-160cf138eee4/300x450",
+  //   "url": "https://image.openmoviedb.com/kinopoisk-images/10809116/f2d658c0-1af5-4e65-9de4-160cf138eee4/600x900"
+  // },
 
   @Column({ type: 'varchar', nullable: true })
-  titleImg: string | null;
+  titleUrl: string | null; // TODO: Название фильма в картинке png
 
   @Column({ enum: MovieHandleStatus, default: MovieHandleStatus.PROCESSING })
   handleStatus: MovieHandleStatus;
@@ -98,9 +103,9 @@ export class MovieEntity {
     instance.updatedAt = currentDate;
 
     instance.trailerUrl = '';
-    instance.backgroundImg = '';
-    instance.cardImg = '';
-    instance.titleImg = '';
+    instance.backgroundContentUrl = '';
+    instance.previewUrl = '';
+    instance.titleUrl = '';
 
     if (genres && genres.length > 0) {
       instance.genres = genres;
@@ -138,9 +143,9 @@ export class MovieEntity {
     this.updatedAt = new Date();
 
     this.trailerUrl = '';
-    this.backgroundImg = '';
-    this.cardImg = '';
-    this.titleImg = '';
+    this.backgroundContentUrl = '';
+    this.previewUrl = '';
+    this.titleUrl = '';
 
     if (genres && genres.length > 0) {
       this.genres = genres;

@@ -8,43 +8,46 @@ import { ErrorFieldExceptionDto } from '@/common/exception-filters/http/http-exc
 import { LoggerService } from '@/common/utils/logger/logger.service';
 import { GetCartoonInputQuery } from '@/cartoons/api/dtos/input/get-cartoon.input-query';
 import {
-  CartoonsOutputDto,
-  CartoonsOutputDtoMapper,
-} from '@/cartoons/api/dtos/output/cartoons.output.dto';
-import { CartoonQueryRepository } from '@/cartoons/infrastructure/cartoon.query-repository';
+  CartoonsPublicOutputDto,
+  CartoonsPublicOutputDtoMapper,
+} from '@/cartoons/api/dtos/output/cartoons-public.output.dto';
 import { EXCEPTION_KEYS_ENUM } from '@/common/enums/exception-keys.enum';
+import { CartoonPublicQueryRepository } from '@/cartoons/infrastructure/cartoon-public.query-repository';
 
-export class GetCartoonsQuery implements IQuery {
+export class GetPublicCartoonsQuery implements IQuery {
   constructor(public query: GetCartoonInputQuery) {}
 }
 
-@QueryHandler(GetCartoonsQuery)
-export class GetCartoonsQueryHandler
+@QueryHandler(GetPublicCartoonsQuery)
+export class GetPublicCartoonsQueryHandler
   implements
     IQueryHandler<
-      GetCartoonsQuery,
-      AppNotificationResult<PaginationUtil<CartoonsOutputDto[]>, ErrorFieldExceptionDto | null>
+      GetPublicCartoonsQuery,
+      AppNotificationResult<
+        PaginationUtil<CartoonsPublicOutputDto[]>,
+        ErrorFieldExceptionDto | null
+      >
     >
 {
   constructor(
     private readonly appNotification: ApplicationNotification,
     private readonly logger: LoggerService,
-    private readonly cartoonQueryRepository: CartoonQueryRepository,
-    private readonly cartoonsOutputDtoMapper: CartoonsOutputDtoMapper,
+    private readonly cartoonPublicQueryRepository: CartoonPublicQueryRepository,
+    private readonly cartoonsPublicOutputDtoMapper: CartoonsPublicOutputDtoMapper,
     private readonly paginationUtil: PaginationUtil,
   ) {
-    this.logger.setContext(GetCartoonsQueryHandler.name);
+    this.logger.setContext(GetPublicCartoonsQueryHandler.name);
   }
 
   async execute(
-    query: GetCartoonsQuery,
+    query: GetPublicCartoonsQuery,
   ): Promise<
-    AppNotificationResult<PaginationUtil<CartoonsOutputDto[]>, ErrorFieldExceptionDto | null>
+    AppNotificationResult<PaginationUtil<CartoonsPublicOutputDto[]>, ErrorFieldExceptionDto | null>
   > {
     const { page, size, sortField, sortDirection, searchName, searchGenreIds } = query.query;
     this.logger.log(`Get cartoons command`, this.execute.name);
     try {
-      const totalCount = await this.cartoonQueryRepository.getCartoonCount(
+      const totalCount = await this.cartoonPublicQueryRepository.getCartoonCount(
         searchName || null,
         searchGenreIds || null,
       );
@@ -61,7 +64,7 @@ export class GetCartoonsQueryHandler
 
       const skip = this.paginationUtil.calculatePaginationSkip(page, size);
 
-      const cartoons = await this.cartoonQueryRepository.getCartoons(
+      const cartoons = await this.cartoonPublicQueryRepository.getCartoons(
         sortField,
         sortDirection,
         skip,
@@ -75,7 +78,9 @@ export class GetCartoonsQueryHandler
         pagesCount,
         page,
         size,
-        cartoons && cartoons.length > 0 ? this.cartoonsOutputDtoMapper.mapMovies(cartoons) : [],
+        cartoons && cartoons.length > 0
+          ? this.cartoonsPublicOutputDtoMapper.mapAllPublicMovies(cartoons)
+          : [],
       );
 
       return this.appNotification.success(result);

@@ -11,35 +11,41 @@ import { ErrorFieldExceptionDto } from '@/common/exception-filters/http/http-exc
 import { ParseIntPatchPipe } from '@/common/pipes/validation-parse-int.pipe';
 import { LoggerService } from '@/common/utils/logger/logger.service';
 import { QueryBus } from '@nestjs/cqrs';
-import { SwaggerDecoratorGetCartoonById } from '@/cartoons/api/swagger/get-cartoon-by-id.swagger.decorator';
-import { SwaggerDecoratorGetCartoons } from '@/cartoons/api/swagger/get-cartoons.swagger.decorator';
 import { GetCartoonInputQuery } from '@/cartoons/api/dtos/input/get-cartoon.input-query';
-import { CartoonsOutputDto } from '@/cartoons/api/dtos/output/cartoons.output.dto';
-import { GetCartoonByIdQuery } from '@/cartoons/application/query-handlers/get-cartoon-by-id.query-handler';
-import { GetCartoonsQuery } from '@/cartoons/application/query-handlers/get-cartoons.query-handler';
+import {
+  CartoonPublicOutputDto,
+  CartoonsPublicOutputDto,
+} from '@/cartoons/api/dtos/output/cartoons-public.output.dto';
+import { GetPublicCartoonByIdQuery } from '@/cartoons/application/query-handlers/get-public-cartoon-by-id.query-handler';
+import { GetPublicCartoonsQuery } from '@/cartoons/application/query-handlers/get-public-cartoons.query-handler';
+import { SwaggerDecoratorGetPublicCartoonById } from '@/cartoons/api/swagger/get-public-cartoon-by-id.swagger.decorator';
+import { SwaggerDecoratorGetPublicCartoons } from '@/cartoons/api/swagger/get-public-cartoons.swagger.decorator';
 
 @ApiTags('Public - cartoons')
 @Controller(CARTOONS_ROUTE.MAIN)
-export class CartoonController {
+export class PublicCartoonController {
   constructor(
     private readonly logger: LoggerService,
     private readonly appNotification: ApplicationNotification,
     private readonly queryBus: QueryBus,
   ) {
-    this.logger.setContext(CartoonController.name);
+    this.logger.setContext(PublicCartoonController.name);
   }
 
   @Get()
-  @SwaggerDecoratorGetCartoons()
+  @SwaggerDecoratorGetPublicCartoons()
   async getAllCartoons(
     @Query() query: GetCartoonInputQuery,
-  ): Promise<PaginationUtil<CartoonsOutputDto[]> | void> {
+  ): Promise<PaginationUtil<CartoonsPublicOutputDto[]> | void> {
     this.logger.log(`Execute: Get cartoons`, this.getAllCartoons.name);
 
     const result = await this.queryBus.execute<
-      GetCartoonsQuery,
-      AppNotificationResult<PaginationUtil<CartoonsOutputDto[]>, ErrorFieldExceptionDto | null>
-    >(new GetCartoonsQuery(query));
+      GetPublicCartoonsQuery,
+      AppNotificationResult<
+        PaginationUtil<CartoonsPublicOutputDto[]>,
+        ErrorFieldExceptionDto | null
+      >
+    >(new GetPublicCartoonsQuery(query));
 
     this.logger.log(result.appResult, this.getAllCartoons.name);
     if (result.appResult === AppNotificationResultEnum.Success) return result.data!;
@@ -48,16 +54,16 @@ export class CartoonController {
   }
 
   @Get(`:cartoonId`)
-  @SwaggerDecoratorGetCartoonById()
+  @SwaggerDecoratorGetPublicCartoonById()
   async getCartoonById(
     @Param('cartoonId', ParseIntPatchPipe) cartoonId: number,
-  ): Promise<CartoonsOutputDto | void> {
+  ): Promise<CartoonPublicOutputDto | void> {
     this.logger.log(`Execute: Get cartoon by id: ${cartoonId}`, this.getCartoonById.name);
 
     const result = await this.queryBus.execute<
-      GetCartoonByIdQuery,
-      AppNotificationResult<CartoonsOutputDto, ErrorFieldExceptionDto | null>
-    >(new GetCartoonByIdQuery(cartoonId));
+      GetPublicCartoonByIdQuery,
+      AppNotificationResult<CartoonPublicOutputDto, ErrorFieldExceptionDto | null>
+    >(new GetPublicCartoonByIdQuery(cartoonId));
 
     this.logger.log(result.appResult, this.getCartoonById.name);
     if (result.appResult === AppNotificationResultEnum.Success) return result.data!;

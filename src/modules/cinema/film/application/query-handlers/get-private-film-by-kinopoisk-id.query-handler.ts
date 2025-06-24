@@ -7,44 +7,48 @@ import { LoggerService } from '@/common/utils/logger/logger.service';
 import { FilmQueryRepository } from '@/films/infrastructure/film.query-repository';
 import { ErrorFieldExceptionDto } from '@/common/exception-filters/http/http-exception.filter';
 import { EXCEPTION_KEYS_ENUM } from '@/common/enums/exception-keys.enum';
-import { FilmsOutputDto, FilmsOutputDtoMapper } from '@/films/api/dtos/output/films.output.dto';
+import {
+  FilmPrivateOutputDto,
+  FilmsPrivateOutputDtoMapper,
+} from '@/films/api/dtos/output/films-private.output.dto';
 
-export class GetFilmByIdQuery implements IQuery {
-  constructor(public filmId: number) {}
+export class GetPrivateFilmByKinopoiskIdQuery implements IQuery {
+  constructor(public kpId: string) {}
 }
 
-@QueryHandler(GetFilmByIdQuery)
-export class GetFilmByIdQueryHandler
+@QueryHandler(GetPrivateFilmByKinopoiskIdQuery)
+export class GetPrivateFilmByKinopoiskIdQueryHandler
   implements
     IQueryHandler<
-      GetFilmByIdQuery,
-      AppNotificationResult<FilmsOutputDto, ErrorFieldExceptionDto | null>
+      GetPrivateFilmByKinopoiskIdQuery,
+      AppNotificationResult<FilmPrivateOutputDto, ErrorFieldExceptionDto | null>
     >
 {
   constructor(
     private readonly appNotification: ApplicationNotification,
     private readonly logger: LoggerService,
     private readonly filmQueryRepository: FilmQueryRepository,
-    private readonly filmsOutputDtoMapper: FilmsOutputDtoMapper,
+    private readonly filmsPrivateOutputDtoMapper: FilmsPrivateOutputDtoMapper,
   ) {
-    this.logger.setContext(GetFilmByIdQueryHandler.name);
+    this.logger.setContext(GetPrivateFilmByKinopoiskIdQueryHandler.name);
   }
 
   async execute(
-    query: GetFilmByIdQuery,
-  ): Promise<AppNotificationResult<FilmsOutputDto, ErrorFieldExceptionDto | null>> {
-    const { filmId } = query;
-    this.logger.log(`Get film by id command: ${filmId}`, this.execute.name);
+    query: GetPrivateFilmByKinopoiskIdQuery,
+  ): Promise<AppNotificationResult<FilmPrivateOutputDto, ErrorFieldExceptionDto | null>> {
+    const { kpId } = query;
+    this.logger.log(`Get film by kinopoisk id command: ${kpId}`, this.execute.name);
     try {
-      const film = await this.filmQueryRepository.getFilmById(filmId);
+      const film = await this.filmQueryRepository.getFilmByKinopoiskId(kpId);
+
       if (!film)
         return this.appNotification.notFound({
-          field: 'filmId',
+          field: 'kpId',
           message: 'Film not found',
           errorKey: EXCEPTION_KEYS_ENUM.FILM_NOT_FOUND,
         });
 
-      const result = this.filmsOutputDtoMapper.mapMovie(film);
+      const result = this.filmsPrivateOutputDtoMapper.mapMovie(film);
 
       return this.appNotification.success(result);
     } catch (e) {

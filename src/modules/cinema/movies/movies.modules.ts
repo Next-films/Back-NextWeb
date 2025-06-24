@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { MovieOutputDtoMapper } from '@/movies/api/dtos/output/movie.output.dto';
+import { MoviePublicOutputDtoMapper } from '@/movies/api/dtos/output/movie-public.output.dto';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Genre } from '@/movies/domain/genre.entity';
 import { GenerateGenreMigration } from '@/data-migrations/generate-genre.migration';
@@ -11,6 +11,7 @@ import { GenreOutputDtoMapper } from '@/movies/api/dtos/output/genre.output.dto'
 import { GetAllGenreQueryHandler } from '@/movies/application/query-handlers/get-all-genre.query-handler';
 import { MoviesService } from '@/movies/application/movies.service';
 import { MovieRpcOutputDtoMapper } from '@/movies/api/dtos/output/movie-rpc.output.dto';
+import { MoviePrivateOutputDtoMapper } from '@/movies/api/dtos/output/movie-private.output.dto';
 
 export const GenreProvider = {
   provide: 'Genre',
@@ -32,12 +33,13 @@ const queryCommands = [GetGenreByIdQueryHandler, GetAllGenreQueryHandler];
   imports: [TypeOrmModule.forFeature([Genre])],
   controllers: [MoviesController],
   providers: [
-    MovieOutputDtoMapper,
+    MoviePublicOutputDtoMapper,
     GenreOutputDtoMapper,
     MovieRpcOutputDtoMapper,
     GenerateGenreMigration,
     GenreRepository,
     GenreQueryRepository,
+    MoviePrivateOutputDtoMapper,
     MoviesService,
     ...providers,
     ...queryCommands,

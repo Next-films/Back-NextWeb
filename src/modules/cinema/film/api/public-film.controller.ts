@@ -9,37 +9,40 @@ import {
   AppNotificationResultEnum,
 } from '@/common/utils/app-notification.util';
 import { QueryBus } from '@nestjs/cqrs';
-import { FilmsOutputDto } from '@/films/api/dtos/output/films.output.dto';
-import { GetFilmByIdQuery } from '@/films/application/query-handlers/get-film-by-id.query-handler';
+import {
+  FilmPublicOutputDto,
+  FilmsPublicOutputDto,
+} from '@/films/api/dtos/output/films-public.output.dto';
+import { GetPublicFilmByIdQuery } from '@/films/application/query-handlers/get-public-film-by-id.query-handler';
 import { ErrorFieldExceptionDto } from '@/common/exception-filters/http/http-exception.filter';
-import { GetFilmsQuery } from '@/films/application/query-handlers/get-films.query-handler';
+import { GetPublicFilmsQuery } from '@/films/application/query-handlers/get-public-films.query-handler';
 import { GetFilmsInputQuery } from '@/films/api/dtos/input/get-films.input-query';
 import { PaginationUtil } from '@/common/utils/pagination.util';
-import { SwaggerDecoratorGetFilms } from '@/films/api/swagger/get-films.swagger.decorator';
-import { SwaggerDecoratorGetFilmById } from '@/films/api/swagger/get-film-by-id.swagger.decorator';
+import { SwaggerDecoratorGetPublicFilms } from '@/films/api/swagger/get-public-films.swagger.decorator';
+import { SwaggerDecoratorGetPublicFilmById } from '@/films/api/swagger/get-public-film-by-id.swagger.decorator';
 
 @ApiTags('Public - films')
 @Controller(FILMS_ROUTE.MAIN)
-export class FilmController {
+export class PublicFilmController {
   constructor(
     private readonly logger: LoggerService,
     private readonly appNotification: ApplicationNotification,
     private readonly queryBus: QueryBus,
   ) {
-    this.logger.setContext(FilmController.name);
+    this.logger.setContext(PublicFilmController.name);
   }
 
   @Get()
-  @SwaggerDecoratorGetFilms()
+  @SwaggerDecoratorGetPublicFilms()
   async getAllFilms(
     @Query() query: GetFilmsInputQuery,
-  ): Promise<PaginationUtil<FilmsOutputDto[]> | void> {
+  ): Promise<PaginationUtil<FilmsPublicOutputDto[]> | void> {
     this.logger.log(`Execute: Get films`, this.getAllFilms.name);
 
     const result = await this.queryBus.execute<
-      GetFilmsQuery,
-      AppNotificationResult<PaginationUtil<FilmsOutputDto[]>, ErrorFieldExceptionDto | null>
-    >(new GetFilmsQuery(query));
+      GetPublicFilmsQuery,
+      AppNotificationResult<PaginationUtil<FilmsPublicOutputDto[]>, ErrorFieldExceptionDto | null>
+    >(new GetPublicFilmsQuery(query));
 
     this.logger.log(result.appResult, this.getAllFilms.name);
     if (result.appResult === AppNotificationResultEnum.Success) return result.data!;
@@ -48,16 +51,16 @@ export class FilmController {
   }
 
   @Get(`:filmId`)
-  @SwaggerDecoratorGetFilmById()
+  @SwaggerDecoratorGetPublicFilmById()
   async getFilmById(
     @Param('filmId', ParseIntPatchPipe) filmId: number,
-  ): Promise<FilmsOutputDto | void> {
+  ): Promise<FilmPublicOutputDto | void> {
     this.logger.log(`Execute: Get film by id: ${filmId}`, this.getFilmById.name);
 
     const result = await this.queryBus.execute<
-      GetFilmByIdQuery,
-      AppNotificationResult<FilmsOutputDto, ErrorFieldExceptionDto | null>
-    >(new GetFilmByIdQuery(filmId));
+      GetPublicFilmByIdQuery,
+      AppNotificationResult<FilmPublicOutputDto, ErrorFieldExceptionDto | null>
+    >(new GetPublicFilmByIdQuery(filmId));
 
     this.logger.log(result.appResult, this.getFilmById.name);
     if (result.appResult === AppNotificationResultEnum.Success) return result.data!;

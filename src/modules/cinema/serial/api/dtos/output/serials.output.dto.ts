@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import {
   MovieGenreOutputDto,
-  MovieOutputDtoMapper,
-} from '@/movies/api/dtos/output/movie.output.dto';
+  MoviePublicOutputDtoMapper,
+} from '@/movies/api/dtos/output/movie-public.output.dto';
 import { ApiProperty } from '@nestjs/swagger';
 import { Serial } from '@/serials/domain/serial.entity';
 import { SerialEpisode } from '@/serials/domain/serial-episode.entity';
@@ -62,7 +62,7 @@ export class SpecifySerialsOutputDto extends SerialsOutputDto {
 }
 
 @Injectable()
-export class SerialsOutputDtoMapper extends MovieOutputDtoMapper {
+export class SerialsOutputDtoMapper extends MoviePublicOutputDtoMapper {
   private mapSerialSubtitle(releaseDate: Date, genres: string, episodesCount: number): string {
     const date = new Date(releaseDate);
     const year = date.getFullYear();

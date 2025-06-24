@@ -6,8 +6,8 @@ import * as request from 'supertest';
 import { GenerateGenreMigration } from '@/data-migrations/generate-genre.migration';
 import { EXCEPTION_KEYS_ENUM } from '@/common/enums/exception-keys.enum';
 import { execSync } from 'child_process';
-import { FilmsOutputDto } from '@/films/api/dtos/output/films.output.dto';
 import { TEST_GET_ALL_CARTOONS_QUERY_DATA } from '../../data/cartoons.test.data';
+import { FilmsPublicOutputDto } from '@/films/api/dtos/output/films-public.output.dto';
 
 describe('Cartoons public', () => {
   let app: INestApplication;
@@ -53,24 +53,14 @@ describe('Cartoons public', () => {
       });
       expect(result.body.items[0]).toEqual({
         id: expect.any(Number),
-        title: expect.any(String),
-        trailerUrl: expect.any(String),
-        backgroundImg: expect.any(String),
-        cardImg: expect.any(String),
-        description: expect.any(String),
-        subTitle: expect.any(String),
-        titleImg: expect.any(String),
+        name: expect.any(String),
+        previewUrl: expect.any(String),
         releaseDate: expect.any(String),
         genres: expect.any(Array),
-        duration: expect.any(Number),
-        country: expect.any(Array),
       });
       expect(result.body.items[0].genres[0]).toEqual({
         id: expect.any(Number),
         name: expect.any(String),
-      });
-      result.body.items[0].country.forEach(i => {
-        expect(typeof i).toBe('string');
       });
     });
 
@@ -173,16 +163,14 @@ describe('Cartoons public', () => {
         items: expect.any(Array),
       });
 
-      const cartoon: FilmsOutputDto = result.body.items[5];
+      const cartoon: FilmsPublicOutputDto = result.body.items[5];
 
       const resultById = await request(app.getHttpServer())
         .get(`${baseUri}/${cartoon.id}`)
         .expect(200);
 
       expect(resultById.body.id).toBe(cartoon.id);
-      expect(resultById.body.title).toBe(cartoon.title);
-      expect(resultById.body.trailerUrl).toBe(cartoon.trailerUrl);
-      expect(resultById.body.backgroundImg).toBe(cartoon.backgroundImg);
+      expect(resultById.body.name).toBe(cartoon.name);
     });
 
     it('User should not get cartoon by id, cartoon not found', async () => {

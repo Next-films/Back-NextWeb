@@ -12,46 +12,80 @@ export class MovieGenreOutputDto {
   name: string;
 }
 
-export class MovieOutputDto {
-  @ApiProperty()
-  id: number;
-
-  @ApiProperty()
-  title: string;
+class MoviePublicContentOutputDto {
+  @ApiProperty({ nullable: true })
+  movieUrl: string | null;
 
   @ApiProperty({ nullable: true })
   trailerUrl: string | null;
 
   @ApiProperty({ nullable: true })
-  backgroundImg: string | null;
+  previewUrl: string | null;
 
   @ApiProperty({ nullable: true })
-  cardImg: string | null;
+  backgroundUrl: string | null;
 
   @ApiProperty({ nullable: true })
-  description: string | null;
+  titleUrl: string | null;
+}
+
+/*
+ *
+ *  For list of films
+ *
+ */
+export class MoviesPublicOutputDto {
+  @ApiProperty()
+  id: number;
+
+  @ApiProperty()
+  name: string;
 
   @ApiProperty({ nullable: true })
-  subTitle: string | null;
-
-  @ApiProperty({ nullable: true })
-  titleImg: string | null;
+  previewUrl: string | null;
 
   @ApiProperty({ nullable: true })
   releaseDate: string | null;
 
   @ApiProperty({ type: MovieGenreOutputDto, isArray: true })
   genres: MovieGenreOutputDto[];
+}
+/*
+ *
+ *  For specify film by id
+ *
+ */
+export class MoviePublicOutputDto {
+  @ApiProperty()
+  id: number;
+
+  @ApiProperty()
+  name: string;
+
+  @ApiProperty({ type: MoviePublicContentOutputDto })
+  content: MoviePublicContentOutputDto;
+
+  @ApiProperty({ nullable: true })
+  subTitle: string | null;
+
+  @ApiProperty({ nullable: true })
+  description: string | null;
+
+  @ApiProperty({ nullable: true })
+  releaseDate: string | null;
 
   @ApiProperty()
   duration: number;
+
+  @ApiProperty({ type: MovieGenreOutputDto, isArray: true })
+  genres: MovieGenreOutputDto[];
 
   @ApiProperty({ nullable: true })
   country: string[] | null;
 }
 
 @Injectable()
-export class MovieOutputDtoMapper {
+export class MoviePublicOutputDtoMapper {
   private mapSubtitle(releaseDate: string, genres: string, duration: number): string {
     const date = new Date(releaseDate);
     const year = date.getFullYear();
@@ -68,8 +102,12 @@ export class MovieOutputDtoMapper {
   protected formatGenresString(genres: Genre[] = []): string {
     return genres.map(g => g.name.charAt(0).toUpperCase() + g.name.slice(1)).join('/');
   }
-
-  mapMovie(movie: MovieEntity): MovieOutputDto {
+  /*
+   *
+   *  Map specify film
+   *
+   */
+  mapMovie(movie: MovieEntity): MoviePublicOutputDto {
     const genres = movie.genres ?? [];
 
     const {
@@ -77,32 +115,58 @@ export class MovieOutputDtoMapper {
       title,
       releaseDate,
       description,
-      backgroundImg,
-      cardImg,
+      backgroundContentUrl,
+      previewUrl,
       trailerUrl,
       country,
       duration,
-      titleImg,
+      titleUrl,
+      videoUrl,
     } = movie;
+
     return {
-      id: id,
-      title: title,
-      backgroundImg: backgroundImg,
-      releaseDate: releaseDate,
-      cardImg: cardImg,
-      description: description,
-      trailerUrl: trailerUrl,
+      id,
+      name: title,
+
+      content: {
+        movieUrl: videoUrl,
+        backgroundUrl: backgroundContentUrl,
+        previewUrl,
+        titleUrl,
+        trailerUrl: trailerUrl,
+      },
+
+      releaseDate,
+      description,
       subTitle: releaseDate
         ? this.mapSubtitle(releaseDate, this.formatGenresString(genres), duration)
         : null,
-      titleImg: titleImg,
       genres: this.mapMovieGenres(genres),
       country: country,
       duration: duration,
     };
   }
 
-  mapMovies(movies: MovieEntity[]): MovieOutputDto[] {
+  mapMovies(movies: MovieEntity[]): MoviePublicOutputDto[] {
     return movies.map(m => this.mapMovie(m));
+  }
+  /*
+   *
+   *  Map list of films
+   *
+   */
+  mapAllPublicMovie(movie: MovieEntity): MoviesPublicOutputDto {
+    const { id, title, releaseDate, previewUrl, genres } = movie;
+    return {
+      id,
+      name: title,
+      previewUrl,
+      releaseDate,
+      genres: this.mapMovieGenres(genres),
+    };
+  }
+
+  mapAllPublicMovies(movies: MovieEntity[]): MoviesPublicOutputDto[] {
+    return movies.map(m => this.mapAllPublicMovie(m));
   }
 }

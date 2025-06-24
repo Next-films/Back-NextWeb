@@ -10,9 +10,9 @@ import {
 import { QueryBus } from '@nestjs/cqrs';
 import { ErrorFieldExceptionDto } from '@/common/exception-filters/http/http-exception.filter';
 import { ApiCinemaAccessTokenGuard } from '@/external-auth/application/guards/jwt/api-cinema-access-token.guard';
-import { SwaggerDecoratorGetCartoonByKinopoiskId } from '@/cartoons/api/swagger/get-cartoon-by-kinopoisk-id.swagger.decorator';
-import { GetCartoonByKinopoiskIdQuery } from '@/cartoons/application/query-handlers/get-cartoon-by-kinopoisk-id.query-handler';
-import { CartoonsOutputDto } from '@/cartoons/api/dtos/output/cartoons.output.dto';
+import { SwaggerDecoratorGetPrivateCartoonByKinopoiskId } from '@/cartoons/api/swagger/get-private-cartoon-by-kinopoisk-id.swagger.decorator';
+import { GetPrivateCartoonByKinopoiskIdQuery } from '@/cartoons/application/query-handlers/get-private-cartoon-by-kinopoisk-id.query-handler';
+import { CartoonsPrivateOutputDto } from '@/cartoons/api/dtos/output/cartoons-private.output.dto';
 
 @ApiBearerAuth()
 @ApiUnauthorizedResponse({ description: 'Unauthorized' })
@@ -29,14 +29,14 @@ export class CartoonPrivateController {
   }
 
   @Get(':kpId')
-  @SwaggerDecoratorGetCartoonByKinopoiskId()
-  async getCartoonByKpId(@Param('kpId') kpId: string): Promise<CartoonsOutputDto | void> {
+  @SwaggerDecoratorGetPrivateCartoonByKinopoiskId()
+  async getCartoonByKpId(@Param('kpId') kpId: string): Promise<CartoonsPrivateOutputDto | void> {
     this.logger.log(`Execute: Get cartoon by kinopoisk id`, this.getCartoonByKpId.name);
 
     const result = await this.queryBus.execute<
-      GetCartoonByKinopoiskIdQuery,
-      AppNotificationResult<CartoonsOutputDto, ErrorFieldExceptionDto | null>
-    >(new GetCartoonByKinopoiskIdQuery(kpId));
+      GetPrivateCartoonByKinopoiskIdQuery,
+      AppNotificationResult<CartoonsPrivateOutputDto, ErrorFieldExceptionDto | null>
+    >(new GetPrivateCartoonByKinopoiskIdQuery(kpId));
 
     this.logger.log(result.appResult, this.getCartoonByKpId.name);
     if (result.appResult === AppNotificationResultEnum.Success) return result.data!;

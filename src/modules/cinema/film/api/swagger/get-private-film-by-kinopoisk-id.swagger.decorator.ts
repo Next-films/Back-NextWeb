@@ -6,12 +6,12 @@ import {
   ApiOperation,
 } from '@nestjs/swagger';
 import { RequestExceptionDto } from '@/common/exception-filters/http/http-exception.filter';
-import { FilmsOutputDto } from '@/films/api/dtos/output/films.output.dto';
+import { FilmPrivateOutputDto } from '@/films/api/dtos/output/films-private.output.dto';
 
-export function SwaggerDecoratorGetFilmByKinopoiskId(): MethodDecorator {
+export function SwaggerDecoratorGetPrivateFilmByKinopoiskId(): MethodDecorator {
   return applyDecorators(
-    ApiOperation({ summary: 'Get film by kinopoisk id' }),
-    ApiOkResponse({ description: 'Success', type: FilmsOutputDto }),
+    ApiOperation({ summary: 'Get private film by kinopoisk id' }),
+    ApiOkResponse({ description: 'Success', type: FilmPrivateOutputDto }),
     ApiNotFoundResponse({ description: 'Film not found' }),
     ApiBadRequestResponse({
       description: 'Bad input data',

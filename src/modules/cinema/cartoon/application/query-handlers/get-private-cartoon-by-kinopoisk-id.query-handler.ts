@@ -8,34 +8,34 @@ import { ErrorFieldExceptionDto } from '@/common/exception-filters/http/http-exc
 import { EXCEPTION_KEYS_ENUM } from '@/common/enums/exception-keys.enum';
 import { CartoonQueryRepository } from '@/cartoons/infrastructure/cartoon.query-repository';
 import {
-  CartoonsOutputDto,
-  CartoonsOutputDtoMapper,
-} from '@/cartoons/api/dtos/output/cartoons.output.dto';
+  CartoonsPrivateOutputDto,
+  CartoonsPrivateOutputDtoMapper,
+} from '@/cartoons/api/dtos/output/cartoons-private.output.dto';
 
-export class GetCartoonByKinopoiskIdQuery implements IQuery {
+export class GetPrivateCartoonByKinopoiskIdQuery implements IQuery {
   constructor(public kpId: string) {}
 }
 
-@QueryHandler(GetCartoonByKinopoiskIdQuery)
-export class GetCartoonByKinopoiskIdQueryHandler
+@QueryHandler(GetPrivateCartoonByKinopoiskIdQuery)
+export class GetPrivateCartoonByKinopoiskIdQueryHandler
   implements
     IQueryHandler<
-      GetCartoonByKinopoiskIdQuery,
-      AppNotificationResult<CartoonsOutputDto, ErrorFieldExceptionDto | null>
+      GetPrivateCartoonByKinopoiskIdQuery,
+      AppNotificationResult<CartoonsPrivateOutputDto, ErrorFieldExceptionDto | null>
     >
 {
   constructor(
     private readonly appNotification: ApplicationNotification,
     private readonly logger: LoggerService,
     private readonly cartoonQueryRepository: CartoonQueryRepository,
-    private readonly cartoonsOutputDtoMapper: CartoonsOutputDtoMapper,
+    private readonly cartoonsPrivateOutputDtoMapper: CartoonsPrivateOutputDtoMapper,
   ) {
-    this.logger.setContext(GetCartoonByKinopoiskIdQueryHandler.name);
+    this.logger.setContext(GetPrivateCartoonByKinopoiskIdQueryHandler.name);
   }
 
   async execute(
-    query: GetCartoonByKinopoiskIdQuery,
-  ): Promise<AppNotificationResult<CartoonsOutputDto, ErrorFieldExceptionDto | null>> {
+    query: GetPrivateCartoonByKinopoiskIdQuery,
+  ): Promise<AppNotificationResult<CartoonsPrivateOutputDto, ErrorFieldExceptionDto | null>> {
     const { kpId } = query;
     this.logger.log(`Get cartoon by kinopoisk id command: ${kpId}`, this.execute.name);
     try {
@@ -48,7 +48,7 @@ export class GetCartoonByKinopoiskIdQueryHandler
           errorKey: EXCEPTION_KEYS_ENUM.CARTOON_NOT_FOUND,
         });
 
-      const result = this.cartoonsOutputDtoMapper.mapMovie(cartoon);
+      const result = this.cartoonsPrivateOutputDtoMapper.mapMovie(cartoon);
 
       return this.appNotification.success(result);
     } catch (e) {

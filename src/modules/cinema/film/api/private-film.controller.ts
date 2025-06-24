@@ -8,11 +8,11 @@ import {
   AppNotificationResultEnum,
 } from '@/common/utils/app-notification.util';
 import { QueryBus } from '@nestjs/cqrs';
-import { FilmsOutputDto } from '@/films/api/dtos/output/films.output.dto';
 import { ErrorFieldExceptionDto } from '@/common/exception-filters/http/http-exception.filter';
-import { SwaggerDecoratorGetFilmByKinopoiskId } from '@/films/api/swagger/get-film-by-kinopoisk-id.swagger.decorator';
-import { GetFilmByKinopoiskIdQuery } from '@/films/application/query-handlers/get-film-by-kinopoisk-id.query-handler';
+import { SwaggerDecoratorGetPrivateFilmByKinopoiskId } from '@/films/api/swagger/get-private-film-by-kinopoisk-id.swagger.decorator';
+import { GetPrivateFilmByKinopoiskIdQuery } from '@/films/application/query-handlers/get-private-film-by-kinopoisk-id.query-handler';
 import { ApiCinemaAccessTokenGuard } from '@/external-auth/application/guards/jwt/api-cinema-access-token.guard';
+import { FilmPrivateOutputDto } from '@/films/api/dtos/output/films-private.output.dto';
 
 @ApiBearerAuth()
 @ApiUnauthorizedResponse({ description: 'Unauthorized' })
@@ -29,14 +29,14 @@ export class FilmPrivateController {
   }
 
   @Get(':kpId')
-  @SwaggerDecoratorGetFilmByKinopoiskId()
-  async getFilmByKpId(@Param('kpId') kpId: string): Promise<FilmsOutputDto | void> {
+  @SwaggerDecoratorGetPrivateFilmByKinopoiskId()
+  async getFilmByKpId(@Param('kpId') kpId: string): Promise<FilmPrivateOutputDto | void> {
     this.logger.log(`Execute: Get film by kinopoisk id`, this.getFilmByKpId.name);
 
     const result = await this.queryBus.execute<
-      GetFilmByKinopoiskIdQuery,
-      AppNotificationResult<FilmsOutputDto, ErrorFieldExceptionDto | null>
-    >(new GetFilmByKinopoiskIdQuery(kpId));
+      GetPrivateFilmByKinopoiskIdQuery,
+      AppNotificationResult<FilmPrivateOutputDto, ErrorFieldExceptionDto | null>
+    >(new GetPrivateFilmByKinopoiskIdQuery(kpId));
 
     this.logger.log(result.appResult, this.getFilmByKpId.name);
     if (result.appResult === AppNotificationResultEnum.Success) return result.data!;

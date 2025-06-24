@@ -4,44 +4,45 @@ import {
   AppNotificationResult,
 } from '@/common/utils/app-notification.util';
 import { LoggerService } from '@/common/utils/logger/logger.service';
-import { FilmQueryRepository } from '@/films/infrastructure/film.query-repository';
 import { ErrorFieldExceptionDto } from '@/common/exception-filters/http/http-exception.filter';
 import { EXCEPTION_KEYS_ENUM } from '@/common/enums/exception-keys.enum';
-import { FilmsOutputDto, FilmsOutputDtoMapper } from '@/films/api/dtos/output/films.output.dto';
+import { FilmsPublicOutputDtoMapper } from '@/films/api/dtos/output/films-public.output.dto';
 import { PaginationUtil } from '@/common/utils/pagination.util';
 import { GetFilmsInputQuery } from '@/films/api/dtos/input/get-films.input-query';
+import { FilmPublicQueryRepository } from '@/films/infrastructure/film-public.query-repository';
+import { MoviesPublicOutputDto } from '@/movies/api/dtos/output/movie-public.output.dto';
 
-export class GetFilmsQuery implements IQuery {
+export class GetPublicFilmsQuery implements IQuery {
   constructor(public query: GetFilmsInputQuery) {}
 }
 
-@QueryHandler(GetFilmsQuery)
-export class GetFilmsQueryHandler
+@QueryHandler(GetPublicFilmsQuery)
+export class GetPublicFilmsQueryHandler
   implements
     IQueryHandler<
-      GetFilmsQuery,
-      AppNotificationResult<PaginationUtil<FilmsOutputDto[]>, ErrorFieldExceptionDto | null>
+      GetPublicFilmsQuery,
+      AppNotificationResult<PaginationUtil<MoviesPublicOutputDto[]>, ErrorFieldExceptionDto | null>
     >
 {
   constructor(
     private readonly appNotification: ApplicationNotification,
     private readonly logger: LoggerService,
-    private readonly filmQueryRepository: FilmQueryRepository,
-    private readonly filmsOutputDtoMapper: FilmsOutputDtoMapper,
+    private readonly filmPublicQueryRepository: FilmPublicQueryRepository,
+    private readonly filmsPublicOutputDtoMapper: FilmsPublicOutputDtoMapper,
     private readonly paginationUtil: PaginationUtil,
   ) {
-    this.logger.setContext(GetFilmsQueryHandler.name);
+    this.logger.setContext(GetPublicFilmsQueryHandler.name);
   }
 
   async execute(
-    query: GetFilmsQuery,
+    query: GetPublicFilmsQuery,
   ): Promise<
-    AppNotificationResult<PaginationUtil<FilmsOutputDto[]>, ErrorFieldExceptionDto | null>
+    AppNotificationResult<PaginationUtil<MoviesPublicOutputDto[]>, ErrorFieldExceptionDto | null>
   > {
     const { page, size, sortField, sortDirection, searchName, searchGenreIds } = query.query;
     this.logger.log(`Get films command`, this.execute.name);
     try {
-      const totalCount = await this.filmQueryRepository.getFilmsCount(
+      const totalCount = await this.filmPublicQueryRepository.getFilmsCount(
         searchName || null,
         searchGenreIds || null,
       );
@@ -58,7 +59,7 @@ export class GetFilmsQueryHandler
 
       const skip = this.paginationUtil.calculatePaginationSkip(page, size);
 
-      const films = await this.filmQueryRepository.getFilms(
+      const films = await this.filmPublicQueryRepository.getFilms(
         sortField,
         sortDirection,
         skip,
@@ -72,7 +73,7 @@ export class GetFilmsQueryHandler
         pagesCount,
         page,
         size,
-        films && films.length > 0 ? this.filmsOutputDtoMapper.mapMovies(films) : [],
+        films && films.length > 0 ? this.filmsPublicOutputDtoMapper.mapAllPublicMovies(films) : [],
       );
 
       return this.appNotification.success(result);

@@ -7,7 +7,7 @@ import { GenerateGenreMigration } from '@/data-migrations/generate-genre.migrati
 import { EXCEPTION_KEYS_ENUM } from '@/common/enums/exception-keys.enum';
 import { TEST_GET_ALL_FILMS_QUERY_DATA } from '../../data/films.test.data';
 import { execSync } from 'child_process';
-import { FilmsOutputDto } from '@/films/api/dtos/output/films.output.dto';
+import { FilmsPublicOutputDto } from '@/films/api/dtos/output/films-public.output.dto';
 
 describe('Films public', () => {
   let app: INestApplication;
@@ -53,24 +53,14 @@ describe('Films public', () => {
       });
       expect(result.body.items[0]).toEqual({
         id: expect.any(Number),
-        title: expect.any(String),
-        trailerUrl: expect.any(String),
-        backgroundImg: expect.any(String),
-        cardImg: expect.any(String),
-        description: expect.any(String),
-        subTitle: expect.any(String),
-        titleImg: expect.any(String),
+        name: expect.any(String),
+        previewUrl: expect.any(String),
         releaseDate: expect.any(String),
         genres: expect.any(Array),
-        duration: expect.any(Number),
-        country: expect.any(Array),
       });
       expect(result.body.items[0].genres[0]).toEqual({
         id: expect.any(Number),
         name: expect.any(String),
-      });
-      result.body.items[0].country.forEach(i => {
-        expect(typeof i).toBe('string');
       });
     });
 
@@ -173,7 +163,7 @@ describe('Films public', () => {
         items: expect.any(Array),
       });
 
-      const film: FilmsOutputDto = result.body.items[5];
+      const film: FilmsPublicOutputDto = result.body.items[5];
 
       const resultById = await request(app.getHttpServer())
         .get(`${baseUri}/${film.id}`)
@@ -181,9 +171,7 @@ describe('Films public', () => {
         .expect(200);
 
       expect(resultById.body.id).toBe(film.id);
-      expect(resultById.body.title).toBe(film.title);
-      expect(resultById.body.trailerUrl).toBe(film.trailerUrl);
-      expect(resultById.body.backgroundImg).toBe(film.backgroundImg);
+      expect(resultById.body.name).toBe(film.name);
     });
 
     it('User should not get film by id, film not found', async () => {
