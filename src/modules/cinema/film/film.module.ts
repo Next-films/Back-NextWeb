@@ -36,6 +36,8 @@ const providers = [filmProvider];
 
 const handlers = [NewFilmNotificationCommandHandler, NewFilmIsHandleNotificationCommandHandler];
 
+const exportProviders = [FilmRepository, filmProvider];
+
 @Module({
   imports: [TypeOrmModule.forFeature([Film]), MoviesModules, KinopoiskModule],
   controllers: [
@@ -55,6 +57,6 @@ const handlers = [NewFilmNotificationCommandHandler, NewFilmIsHandleNotification
     ...handlers,
     ...providers,
   ],
-  exports: [],
+  exports: [...exportProviders],
 })
 export class FilmModule {}

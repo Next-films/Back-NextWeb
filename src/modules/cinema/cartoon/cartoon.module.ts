@@ -39,6 +39,8 @@ const handlers = [
   NewCartoonIsHandleNotificationCommandHandler,
 ];
 
+const exportProviders = [CartoonRepository, cartoonProvider];
+
 @Module({
   imports: [TypeOrmModule.forFeature([Cartoon]), MoviesModules, KinopoiskModule],
   controllers: [
@@ -58,6 +60,6 @@ const handlers = [
     ...providers,
     CartoonRepository,
   ],
-  exports: [],
+  exports: [...exportProviders],
 })
 export class CartoonModule {}

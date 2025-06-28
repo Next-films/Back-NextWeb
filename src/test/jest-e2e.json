@@ -35,6 +35,9 @@
     "@/jwt-module/(.*)$": "<rootDir>/modules/jwt/$1",
     "@/external-api/(.*)$": "<rootDir>/modules/external-api/$1",
     "@/converter-logs/(.*)$": "<rootDir>/modules/converter-logs/$1",
-    "@/banned-providers-movie/(.*)$": "<rootDir>/modules/banned-providers-movie/$1"
+    "@/banned-providers-movie/(.*)$": "<rootDir>/modules/banned-providers-movie/$1",
+    "@/moderation-movie/(.*)$": "<rootDir>/modules/moderation-movie/$1",
+    "@/telegram/(.*)$": "<rootDir>/modules/telegram/$1",
+    "@/telegram-admin-bot/(.*)$": "<rootDir>/modules/telegram/admin-bot/$1"
   }
 }

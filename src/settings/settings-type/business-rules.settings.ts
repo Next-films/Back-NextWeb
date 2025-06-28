@@ -12,4 +12,7 @@ export class BusinessRulesSettings {
 
   @IsNumber()
   ADMIN_HASH_SALT_ROUND: number = Number.parseInt(this.environmentVariables.ADMIN_HASH_SALT_ROUND);
+
+  @IsString()
+  MODERATION_MOVIE_FRONT_URL: string = this.environmentVariables.MODERATION_MOVIE_FRONT_URL;
 }

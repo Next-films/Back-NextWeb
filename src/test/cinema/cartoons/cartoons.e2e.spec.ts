@@ -9,6 +9,7 @@ import { execSync } from 'child_process';
 import { TEST_GET_ALL_CARTOONS_QUERY_DATA } from '../../data/cartoons.test.data';
 import { FilmsPublicOutputDto } from '@/films/api/dtos/output/films-public.output.dto';
 
+// TODO: Добавить тесты для проверки логики, если фильм находится в процессе обработки или модерации и также проверка с флагом isHidden: true
 describe('Cartoons public', () => {
   let app: INestApplication;
   let testService: TestService;

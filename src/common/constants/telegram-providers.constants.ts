@@ -1,0 +1,1 @@
+export const TELEGRAM_ADMIN_BOT = 'TELEGRAM_ADMIN_BOT';

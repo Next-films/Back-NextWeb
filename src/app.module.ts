@@ -11,6 +11,8 @@ import { RequestsContextMiddleware } from './common/utils/logger/request-context
 import { AsyncLocalStorageService } from '@/common/utils/logger/als.service';
 import { ConverterLogsModule } from '@/converter-logs/converter-logs.module';
 import { BandedProvidersMovieModule } from '@/banned-providers-movie/banned-providers-movie.module';
+import { ModerationMovieModule } from '@/moderation-movie/moderation-movie.module';
+import { TelegramAdminBotModule } from '@/telegram/admin-bot/telegram-admin-bot.module';
 
 @Module({
   imports: [
@@ -28,6 +30,8 @@ import { BandedProvidersMovieModule } from '@/banned-providers-movie/banned-prov
     AdminAuthModule,
     ConverterLogsModule,
     BandedProvidersMovieModule,
+    TelegramAdminBotModule,
+    ModerationMovieModule,
   ],
   controllers: [],
   providers: [AsyncLocalStorageService],

@@ -29,6 +29,19 @@ export const ADMIN_EXTERNAL_API_ROUTE = {
 export const ADMIN_BANNED_PROVIDERS_MOVIES_ROUTE = {
   MAIN: `${ADMIN_PREFIX}/banned-providers-movies`,
 };
+
+export const ADMIN_CINEMA_ROUTE = {
+  MAIN: `${ADMIN_PREFIX}/cinema`,
+  FILMS: `films`,
+  CARTOONS: `cartoons`,
+};
+
+export const ADMIN_MODERATION_MOVIE_ROUTE = {
+  MAIN: `${ADMIN_PREFIX}/movie/moderation`,
+  APPLY: `apply`,
+  CANCEL: `cancel`,
+  ACCEPT: 'accept',
+};
 /*
 *
 *

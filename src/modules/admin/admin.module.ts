@@ -21,6 +21,23 @@ import { BandedProvidersMovieModule } from '@/banned-providers-movie/banned-prov
 import { AdminGetAllBannedProvidersMoviesQueryHandler } from '@/admin/application/query-handlers/admin-get-all-banned-providers-movies.query-handler';
 import { AdminBannedProvidersMoviesOutputDtoMapper } from '@/admin/api/dtos/output/admin-banned-providers-movies.output.dto';
 import { AdminUpdateBannedProviderMovieCommandHandler } from '@/admin/application/handlers/admin-update-banned-provider-movie.handler';
+import { AdminCinemaFilmsController } from '@/admin/api/admin-cinema-films.controller';
+import { AdminCinemaMoviesOutputDtoMapper } from '@/admin/api/dtos/output/admin-cinema-movies.output.dto';
+import { AdminCinemaFilmsOutputDtoMapper } from '@/admin/api/dtos/output/admin-cinema-films.output.dto';
+import { AdminCinemaCartoonsOutputDtoMapper } from '@/admin/api/dtos/output/admin-cinema-cartoons.output.dto';
+import { AdminShowOrHiddeFilmCommandHandler } from '@/admin/application/handlers/admin-show-or-hide-film.handler';
+import { FilmModule } from '@/films/film.module';
+import { AdminTelegram } from '@/admin/domain/admin-telegram.entity';
+import { AdminRepository } from '@/admin/infrastructure/admin.repository';
+import { AdminModerateRequestByTorrentCommandHandler } from '@/admin/application/handlers/admin-moderate-movie-request-by-torrent.handler';
+import { CartoonModule } from '@/cartoons/cartoon.module';
+import { ModerationMovieModule } from '@/moderation-movie/moderation-movie.module';
+import { AdminModerationMovieController } from '@/admin/api/admin-moderation-movie.controller';
+import { AdminAcceptModerationMovieTaskCommandHandler } from '@/admin/application/handlers/admin-accept-moderation-movie-task.handler';
+import { AdminGetAllModerationMovieTaskQueryHandler } from '@/admin/application/query-handlers/admin-get-all-moderation-movie-task.query-handler';
+import { AdminModerationMovieTaskOutputDtoMapper } from '@/admin/api/dtos/output/admin-moderation-movie-task.output.dto';
+import { AdminGetModerationMovieTaskByIdQueryHandler } from '@/admin/application/query-handlers/admin-get-moderation-movie-task-by-id.query-handler';
+import { AdminCancelModerationMovieTaskCommandHandler } from '@/admin/application/handlers/admin-cancel-moderation-movie-task.handler';
 
 export const AdminProvider = {
   provide: 'Admin',
@@ -36,28 +53,40 @@ const handlers = [
   AdminRemoveExternalApiTokenCommandHandler,
   AdminBanOrUnbanProviderMovieCommandHandler,
   AdminUpdateBannedProviderMovieCommandHandler,
+  AdminShowOrHiddeFilmCommandHandler,
+  AdminModerateRequestByTorrentCommandHandler,
+  AdminAcceptModerationMovieTaskCommandHandler,
+  AdminCancelModerationMovieTaskCommandHandler,
 ];
+
 const queryHandlers = [
   AdminGetAllExternalTokensQueryHandler,
   AdminGetAllBannedProvidersMoviesQueryHandler,
+  AdminGetAllModerationMovieTaskQueryHandler,
+  AdminGetModerationMovieTaskByIdQueryHandler,
 ];
 
-const exportProviders = [TypeOrmModule.forFeature([Admin]), AdminProvider];
+const exportProviders = [TypeOrmModule.forFeature([Admin]), AdminProvider, AdminRepository];
 
 @Module({
   imports: [
     MoviesModules,
-    TypeOrmModule.forFeature([Admin]),
+    TypeOrmModule.forFeature([Admin, AdminTelegram]),
     BcryptModule,
     JwtModule,
     ExternalApiAuthModule,
     BandedProvidersMovieModule,
+    FilmModule,
+    CartoonModule,
+    ModerationMovieModule,
   ],
   controllers: [
     AdminGenreController,
     AdminExternalApiController,
     AdminCinemaRpcController,
     AdminBannedProvidersMovieController,
+    AdminCinemaFilmsController,
+    AdminModerationMovieController,
   ],
   providers: [
     ...handlers,
@@ -66,6 +95,11 @@ const exportProviders = [TypeOrmModule.forFeature([Admin]), AdminProvider];
     ...queryHandlers,
     ExternalApiTokenOutputModelMapper,
     AdminBannedProvidersMoviesOutputDtoMapper,
+    AdminCinemaMoviesOutputDtoMapper,
+    AdminCinemaFilmsOutputDtoMapper,
+    AdminCinemaCartoonsOutputDtoMapper,
+    AdminRepository,
+    AdminModerationMovieTaskOutputDtoMapper,
   ],
   exports: [...exportProviders],
 })

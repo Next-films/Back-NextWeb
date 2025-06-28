@@ -131,3 +131,16 @@ export const ADMIN_BANNED_PROVIDERS_MOVIES_VALIDATION_RULES /* as ValidationRule
       LENGTH_MAX: 100,
     },
   } as const;
+/*
+*
+*
+        Admin moderation movies task 
+*
+*
+*/
+export const ADMIN_MODERATION_MOVIES_TASK_VALIDATION_RULES /* as ValidationRulesConstantsType */ = {
+  SEARCH_MOVIE_NAME: {
+    LENGTH_MIN: 1,
+    LENGTH_MAX: 100,
+  },
+} as const;

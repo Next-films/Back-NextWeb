@@ -7,12 +7,11 @@ import { Cartoon } from '@/cartoons/domain/cartoon.entity';
 export class CartoonRepository {
   constructor(@InjectRepository(Cartoon) private readonly cartoonRepository: Repository<Cartoon>) {}
 
-  async save(cartoon: Cartoon, queryRunner?: QueryRunner): Promise<void> {
+  async save(cartoon: Cartoon, queryRunner?: QueryRunner): Promise<Cartoon> {
     if (queryRunner) {
-      await queryRunner.manager.save(cartoon);
-      return;
+      return await queryRunner.manager.save(cartoon);
     }
-    await this.cartoonRepository.save(cartoon);
+    return await this.cartoonRepository.save(cartoon);
   }
 
   async getCartoonByKinopoiskId(kpId: string, queryRunner?: QueryRunner): Promise<Cartoon | null> {
@@ -20,5 +19,9 @@ export class CartoonRepository {
       return queryRunner.manager.findOne(this.cartoonRepository.target, { where: { kpId } });
     }
     return this.cartoonRepository.findOne({ where: { kpId } });
+  }
+
+  async getCartoonById(id: number): Promise<Cartoon | null> {
+    return this.cartoonRepository.findOne({ where: { id } });
   }
 }

@@ -52,6 +52,7 @@ export type TorApiSearchByTitle = {
 };
 
 export type TorApiMovieById = {
+  Id: string;
   Name: string;
   Url: string;
   Hash: string;

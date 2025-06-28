@@ -17,4 +17,14 @@ export class DateUtil {
 
     return parsedDate.toISOString().split('T')[0];
   }
+
+  formatDateYyMmDdHhMm(date: string | Date): string {
+    const parsedDate = typeof date === 'string' ? parseISO(date) : date;
+
+    if (!isValid(parsedDate)) {
+      throw new Error(`Not valid date`);
+    }
+
+    return format(parsedDate, 'yyyy-MM-dd HH:mm');
+  }
 }

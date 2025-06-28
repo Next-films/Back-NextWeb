@@ -43,18 +43,13 @@ export class MovieEntity {
   trailerUrl: string | null;
 
   @Column({ type: 'varchar', nullable: true })
-  backgroundContentUrl: string | null; // TODO: Либо картинка либо трейлер. // Подумать качать ли к нам или тянуть от других.
+  backgroundContentUrl: string | null;
 
   @Column({ type: 'varchar', nullable: true })
-  previewUrl: string | null; // TODO: Превью фильма Подумать качать ли к нам или тянуть от других.
-  //TODO:
-  //   "poster": {
-  //   "previewUrl": "https://image.openmoviedb.com/kinopoisk-images/10809116/f2d658c0-1af5-4e65-9de4-160cf138eee4/300x450",
-  //   "url": "https://image.openmoviedb.com/kinopoisk-images/10809116/f2d658c0-1af5-4e65-9de4-160cf138eee4/600x900"
-  // },
+  previewUrl: string | null;
 
   @Column({ type: 'varchar', nullable: true })
-  titleUrl: string | null; // TODO: Название фильма в картинке png
+  titleUrl: string | null; // Movie name in the picture png
 
   @Column({ enum: MovieHandleStatus, default: MovieHandleStatus.PROCESSING })
   handleStatus: MovieHandleStatus;
@@ -85,6 +80,7 @@ export class MovieEntity {
       country,
       duration,
       releaseDate,
+      handleStatus,
     } = inputDto;
 
     const instance = new this();
@@ -101,6 +97,7 @@ export class MovieEntity {
     instance.releaseDate = releaseDate;
     instance.createdAt = currentDate;
     instance.updatedAt = currentDate;
+    instance.handleStatus = handleStatus;
 
     instance.trailerUrl = '';
     instance.backgroundContentUrl = '';
@@ -154,5 +151,16 @@ export class MovieEntity {
 
   updateHandleStatus(status: MovieHandleStatus): void {
     this.handleStatus = status;
+  }
+
+  showOrHiddeMovie(isHidden: boolean, status?: MovieHandleStatus): void {
+    this.isHidden = isHidden;
+    this.updatedAt = new Date();
+    if (status) {
+      if (status !== MovieHandleStatus.PRODUCTION) {
+        this.isHidden = true;
+      }
+      this.handleStatus = status;
+    }
   }
 }
