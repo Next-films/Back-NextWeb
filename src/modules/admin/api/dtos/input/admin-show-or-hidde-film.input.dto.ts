@@ -1,6 +1,5 @@
-import { MovieHandleStatus } from '@/movies/domain/types';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsBoolean, IsEnum, IsOptional } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
+import { IsBoolean } from 'class-validator';
 import { ToBoolean } from '@/common/decorators/transform/boolean.decorator';
 
 export class AdminShowOrHiddeFilmInputDto {
@@ -9,8 +8,11 @@ export class AdminShowOrHiddeFilmInputDto {
   @IsBoolean()
   isHidden: boolean;
 
-  @ApiPropertyOptional({ enum: MovieHandleStatus })
-  @IsOptional()
-  @IsEnum(MovieHandleStatus)
-  status?: MovieHandleStatus;
+  @ApiProperty({
+    description:
+      'If "false" is specified, nothing will happen to the film, but if "true" a task for moderation will be created.',
+  })
+  @ToBoolean()
+  @IsBoolean()
+  isModerate: boolean;
 }

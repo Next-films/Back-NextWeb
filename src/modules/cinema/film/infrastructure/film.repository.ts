@@ -21,7 +21,10 @@ export class FilmRepository {
     return this.filmRepository.findOne({ where: { kpId } });
   }
 
-  async getFilmById(id: number): Promise<Film | null> {
+  async getFilmById(id: number, queryRunner?: QueryRunner): Promise<Film | null> {
+    if (queryRunner) {
+      return queryRunner.manager.findOne(this.filmRepository.target, { where: { id } });
+    }
     return this.filmRepository.findOne({ where: { id } });
   }
 }

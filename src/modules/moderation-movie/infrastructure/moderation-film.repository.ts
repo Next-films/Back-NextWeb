@@ -20,6 +20,16 @@ export class ModerationFilmRepository {
     return this.moderationFilmEntity.save(moderationMovie);
   }
 
+  async getModerationByMovieId(
+    movieId: number,
+    queryRunner?: QueryRunner,
+  ): Promise<ModerationFilmEntity | null> {
+    if (queryRunner) {
+      return queryRunner.manager.findOne(this.moderationFilmEntity.target, { where: { movieId } });
+    }
+    return this.moderationFilmEntity.findOne({ where: { movieId } });
+  }
+
   async getModerationByIdWithMovieAndAdminInfo(
     id: number,
     queryRunner?: QueryRunner,

@@ -68,4 +68,5 @@ export enum EXCEPTION_KEYS_ENUM {
   type = 'error_input.type',
   status = 'error_input.status',
   searchMovieName = 'error_input.searchMovieName',
+  isModerate = 'error_input.isModerate',
 }

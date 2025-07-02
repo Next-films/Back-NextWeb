@@ -8,8 +8,15 @@ import { LoggerService } from '@/common/utils/logger/logger.service';
 import { AdminShowOrHiddeFilmInputDto } from '@/admin/api/dtos/input/admin-show-or-hidde-film.input.dto';
 import { FilmRepository } from '@/films/infrastructure/film.repository';
 import { EXCEPTION_KEYS_ENUM } from '@/common/enums/exception-keys.enum';
-import { Film } from '@/films/domain/film.entity';
 import { MovieHandleStatus } from '@/movies/domain/types';
+import { ModerationFilmRepository } from '@/moderation-movie/infrastructure/moderation-film.repository';
+import { Inject } from '@nestjs/common';
+import { ModerationFilmEntity } from '@/moderation-movie/domain/moderation-film.entity';
+import { CreateModerationDto } from '@/moderation-movie/domain/types';
+import { InjectDataSource } from '@nestjs/typeorm';
+import { DataSource, QueryRunner } from 'typeorm';
+import { TelegramAdminBotSendNotificationNewModerationMovieCommand } from '@/telegram/admin-bot/application/handlers/bot-send-notification-new-moderation-movie.handler';
+import { MovieTypesEnum } from '@/common/types/types';
 
 export class AdminShowOrHiddeFilmCommand implements ICommand {
   constructor(
@@ -31,6 +38,10 @@ export class AdminShowOrHiddeFilmCommandHandler
     private readonly appNotification: ApplicationNotification,
     private readonly filmRepository: FilmRepository,
     private readonly commandBus: CommandBus,
+    private readonly moderationFilmRepository: ModerationFilmRepository,
+    @Inject(ModerationFilmEntity.name)
+    private readonly moderationFilmEntity: typeof ModerationFilmEntity,
+    @InjectDataSource() private readonly dataSource: DataSource,
   ) {
     this.logger.setContext(AdminShowOrHiddeFilmCommandHandler.name);
   }
@@ -39,9 +50,13 @@ export class AdminShowOrHiddeFilmCommandHandler
   ): Promise<AppNotificationResult<null, ErrorFieldExceptionDto | null>> {
     this.logger.log(`Show or hidde film by admin command`, this.execute.name);
     const { inputDto, filmId } = command;
-    const { status, isHidden } = inputDto;
+    const { isHidden, isModerate } = inputDto;
+    const queryRunner = this.dataSource.createQueryRunner();
     try {
-      const film = await this.filmRepository.getFilmById(filmId);
+      await queryRunner.connect();
+      await queryRunner.startTransaction();
+
+      const film = await this.filmRepository.getFilmById(filmId, queryRunner);
 
       if (!film)
         return this.appNotification.notFound({
@@ -50,38 +65,69 @@ export class AdminShowOrHiddeFilmCommandHandler
           errorKey: EXCEPTION_KEYS_ENUM.FILM_NOT_FOUND,
         });
 
-      if (
-        (film.isHidden === isHidden && status && status === film.handleStatus) ||
-        (!status && film.isHidden === isHidden)
-      )
-        return this.appNotification.success(null);
+      const { id } = film;
 
-      const prevStatus = film.handleStatus;
+      let moderationId: number | null = null;
+      if (isModerate) {
+        film.showOrHiddeMovie(isHidden, MovieHandleStatus.MODERATE);
 
-      film.showOrHiddeMovie(isHidden, status);
+        moderationId = await this.handleModerationStatus(id, queryRunner);
 
-      await this.filmRepository.save(film);
+        if (!moderationId) {
+          return this.appNotification.badRequest({
+            message: 'Film already under moderation',
+            errorKey: EXCEPTION_KEYS_ENUM.MOVIE_ALREADY_UNDER_MODERATION,
+            field: 'isModerate',
+          });
+        }
+      } else {
+        film.showOrHiddeMovie(isHidden);
+      }
 
-      this.publish(film, prevStatus);
+      await this.filmRepository.save(film, queryRunner);
 
+      if (moderationId) this.publishNewModeration(moderationId);
+
+      await queryRunner.commitTransaction();
       return this.appNotification.success(null);
     } catch (e) {
       this.logger.error(e, this.execute.name);
+      await queryRunner.rollbackTransaction();
       return this.appNotification.internalServerError();
+    } finally {
+      await queryRunner.release();
     }
   }
 
-  // TODO: Продумать логику модерации, нужно снимать с модерации фильм если статус меняется и ставить на модерацию
-  private publish(film: Film, prevStatus: MovieHandleStatus): void {
-    if (
-      prevStatus === MovieHandleStatus.MODERATE &&
-      film.handleStatus === MovieHandleStatus.MODERATE
-    )
-      if (film.handleStatus === MovieHandleStatus.MODERATE) {
-        /// TODO Создаение модерации
-        // await this.commandBus.execute(
-        //   new CreateModerationMovieCommand({ type: MovieTypesEnum.FILM, movieId: film.id }),
-        // );
-      }
+  private async handleModerationStatus(
+    filmId: number,
+    queryRunner: QueryRunner,
+  ): Promise<number | null> {
+    const moderationTask = await this.moderationFilmRepository.getModerationByMovieId(
+      filmId,
+      queryRunner,
+    );
+
+    if (moderationTask) {
+      return null;
+    }
+
+    const moderationCreateDto: CreateModerationDto = {
+      movieId: filmId,
+      torrentMetaData: null,
+    };
+
+    const newModeration =
+      this.moderationFilmEntity.create<ModerationFilmEntity>(moderationCreateDto);
+
+    const result = await this.moderationFilmRepository.save(newModeration, queryRunner);
+
+    return result.id;
+  }
+
+  private publishNewModeration(taskId: number): void {
+    this.commandBus.execute(
+      new TelegramAdminBotSendNotificationNewModerationMovieCommand(MovieTypesEnum.FILM, taskId),
+    );
   }
 }

@@ -66,7 +66,6 @@ export class AdminCinemaFilmsController {
   @SwaggerDecoratorAdminRemoveFilmById()
   async removeFilm(): Promise<any> {}
 
-  // TODO:
   @HttpCode(HttpStatus.NO_CONTENT)
   @Patch(`:filmId`)
   @SwaggerDecoratorAdminShowOrHideFilmById()
