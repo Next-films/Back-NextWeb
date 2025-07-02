@@ -3,7 +3,7 @@ import { Genre } from '@/movies/domain/genre.entity';
 import { CartonCreateDto } from '@/cartoons/domain/types';
 import { FilmCreateDto } from '@/films/domain/types';
 import { RU_PG_COLLATION } from '@/common/constants/collation.constant';
-import { MovieHandleStatus } from '@/movies/domain/types';
+import { MovieHandleStatus, MovieUpdateDto } from '@/movies/domain/types';
 
 export class MovieEntity {
   @PrimaryGeneratedColumn()
@@ -111,25 +111,26 @@ export class MovieEntity {
     return instance;
   }
 
-  // TODO:
-  update(inputDto: CartonCreateDto | FilmCreateDto): void {
+  update<T extends MovieUpdateDto>(inputDto: T): void {
     const {
       kpId,
-      key,
-      hidden,
-      description,
-      genres,
-      originalName,
-      alternativeName,
-      name,
+      backgroundContentUrl,
+      trailerUrl,
+      titleUrl,
+      previewUrl,
       country,
       duration,
       releaseDate,
+      videUrl,
+      genres,
+      alternativeName,
+      name,
+      originalName,
+      description,
     } = inputDto;
 
     this.kpId = kpId;
-    this.videoUrl = key;
-    this.isHidden = hidden;
+    this.videoUrl = videUrl;
     this.title = name;
     this.originalTitle = originalName;
     this.description = description;
@@ -139,10 +140,10 @@ export class MovieEntity {
     this.releaseDate = releaseDate;
     this.updatedAt = new Date();
 
-    this.trailerUrl = '';
-    this.backgroundContentUrl = '';
-    this.previewUrl = '';
-    this.titleUrl = '';
+    this.trailerUrl = trailerUrl;
+    this.backgroundContentUrl = backgroundContentUrl;
+    this.previewUrl = previewUrl;
+    this.titleUrl = titleUrl;
 
     if (genres && genres.length > 0) {
       this.genres = genres;

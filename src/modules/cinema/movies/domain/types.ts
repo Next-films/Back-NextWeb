@@ -21,3 +21,20 @@ export enum MovieHandleStatus {
   MODERATE = 'moderate',
   PRODUCTION = 'production',
 }
+
+export class MovieUpdateDto {
+  name: string;
+  kpId: string;
+  description: string | null;
+  genres: Genre[] | null;
+  releaseDate: string | null;
+  originalName: string | null;
+  alternativeName: string | null;
+  duration: number;
+  country: string[] | null;
+  videUrl: string | null;
+  trailerUrl: string | null;
+  backgroundContentUrl: string | null;
+  previewUrl: string | null;
+  titleUrl: string | null;
+}

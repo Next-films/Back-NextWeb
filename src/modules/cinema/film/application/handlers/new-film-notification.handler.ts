@@ -10,7 +10,7 @@ import { KinopoiskService } from '@/external-api/kinopoisk/application/kinopoisk
 import { DateUtil } from '@/common/utils/date.util';
 import { EXCEPTION_KEYS_ENUM } from '@/common/enums/exception-keys.enum';
 import { FilmRepository } from '@/films/infrastructure/film.repository';
-import { FilmCreateDto } from '@/films/domain/types';
+import { FilmCreateDto, FilmUpdateDto } from '@/films/domain/types';
 import { Film } from '@/films/domain/film.entity';
 import { MovieHandleStatus } from '@/movies/domain/types';
 import { MoviesService } from '@/movies/application/movies.service';
@@ -113,26 +113,43 @@ export class NewFilmNotificationCommandHandler
         !country ||
         country.length === 0;
 
-      const filmDto: FilmCreateDto = {
-        key,
-        kpId,
-        duration: duration || 0,
-        name: name || 'unknown',
-        originalName,
-        hidden,
-        genres,
-        alternativeName,
-        country,
-        description: description || null,
-        releaseDate: worldReleaseDate ? this.dateUtil.formatDateYyMmDd(worldReleaseDate) : null,
-        handleStatus: MovieHandleStatus.PROCESSING,
-      };
-
       let handledFilm: Film | null = null;
 
       if (film) {
+        // TODO:
+        const filmDto: FilmUpdateDto = {
+          videUrl: key,
+          kpId,
+          duration: duration || 0,
+          name: name || 'unknown',
+          originalName,
+          genres,
+          alternativeName,
+          country,
+          description: description || null,
+          releaseDate: worldReleaseDate ? this.dateUtil.formatDateYyMmDd(worldReleaseDate) : null,
+          titleUrl: null,
+          previewUrl: null,
+          trailerUrl: null,
+          backgroundContentUrl: null,
+        };
         handledFilm = this.handleExistFilm(film, filmDto);
       } else {
+        // TODO:
+        const filmDto: FilmCreateDto = {
+          key,
+          kpId,
+          duration: duration || 0,
+          name: name || 'unknown',
+          originalName,
+          hidden,
+          genres,
+          alternativeName,
+          country,
+          description: description || null,
+          releaseDate: worldReleaseDate ? this.dateUtil.formatDateYyMmDd(worldReleaseDate) : null,
+          handleStatus: MovieHandleStatus.PROCESSING,
+        };
         handledFilm = this.handleNewFilm(filmDto);
       }
 
@@ -165,7 +182,7 @@ export class NewFilmNotificationCommandHandler
     }
   }
 
-  private handleExistFilm(film: Film, filmDto: FilmCreateDto): Film {
+  private handleExistFilm(film: Film, filmDto: FilmUpdateDto): Film {
     film.update(filmDto);
     return film;
   }

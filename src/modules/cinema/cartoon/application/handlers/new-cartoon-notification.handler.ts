@@ -6,7 +6,7 @@ import {
 import { ErrorFieldExceptionDto } from '@/common/exception-filters/http/http-exception.filter';
 import { LoggerService } from '@/common/utils/logger/logger.service';
 import { Inject } from '@nestjs/common';
-import { CartonCreateDto } from '@/cartoons/domain/types';
+import { CartonCreateDto, CartonUpdateDto } from '@/cartoons/domain/types';
 import { Cartoon } from '@/cartoons/domain/cartoon.entity';
 import { CartoonRepository } from '@/cartoons/infrastructure/cartoon.repository';
 import { KinopoiskService } from '@/external-api/kinopoisk/application/kinopoisk.service';
@@ -113,26 +113,43 @@ export class NewCartoonNotificationCommandHandler
         !country ||
         country.length === 0;
 
-      const cartonDto: CartonCreateDto = {
-        key,
-        kpId,
-        duration: duration || 0,
-        name: name || 'unknown',
-        originalName,
-        hidden,
-        genres,
-        alternativeName,
-        country,
-        description: description || null,
-        releaseDate: worldReleaseDate ? this.dateUtil.formatDateYyMmDd(worldReleaseDate) : null,
-        handleStatus: MovieHandleStatus.PROCESSING,
-      };
-
       let handledCartoon: Cartoon | null = null;
 
       if (cartoon) {
+        // TODO:
+        const cartonDto: CartonUpdateDto = {
+          videUrl: key,
+          kpId,
+          duration: duration || 0,
+          name: name || 'unknown',
+          originalName,
+          genres,
+          alternativeName,
+          country,
+          description: description || null,
+          releaseDate: worldReleaseDate ? this.dateUtil.formatDateYyMmDd(worldReleaseDate) : null,
+          titleUrl: null,
+          previewUrl: null,
+          trailerUrl: null,
+          backgroundContentUrl: null,
+        };
         handledCartoon = this.handleExistCartoon(cartoon, cartonDto);
       } else {
+        // TODO: + Обновить модель создания для прикрепления трейлеров и превью
+        const cartonDto: CartonCreateDto = {
+          key,
+          kpId,
+          duration: duration || 0,
+          name: name || 'unknown',
+          originalName,
+          hidden,
+          genres,
+          alternativeName,
+          country,
+          description: description || null,
+          releaseDate: worldReleaseDate ? this.dateUtil.formatDateYyMmDd(worldReleaseDate) : null,
+          handleStatus: MovieHandleStatus.PROCESSING,
+        };
         handledCartoon = this.handleNewCartoon(cartonDto);
       }
 
@@ -164,7 +181,7 @@ export class NewCartoonNotificationCommandHandler
     }
   }
 
-  private handleExistCartoon(cartoon: Cartoon, cartoonDto: CartonCreateDto): Cartoon {
+  private handleExistCartoon(cartoon: Cartoon, cartoonDto: CartonUpdateDto): Cartoon {
     cartoon.update(cartoonDto);
     return cartoon;
   }

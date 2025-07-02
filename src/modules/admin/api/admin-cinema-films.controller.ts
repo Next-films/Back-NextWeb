@@ -35,6 +35,8 @@ import { AdminGetAllFilmsQuery } from '@/admin/application/query-handlers/admin-
 import { AdminGetAllFilmsInputQueryDto } from '@/admin/api/dtos/input/admin-get-all-films.input-query.dto';
 import { PaginationUtil } from '@/common/utils/pagination.util';
 import { AdminCinemaFilmsOutputDto } from '@/admin/api/dtos/output/admin-cinema-films.output.dto';
+import { AdminUpdateFilmInputDto } from '@/admin/api/dtos/input/admin-update-film.input.dto';
+import { AdminUpdateFilmCommand } from '@/admin/application/handlers/admin-update-film.handler';
 
 @ApiTags('Admin cinema - films')
 @ApiBearerAuth()
@@ -78,11 +80,24 @@ export class AdminCinemaFilmsController {
   @SwaggerDecoratorAdminCreateFilm()
   async addFilm(): Promise<any> {}
 
-  // TODO:
   @HttpCode(HttpStatus.NO_CONTENT)
   @Put(`:filmId`)
   @SwaggerDecoratorAdminUpdateFilmById()
-  async updateFilm(): Promise<any> {}
+  async updateFilm(
+    @Param('filmId', ParseIntPatchPipe) filmId: number,
+    @Body() body: AdminUpdateFilmInputDto,
+  ): Promise<void> {
+    this.logger.log('Execute: update film by admin', this.updateFilm.name);
+
+    const result = await this.commandBus.execute<
+      AdminUpdateFilmCommand,
+      AppNotificationResult<null, ErrorFieldExceptionDto | null>
+    >(new AdminUpdateFilmCommand(filmId, body));
+
+    this.logger.log(result.appResult, this.updateFilm.name);
+
+    this.appNotification.handleHttpResult(result);
+  }
 
   // TODO:
   @HttpCode(HttpStatus.NO_CONTENT)
