@@ -36,7 +36,7 @@ const providers = [filmProvider];
 
 const handlers = [NewFilmNotificationCommandHandler, NewFilmIsHandleNotificationCommandHandler];
 
-const exportProviders = [FilmRepository, filmProvider];
+const exportProviders = [FilmRepository, filmProvider, FilmQueryRepository];
 
 @Module({
   imports: [TypeOrmModule.forFeature([Film]), MoviesModules, KinopoiskModule],

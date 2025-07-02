@@ -38,6 +38,7 @@ import { AdminGetAllModerationMovieTaskQueryHandler } from '@/admin/application/
 import { AdminModerationMovieTaskOutputDtoMapper } from '@/admin/api/dtos/output/admin-moderation-movie-task.output.dto';
 import { AdminGetModerationMovieTaskByIdQueryHandler } from '@/admin/application/query-handlers/admin-get-moderation-movie-task-by-id.query-handler';
 import { AdminCancelModerationMovieTaskCommandHandler } from '@/admin/application/handlers/admin-cancel-moderation-movie-task.handler';
+import { AdminGetAllFilmsQueryHandler } from '@/admin/application/query-handlers/admin-get-all-films.query-handler';
 
 export const AdminProvider = {
   provide: 'Admin',
@@ -64,6 +65,7 @@ const queryHandlers = [
   AdminGetAllBannedProvidersMoviesQueryHandler,
   AdminGetAllModerationMovieTaskQueryHandler,
   AdminGetModerationMovieTaskByIdQueryHandler,
+  AdminGetAllFilmsQueryHandler,
 ];
 
 const exportProviders = [TypeOrmModule.forFeature([Admin]), AdminProvider, AdminRepository];

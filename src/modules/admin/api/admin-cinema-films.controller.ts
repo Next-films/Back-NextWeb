@@ -9,6 +9,7 @@ import {
   Patch,
   Post,
   Put,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { LoggerService } from '@/common/utils/logger/logger.service';
@@ -20,15 +21,20 @@ import { SwaggerDecoratorAdminUpdateFilmById } from '@/admin/api/swagger/admin-u
 import { SwaggerDecoratorAdminRemoveFilmById } from '@/admin/api/swagger/admin-remove-film-by-id.swagger.decorator';
 import { SwaggerDecoratorAdminShowOrHideFilmById } from '@/admin/api/swagger/admin-show-hide-film-by-id.swagger.decorator';
 import { SwaggerDecoratorAdminCreateFilm } from '@/admin/api/swagger/admin-add-film.swagger.decorator';
-import { CommandBus } from '@nestjs/cqrs';
+import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import { AdminShowOrHiddeFilmCommand } from '@/admin/application/handlers/admin-show-or-hide-film.handler';
 import { ParseIntPatchPipe } from '@/common/pipes/validation-parse-int.pipe';
 import { AdminShowOrHiddeFilmInputDto } from '@/admin/api/dtos/input/admin-show-or-hidde-film.input.dto';
 import {
   ApplicationNotification,
   AppNotificationResult,
+  AppNotificationResultEnum,
 } from '@/common/utils/app-notification.util';
 import { ErrorFieldExceptionDto } from '@/common/exception-filters/http/http-exception.filter';
+import { AdminGetAllFilmsQuery } from '@/admin/application/query-handlers/admin-get-all-films.query-handler';
+import { AdminGetAllFilmsInputQueryDto } from '@/admin/api/dtos/input/admin-get-all-films.input-query.dto';
+import { PaginationUtil } from '@/common/utils/pagination.util';
+import { AdminCinemaFilmsOutputDto } from '@/admin/api/dtos/output/admin-cinema-films.output.dto';
 
 @ApiTags('Admin cinema - films')
 @ApiBearerAuth()
@@ -39,15 +45,33 @@ export class AdminCinemaFilmsController {
   constructor(
     private readonly logger: LoggerService,
     private readonly commandBus: CommandBus,
+    private readonly queryBus: QueryBus,
     private readonly appNotification: ApplicationNotification,
   ) {
     this.logger.setContext(AdminCinemaFilmsController.name);
   }
 
-  // TODO:
   @Get()
   @SwaggerDecoratorAdminGetAllFilms()
-  async getAllFilms(): Promise<any> {}
+  async getAllFilms(
+    @Query() query: AdminGetAllFilmsInputQueryDto,
+  ): Promise<PaginationUtil<AdminCinemaFilmsOutputDto[]> | void> {
+    this.logger.log('Execute: get all films by admin', this.getAllFilms.name);
+
+    const result = await this.queryBus.execute<
+      AdminGetAllFilmsQuery,
+      AppNotificationResult<
+        PaginationUtil<AdminCinemaFilmsOutputDto[]>,
+        ErrorFieldExceptionDto | null
+      >
+    >(new AdminGetAllFilmsQuery(query));
+
+    this.logger.log(result.appResult, this.getAllFilms.name);
+
+    if (result.appResult === AppNotificationResultEnum.Success) return result.data!;
+
+    this.appNotification.handleHttpResult(result);
+  }
 
   // TODO:
   @Post()
