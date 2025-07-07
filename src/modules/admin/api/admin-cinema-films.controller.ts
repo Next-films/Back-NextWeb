@@ -37,6 +37,7 @@ import { PaginationUtil } from '@/common/utils/pagination.util';
 import { AdminCinemaFilmsOutputDto } from '@/admin/api/dtos/output/admin-cinema-films.output.dto';
 import { AdminUpdateFilmInputDto } from '@/admin/api/dtos/input/admin-update-film.input.dto';
 import { AdminUpdateFilmCommand } from '@/admin/application/handlers/admin-update-film.handler';
+import { AdminRemoveFilmCommand } from '@/admin/application/handlers/admin-remove-film.handler';
 
 @ApiTags('Admin cinema - films')
 @ApiBearerAuth()
@@ -99,11 +100,21 @@ export class AdminCinemaFilmsController {
     this.appNotification.handleHttpResult(result);
   }
 
-  // TODO:
   @HttpCode(HttpStatus.NO_CONTENT)
   @Delete(`:filmId`)
   @SwaggerDecoratorAdminRemoveFilmById()
-  async removeFilm(): Promise<any> {}
+  async removeFilm(@Param('filmId', ParseIntPatchPipe) filmId: number): Promise<void> {
+    this.logger.log('Execute: remove film by admin', this.removeFilm.name);
+
+    const result = await this.commandBus.execute<
+      AdminRemoveFilmCommand,
+      AppNotificationResult<null, ErrorFieldExceptionDto | null>
+    >(new AdminRemoveFilmCommand(filmId));
+
+    this.logger.log(result.appResult, this.removeFilm.name);
+
+    this.appNotification.handleHttpResult(result);
+  }
 
   @HttpCode(HttpStatus.NO_CONTENT)
   @Patch(`:filmId`)

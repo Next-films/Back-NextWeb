@@ -44,3 +44,10 @@ export const CLEAR_LOGS_CMD = 'clear_logs_cdm';
  */
 export const BAN_PROVIDER_MOVIE_CMD = 'ban_provider_movie_cmd';
 export const GET_BANNED_MOVIE_BY_PROVIDER_CMD = 'get_banned_movie_by_provider_cmd';
+
+/*
+ *
+ * Movies cmd
+ *
+ */
+export const REMOVE_MOVIE_CMD = 'remove_movie_cmd';

@@ -14,6 +14,10 @@ export class FilmRepository {
     return await this.filmRepository.save(film);
   }
 
+  async remove(film: Film): Promise<void> {
+    await this.filmRepository.remove(film);
+  }
+
   async getFilmByKinopoiskId(kpId: string, queryRunner?: QueryRunner): Promise<Film | null> {
     if (queryRunner) {
       return queryRunner.manager.findOne(this.filmRepository.target, { where: { kpId } });

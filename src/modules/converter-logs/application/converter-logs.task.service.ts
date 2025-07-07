@@ -3,9 +3,7 @@ import { LoggerService } from '@/common/utils/logger/logger.service';
 import { ConverterLogsRepository } from '@/converter-logs/infrastructure/converter-logs.repository';
 import { Cron } from '@nestjs/schedule';
 import { DownloaderServiceAdapter } from '@/common/infrastructure/rmq/downloader-service.adapter';
-import { AppNotificationResultEnum } from '@/common/utils/app-notification.util';
 import { RmqResultHandlerUtil } from '@/common/utils/rmq-result-handler.util';
-import { HandledRmqErrorType } from '@/common/types/types';
 import { subMonths } from 'date-fns';
 import { AsyncLocalStorageService } from '@/common/utils/logger/als.service';
 import { randomUUID } from 'node:crypto';
@@ -28,23 +26,6 @@ export class ConverterLogsTaskService {
     return `converter-logs-${Date.now()}-${randomUUID()}`;
   }
 
-  private isRmqError(result: AppNotificationResultEnum): HandledRmqErrorType {
-    const isInternalError = this.rmqResultHandlerUtil.isInternalError(result);
-    const isUnauthorizedError = this.rmqResultHandlerUtil.isUnauthorizedError(result);
-
-    if (isInternalError || isUnauthorizedError) {
-      return {
-        isError: true,
-        isStopProcess: true,
-      };
-    }
-
-    return {
-      isError: false,
-      isStopProcess: false,
-    };
-  }
-
   private async clearLogs(): Promise<void> {
     try {
       const date = subMonths(new Date(), this.logExpiredMonthCount);
@@ -58,20 +39,10 @@ export class ConverterLogsTaskService {
 
       const keys = logs.map(log => log.url.replace(/^https?:\/\/[^/]+\//, ''));
 
-      let result = await this.downloaderServiceAdapter.clearLogs(keys);
-
-      const { isError, isStopProcess } = this.isRmqError(result.appResult);
-
-      if (isError && isStopProcess) {
-        this.logger.warn(`Retry rmq request (clear converter logs)`, this.clearLogs.name);
-        result = await this.downloaderServiceAdapter.clearLogs(keys);
-
-        const { isError: retryErr, isStopProcess: retryStop } = this.isRmqError(result.appResult);
-
-        if (retryErr && retryStop) {
-          throw new Error(`Rmq error, stop processing: ${retryStop}`);
-        }
-      }
+      await this.rmqResultHandlerUtil.getRmqData(
+        () => this.downloaderServiceAdapter.clearLogs(keys),
+        'Clear logs',
+      );
 
       await this.converterLogsRepository.remove(logs);
 

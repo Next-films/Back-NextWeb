@@ -9,6 +9,7 @@ import {
   BRIDGE_FIND_SERIALS_CMD,
   CLEAR_LOGS_CMD,
   DOWNLOAD_SERVICE_RMQ_NAME,
+  REMOVE_MOVIE_CMD,
 } from '@/common/constants/rmq.constants';
 import { LoggerService } from '@/common/utils/logger/logger.service';
 import {
@@ -21,6 +22,7 @@ import { ConfigService } from '@nestjs/config';
 import { ConfigurationType } from '@/settings/configuration';
 import { RmqAuthPayload } from '@/common/infrastructure/rmq/types';
 import { ClearConverterLogsPayloadDto } from '@/converter-logs/domain/types';
+import { RemoveMoviePayloadDto } from '@/admin/domain/types';
 
 @Injectable()
 export class DownloaderServiceAdapter {
@@ -92,6 +94,32 @@ export class DownloaderServiceAdapter {
       return this.appNotification.internalServerError();
     }
   }
+  /*
+   *
+   *  Remove movies
+   *
+   */
+  async removeMovie(
+    key: string,
+  ): Promise<AppNotificationResult<null, ErrorFieldExceptionDto | null>> {
+    try {
+      const payload: RmqAuthPayload<RemoveMoviePayloadDto> = {
+        payload: {
+          key,
+        },
+        token: this.auth_token,
+      };
+
+      const response: Observable<AppNotificationResult<null, ErrorFieldExceptionDto | null>> =
+        this.client.send({ cmd: REMOVE_MOVIE_CMD }, payload).pipe(timeout(50_000));
+
+      return await firstValueFrom(response);
+    } catch (error) {
+      this.logger.error(error, this.removeMovie.name);
+
+      return this.appNotification.internalServerError();
+    }
+  }
 }
 
 @Injectable()
@@ -152,6 +180,18 @@ export class DownloaderServiceAdapterMock extends DownloaderServiceAdapter {
       `Execute: clear converter logs (mock). Keys: ${JSON.stringify(keys)}`,
       this.clearLogs.name,
     );
+    await new Promise(resolve => resolve(null));
+    return this.appNotification.success(null);
+  }
+  /*
+   *
+   *  Remove movies
+   *
+   */
+  async removeMovie(
+    key: string,
+  ): Promise<AppNotificationResult<null, ErrorFieldExceptionDto | null>> {
+    this.logger.log(`Execute: remove movie (mock). Key: ${key}`, this.removeMovie.name);
     await new Promise(resolve => resolve(null));
     return this.appNotification.success(null);
   }

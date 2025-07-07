@@ -62,3 +62,7 @@ export interface IAdminModerationMovieTaskCreateByTorrentStrategy {
     moderation: ModerationFilmEntity | ModerationCartoonEntity,
   ) => Promise<ModerationFilmEntity | ModerationCartoonEntity>;
 }
+
+export class RemoveMoviePayloadDto {
+  key: string;
+}
