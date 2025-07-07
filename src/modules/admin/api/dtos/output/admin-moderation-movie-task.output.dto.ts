@@ -19,8 +19,8 @@ class AdminModerationMovieTaskAdminOutputDto {
   @ApiProperty()
   id: number;
 
-  @ApiProperty()
-  tgId: string;
+  @ApiProperty({ nullable: true })
+  tgId: string | null;
 
   @ApiProperty({ nullable: true })
   tgUsername: string | null;
@@ -190,11 +190,10 @@ export class AdminModerationMovieTaskOutputDtoMapper {
     if (!admin) return null;
 
     const { adminTelegram, id } = admin;
-    const { username, telegramId } = adminTelegram;
     return {
       id,
-      tgUsername: username,
-      tgId: telegramId,
+      tgUsername: adminTelegram?.username || null,
+      tgId: adminTelegram?.telegramId || null,
     };
   }
 

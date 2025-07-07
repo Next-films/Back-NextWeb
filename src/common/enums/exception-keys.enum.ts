@@ -33,6 +33,9 @@ export enum EXCEPTION_KEYS_ENUM {
   MODERATION_TASK_NOT_FOUND = 'error_moderation_task_not_found',
   MODERATION_TASK_NOT_BELONG_YOU = 'error_moderation_task_not_belong_you',
   MOVIE_ALREADY_MODERATED_BY_TORRENT = 'error_movie_already_moderated_by_torrent',
+  PROVIDER_NOT_FOUND = 'error_provider_not_found',
+  PROVIDER_MOVIE_NOT_FOUND = 'error_provider_movie_not_found',
+  MOVIE_NOT_MODERATED = 'error_movie_not_moderated', // When user try to apply moderation but film have not moderate keys
   /*
    *
    * Input validation error

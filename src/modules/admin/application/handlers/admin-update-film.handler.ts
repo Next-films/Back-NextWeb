@@ -72,8 +72,8 @@ export class AdminUpdateFilmCommandHandler
 
       film.update(updateDto);
 
-      await queryRunner.commitTransaction();
       await this.filmRepository.save(film, queryRunner);
+      await queryRunner.commitTransaction();
       return this.appNotification.success(null);
     } catch (e) {
       this.logger.error(e, this.execute.name);

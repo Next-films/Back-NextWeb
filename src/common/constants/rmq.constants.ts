@@ -51,3 +51,4 @@ export const GET_BANNED_MOVIE_BY_PROVIDER_CMD = 'get_banned_movie_by_provider_cm
  *
  */
 export const REMOVE_MOVIE_CMD = 'remove_movie_cmd';
+export const ADD_MOVIE_TO_DOWNLOAD_QUEUE_CMD = 'add_movie_to_download_queue_cmd';

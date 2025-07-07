@@ -41,6 +41,8 @@ import { AdminGetModerationMovieTaskByIdQuery } from '@/admin/application/query-
 import { GetModerationMovieTaskByIdInputQueryDto } from '@/admin/api/dtos/input/get-moderation-movie-task-by-id.input-query.dto';
 import { AdminCancelModerationMovieTaskCommand } from '@/admin/application/handlers/admin-cancel-moderation-movie-task.handler';
 import { AdminCancelModerationMovieTaskInputDto } from '@/admin/api/dtos/input/admin-cancel-moderation-movie-task.input.dto';
+import { AdminApplyModerationMovieTaskCommand } from '@/admin/application/handlers/admin-apply-moderation-movie-task.handler';
+import { AdminApplyModerationMovieTaskInputDto } from '@/admin/api/dtos/input/admin-apply-moderation-movie-task.input.dto';
 
 @ApiTags('Admin moderation - movie')
 @ApiBearerAuth()
@@ -117,10 +119,23 @@ export class AdminModerationMovieController {
     this.appNotification.handleHttpResult(result);
   }
 
-  // TODO:
+  // TODO: check
   @Post(`:taskId/${ADMIN_MODERATION_MOVIE_ROUTE.APPLY}`)
   @SwaggerDecoratorAdminApplyModerationMovieTask()
-  async applyMovie(): Promise<void> {}
+  async applyMovie(
+    @Param('taskId', ParseIntPatchPipe) taskId: number,
+    @Body() body: AdminApplyModerationMovieTaskInputDto,
+    @CurrentUser() admin: AdminAccessTokenPayload,
+  ): Promise<void> {
+    this.logger.log('Execute: apply moderation movie task', this.applyMovie.name);
+    const result = await this.commandBus.execute<
+      AdminApplyModerationMovieTaskCommand,
+      AppNotificationResult<null, ErrorFieldExceptionDto | null>
+    >(new AdminApplyModerationMovieTaskCommand(taskId, admin.id, body));
+
+    this.logger.log(result.appResult, this.applyMovie.name);
+    this.appNotification.handleHttpResult(result);
+  }
 
   @HttpCode(HttpStatus.NO_CONTENT)
   @Post(`:taskId/${ADMIN_MODERATION_MOVIE_ROUTE.CANCEL}`)

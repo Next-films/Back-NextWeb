@@ -3,6 +3,7 @@ import { KinopoiskItemName } from '@/external-api/kinopoisk/domain/types';
 import { Genre } from '@/movies/domain/genre.entity';
 import { GenreRepository } from '@/movies/infrastructure/genre.repository';
 import { QueryRunner } from 'typeorm';
+import { MovieEntity } from '@/movies/domain/movie.entity';
 
 @Injectable()
 export class MoviesService {
@@ -48,5 +49,45 @@ export class MoviesService {
         : [];
 
     return [...existingGenres, ...createdGenres];
+  }
+
+  isValidMovieForProduction<T extends MovieEntity>(movie: T): boolean {
+    const {
+      title,
+      originalTitle,
+      description,
+      country,
+      alternativeTitles,
+      releaseDate,
+      trailerUrl,
+      backgroundContentUrl,
+      previewUrl,
+      titleUrl,
+      videoUrl,
+      duration,
+      genres,
+    } = movie;
+
+    if (
+      !title ||
+      !description ||
+      !originalTitle ||
+      !releaseDate ||
+      !trailerUrl ||
+      !videoUrl ||
+      !previewUrl ||
+      !backgroundContentUrl ||
+      !titleUrl ||
+      !duration ||
+      duration === 0 ||
+      !genres ||
+      genres.length <= 0 ||
+      !country ||
+      country.length <= 0 ||
+      !alternativeTitles
+    )
+      return false;
+
+    return true;
   }
 }

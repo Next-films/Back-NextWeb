@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import {
+  ADD_MOVIE_TO_DOWNLOAD_QUEUE_CMD,
   BRIDGE_DOWNLOAD_CARTOONS_CMD,
   BRIDGE_DOWNLOAD_FILMS_CMD,
   BRIDGE_DOWNLOAD_SERIALS_CMD,
@@ -22,7 +23,8 @@ import { ConfigService } from '@nestjs/config';
 import { ConfigurationType } from '@/settings/configuration';
 import { RmqAuthPayload } from '@/common/infrastructure/rmq/types';
 import { ClearConverterLogsPayloadDto } from '@/converter-logs/domain/types';
-import { RemoveMoviePayloadDto } from '@/admin/domain/types';
+import { AddMovieToDownloadQueuePayloadDto, RemoveMoviePayloadDto } from '@/admin/domain/types';
+import { MovieTypesEnum, TorApiMovieById, TorApiProvidersEnum } from '@/common/types/types';
 
 @Injectable()
 export class DownloaderServiceAdapter {
@@ -120,6 +122,37 @@ export class DownloaderServiceAdapter {
       return this.appNotification.internalServerError();
     }
   }
+
+  /*
+   *
+   *  Add to queue
+   *
+   */
+  async addMovieToQueue(
+    torrent: TorApiMovieById,
+    provider: TorApiProvidersEnum,
+    type: MovieTypesEnum,
+  ): Promise<AppNotificationResult<null, ErrorFieldExceptionDto | null>> {
+    try {
+      const payload: RmqAuthPayload<AddMovieToDownloadQueuePayloadDto> = {
+        payload: {
+          torrent,
+          provider,
+          type,
+        },
+        token: this.auth_token,
+      };
+
+      const response: Observable<AppNotificationResult<null, ErrorFieldExceptionDto | null>> =
+        this.client.send({ cmd: ADD_MOVIE_TO_DOWNLOAD_QUEUE_CMD }, payload).pipe(timeout(20_000));
+
+      return await firstValueFrom(response);
+    } catch (error) {
+      this.logger.error(error, this.addMovieToQueue.name);
+
+      return this.appNotification.internalServerError();
+    }
+  }
 }
 
 @Injectable()
@@ -192,6 +225,25 @@ export class DownloaderServiceAdapterMock extends DownloaderServiceAdapter {
     key: string,
   ): Promise<AppNotificationResult<null, ErrorFieldExceptionDto | null>> {
     this.logger.log(`Execute: remove movie (mock). Key: ${key}`, this.removeMovie.name);
+    await new Promise(resolve => resolve(null));
+    return this.appNotification.success(null);
+  }
+  /*
+   *
+   *  Add to queue
+   *
+   */
+  async addMovieToQueue(
+    torrent: TorApiMovieById,
+    provider: TorApiProvidersEnum,
+    type: MovieTypesEnum,
+  ): Promise<AppNotificationResult<null, ErrorFieldExceptionDto | null>> {
+    this.logger.log(
+      `Execute: add movie to queue (mock). Provider: ${provider}, type: ${type}, torrent: ${JSON.stringify(
+        torrent,
+      )}`,
+      this.addMovieToQueue.name,
+    );
     await new Promise(resolve => resolve(null));
     return this.appNotification.success(null);
   }

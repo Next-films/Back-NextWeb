@@ -2,6 +2,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsArray,
   IsDate,
+  IsEnum,
   IsNotEmpty,
   IsNumber,
   IsOptional,
@@ -11,11 +12,16 @@ import {
   Max,
   Min,
 } from 'class-validator';
+import { MovieTypesEnum, TorApiProvidersEnum } from '@/common/types/types';
+import { FILMS_VALIDATION_RULES } from '@/common/constants/validation-rules.constants';
 import { Trim } from '@/common/decorators/transform/trim.decorator';
 import { ToArray } from '@/common/decorators/transform/array.decorator';
-import { FILMS_VALIDATION_RULES } from '@/common/constants/validation-rules.constants';
 
-export class AdminUpdateFilmInputDto {
+export class AdminApplyModerationMovieTaskInputDto {
+  @ApiProperty({ enum: MovieTypesEnum })
+  @IsEnum(MovieTypesEnum)
+  type: MovieTypesEnum;
+
   @ApiProperty({
     minLength: FILMS_VALIDATION_RULES.NAME.LENGTH_MIN,
     maxLength: FILMS_VALIDATION_RULES.NAME.LENGTH_MAX,
@@ -32,10 +38,21 @@ export class AdminUpdateFilmInputDto {
   @IsString()
   kpId: string;
 
-  @ApiProperty({
+  @ApiPropertyOptional({ enum: TorApiProvidersEnum })
+  @IsOptional()
+  @IsEnum(TorApiProvidersEnum)
+  provider: TorApiProvidersEnum;
+
+  // TODO: Validation
+  @ApiPropertyOptional()
+  @IsOptional()
+  providerId: string;
+
+  @ApiPropertyOptional({
     minLength: FILMS_VALIDATION_RULES.DESCRIPTION.LENGTH_MIN,
     maxLength: FILMS_VALIDATION_RULES.DESCRIPTION.LENGTH_MAX,
   })
+  @IsOptional()
   @Trim()
   @IsNotEmpty()
   @IsString()
@@ -43,7 +60,70 @@ export class AdminUpdateFilmInputDto {
     FILMS_VALIDATION_RULES.DESCRIPTION.LENGTH_MIN,
     FILMS_VALIDATION_RULES.DESCRIPTION.LENGTH_MAX,
   )
-  description: string;
+  description?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Trim()
+  @IsNotEmpty()
+  @IsDate()
+  releaseDate?: Date;
+
+  @ApiPropertyOptional({
+    minLength: FILMS_VALIDATION_RULES.ORIGINAL_NAME.LENGTH_MIN,
+    maxLength: FILMS_VALIDATION_RULES.ORIGINAL_NAME.LENGTH_MAX,
+  })
+  @IsOptional()
+  @Trim()
+  @IsNotEmpty()
+  @IsString()
+  @Length(
+    FILMS_VALIDATION_RULES.ORIGINAL_NAME.LENGTH_MIN,
+    FILMS_VALIDATION_RULES.ORIGINAL_NAME.LENGTH_MAX,
+  )
+  originalName?: string;
+
+  @ApiPropertyOptional({
+    minLength: FILMS_VALIDATION_RULES.ALTERNATIVE_NAME.LENGTH_MIN,
+    maxLength: FILMS_VALIDATION_RULES.ALTERNATIVE_NAME.LENGTH_MAX,
+  })
+  @IsOptional()
+  @Trim()
+  @IsNotEmpty()
+  @IsString()
+  @Length(
+    FILMS_VALIDATION_RULES.ALTERNATIVE_NAME.LENGTH_MIN,
+    FILMS_VALIDATION_RULES.ALTERNATIVE_NAME.LENGTH_MAX,
+  )
+  alternativeName?: string;
+
+  @ApiPropertyOptional({
+    minLength: FILMS_VALIDATION_RULES.COUNTRY.LENGTH_MIN,
+    maxLength: FILMS_VALIDATION_RULES.COUNTRY.LENGTH_MAX,
+  })
+  @IsOptional()
+  @ToArray()
+  @IsArray()
+  @IsString({ each: true })
+  @IsNotEmpty({ each: true })
+  @Length(FILMS_VALIDATION_RULES.COUNTRY.LENGTH_MIN, FILMS_VALIDATION_RULES.COUNTRY.LENGTH_MAX, {
+    each: true,
+  })
+  country?: string[];
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Trim()
+  @IsNotEmpty()
+  @IsUrl()
+  trailerUrl?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Trim()
+  @IsNotEmpty()
+  @IsUrl()
+  previewUrl?: string;
 
   @ApiPropertyOptional({
     minLength: FILMS_VALIDATION_RULES.GENRE.LENGTH_MIN,
@@ -60,90 +140,37 @@ export class AdminUpdateFilmInputDto {
   })
   genres?: string[];
 
-  @ApiProperty()
-  @Trim()
-  @IsNotEmpty()
-  @IsDate()
-  releaseDate: Date;
-
-  @ApiProperty({
-    minLength: FILMS_VALIDATION_RULES.ORIGINAL_NAME.LENGTH_MIN,
-    maxLength: FILMS_VALIDATION_RULES.ORIGINAL_NAME.LENGTH_MAX,
-  })
-  @Trim()
-  @IsNotEmpty()
-  @IsString()
-  @Length(
-    FILMS_VALIDATION_RULES.ORIGINAL_NAME.LENGTH_MIN,
-    FILMS_VALIDATION_RULES.ORIGINAL_NAME.LENGTH_MAX,
-  )
-  originalName: string;
-
-  @ApiProperty({
-    minLength: FILMS_VALIDATION_RULES.ALTERNATIVE_NAME.LENGTH_MIN,
-    maxLength: FILMS_VALIDATION_RULES.ALTERNATIVE_NAME.LENGTH_MAX,
-  })
-  @Trim()
-  @IsNotEmpty()
-  @IsString()
-  @Length(
-    FILMS_VALIDATION_RULES.ALTERNATIVE_NAME.LENGTH_MIN,
-    FILMS_VALIDATION_RULES.ALTERNATIVE_NAME.LENGTH_MAX,
-  )
-  alternativeName: string;
-
-  @ApiProperty({
+  @ApiPropertyOptional({
     minimum: FILMS_VALIDATION_RULES.DURATION.LENGTH_MIN,
     maximum: FILMS_VALIDATION_RULES.DURATION.LENGTH_MAX,
     description: 'Value in seconds',
   })
+  @IsOptional()
   @Trim()
   @IsNotEmpty()
   @IsNumber()
   @Min(FILMS_VALIDATION_RULES.DURATION.LENGTH_MIN)
   @Max(FILMS_VALIDATION_RULES.DURATION.LENGTH_MAX)
-  duration: number;
+  duration?: number;
 
-  @ApiProperty({
-    minLength: FILMS_VALIDATION_RULES.COUNTRY.LENGTH_MIN,
-    maxLength: FILMS_VALIDATION_RULES.COUNTRY.LENGTH_MAX,
-  })
-  @ToArray()
-  @IsArray()
-  @IsString({ each: true })
-  @IsNotEmpty({ each: true })
-  @Length(FILMS_VALIDATION_RULES.COUNTRY.LENGTH_MIN, FILMS_VALIDATION_RULES.COUNTRY.LENGTH_MAX, {
-    each: true,
-  })
-  country: string[];
-
-  @ApiProperty()
+  @ApiPropertyOptional()
+  @IsOptional()
   @Trim()
   @IsNotEmpty()
   @IsUrl()
-  videUrl: string;
+  videUrl?: string;
 
-  @ApiProperty()
+  @ApiPropertyOptional()
+  @IsOptional()
   @Trim()
   @IsNotEmpty()
   @IsUrl()
-  trailerUrl: string;
+  backgroundContentUrl?: string;
 
-  @ApiProperty()
+  @ApiPropertyOptional()
+  @IsOptional()
   @Trim()
   @IsNotEmpty()
   @IsUrl()
-  backgroundContentUrl: string;
-
-  @ApiProperty()
-  @Trim()
-  @IsNotEmpty()
-  @IsUrl()
-  previewUrl: string;
-
-  @ApiProperty()
-  @Trim()
-  @IsNotEmpty()
-  @IsUrl()
-  titleUrl: string;
+  titleUrl?: string;
 }

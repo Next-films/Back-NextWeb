@@ -12,6 +12,7 @@ import { Cartoon } from '@/cartoons/domain/cartoon.entity';
 import { CartonCreateDto } from '@/cartoons/domain/types';
 import { FilmCreateDto } from '@/films/domain/types';
 import { CreateModerationDto } from '@/moderation-movie/domain/types';
+import { MovieTypesEnum, TorApiMovieById, TorApiProvidersEnum } from '@/common/types/types';
 
 export interface IGetModerationMovieTasksStrategy {
   getTasks(
@@ -65,4 +66,10 @@ export interface IAdminModerationMovieTaskCreateByTorrentStrategy {
 
 export class RemoveMoviePayloadDto {
   key: string;
+}
+
+export class AddMovieToDownloadQueuePayloadDto {
+  torrent: TorApiMovieById;
+  provider: TorApiProvidersEnum;
+  type: MovieTypesEnum;
 }

@@ -41,7 +41,19 @@ export class BotAdminCanceledModerationPayloadDto {
   type: string;
 }
 
+export class BotAdminFinishedModerationPayloadDto {
+  telegramUsername: string;
+  finishedAt: string;
+  title: string;
+  movieId: number;
+  type: string;
+}
+
 export interface IAdminBotNotificationCancelModerationStrategy {
+  getMovie: (movieId: number) => Promise<MovieEntity | null>;
+}
+
+export interface IAdminBotNotificationFinishedModerationStrategy {
   getMovie: (movieId: number) => Promise<MovieEntity | null>;
 }
 

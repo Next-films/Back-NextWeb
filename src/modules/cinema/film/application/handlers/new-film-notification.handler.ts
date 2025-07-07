@@ -103,6 +103,7 @@ export class NewFilmNotificationCommandHandler
 
       const country = countries?.map(c => c.name) || null;
 
+      // TODO: Movie service (check valid for prod or not)
       const hidden =
         !name ||
         !worldReleaseDate ||

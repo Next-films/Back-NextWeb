@@ -41,6 +41,7 @@ import { AdminCancelModerationMovieTaskCommandHandler } from '@/admin/applicatio
 import { AdminGetAllFilmsQueryHandler } from '@/admin/application/query-handlers/admin-get-all-films.query-handler';
 import { AdminUpdateFilmCommandHandler } from '@/admin/application/handlers/admin-update-film.handler';
 import { AdminRemoveFilmCommandHandler } from '@/admin/application/handlers/admin-remove-film.handler';
+import { AdminApplyModerationMovieTaskCommandHandler } from '@/admin/application/handlers/admin-apply-moderation-movie-task.handler';
 
 export const AdminProvider = {
   provide: 'Admin',
@@ -62,6 +63,7 @@ const handlers = [
   AdminCancelModerationMovieTaskCommandHandler,
   AdminUpdateFilmCommandHandler,
   AdminRemoveFilmCommandHandler,
+  AdminApplyModerationMovieTaskCommandHandler,
 ];
 
 const queryHandlers = [

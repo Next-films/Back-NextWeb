@@ -20,6 +20,7 @@ import { AsyncLocalStorageService } from '@/common/utils/logger/als.service';
 import { TelegramAdminBotSendNotificationAdminCancelModerationCommandHandler } from '@/telegram/admin-bot/application/handlers/bot-send-notification-admin-cancel-moderation.handler';
 import { FilmModule } from '@/films/film.module';
 import { CartoonModule } from '@/cartoons/cartoon.module';
+import { TelegramAdminBotSendNotificationAdminFinishedModerationCommandHandler } from '@/telegram/admin-bot/application/handlers/bot-send-notification-admin-finished-moderation.handler';
 
 const telegramProvider = {
   provide: TELEGRAM_ADMIN_BOT,
@@ -82,6 +83,7 @@ const handlers = [
   TelegramAdminBotSendNotificationNewModerationMovieCommandHandler,
   TelegramAdminBotSendNotificationAdminAcceptModerationCommandHandler,
   TelegramAdminBotSendNotificationAdminCancelModerationCommandHandler,
+  TelegramAdminBotSendNotificationAdminFinishedModerationCommandHandler,
 ];
 
 @Module({
