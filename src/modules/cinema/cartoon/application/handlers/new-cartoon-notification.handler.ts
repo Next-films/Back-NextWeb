@@ -10,9 +10,8 @@ import { CartonCreateDto, CartonUpdateDto } from '@/cartoons/domain/types';
 import { Cartoon } from '@/cartoons/domain/cartoon.entity';
 import { CartoonRepository } from '@/cartoons/infrastructure/cartoon.repository';
 import { KinopoiskService } from '@/external-api/kinopoisk/application/kinopoisk.service';
-import { DateUtil } from '@/common/utils/date.util';
 import { EXCEPTION_KEYS_ENUM } from '@/common/enums/exception-keys.enum';
-import { MovieHandleStatus } from '@/movies/domain/types';
+import { MovieHandleStatus, MovieKpMetadata } from '@/movies/domain/types';
 import { MoviesService } from '@/movies/application/movies.service';
 import { NewCartoonNotificationPayloadDto } from '@/cartoons/api/dtos/input/new-cartoon-notification.input.dto';
 
@@ -34,7 +33,6 @@ export class NewCartoonNotificationCommandHandler
     @Inject(Cartoon.name) private readonly cartoonEntity: typeof Cartoon,
     private readonly cartoonRepository: CartoonRepository,
     private readonly kinopoiskService: KinopoiskService,
-    private readonly dateUtil: DateUtil,
     private readonly moviesService: MoviesService,
   ) {
     this.logger.setContext(NewCartoonNotificationCommandHandler.name);
@@ -47,26 +45,14 @@ export class NewCartoonNotificationCommandHandler
     const { kpId, key, duration } = inputDto;
     this.logger.log(`New cartoon notification command`, this.execute.name);
     try {
-      const [kpMovie, cartoon] = await Promise.all([
+      const [kpMovie, existingCartoon] = await Promise.all([
         this.kinopoiskService.getMovieById(Number(kpId)),
         this.cartoonRepository.getCartoonByKinopoiskId(kpId),
       ]);
 
       // TODO: доработать трейлеры и фото
-      // TODO: отправка нотификации админу что нужно проверить фильм, фильм. Подумать как обработать
-      if (!kpMovie) {
-        return this.appNotification.badRequest({
-          errorKey: EXCEPTION_KEYS_ENUM.KP_MOVIE_NOT_FOUND,
-          message: 'Movie not found',
-          field: 'kpId',
-        });
-      }
-
       // TODO: отправка нотификации админу что нужно проверить фильм. Подумать как обработать (вернуть в очередь или создать фильм но с hidden)
-      if (
-        (cartoon && cartoon.handleStatus === MovieHandleStatus.PRODUCTION) ||
-        (cartoon && cartoon.handleStatus === MovieHandleStatus.MODERATE)
-      ) {
+      if (this.moviesService.isFilmInProductionOrModerate(existingCartoon)) {
         this.logger.warn('Cartoon already exist', this.execute.name);
 
         return this.appNotification.badRequest({
@@ -76,102 +62,18 @@ export class NewCartoonNotificationCommandHandler
         });
       }
 
-      const {
-        name: rawName,
-        enName,
-        alternativeName: rawAlternativeName,
-        year,
-        countries,
-        premiere,
-        description,
-        genres: rawGenres,
-      } = kpMovie;
+      const metadata = await this.moviesService.extractMovieMetadata(kpMovie);
 
-      let worldReleaseDate: string | null = null;
-      if (premiere) {
-        const { world } = premiere;
-        worldReleaseDate = world || null;
-      }
+      const cartoon = existingCartoon
+        ? this.updateExistingCartoon(existingCartoon, metadata, key, duration || 0, kpId)
+        : this.createNewCartoon(metadata, key, duration || 0, kpId);
 
-      const name = rawName || rawAlternativeName || enName || null;
-      const originalName = enName || rawAlternativeName || null;
-      const alternativeName = [rawName, rawAlternativeName, enName, year].filter(Boolean).join(' ');
+      this.moviesService.setHandleProductionStatus(cartoon);
 
-      const genres = rawGenres
-        ? await this.moviesService.getOrCreateGenreFromKinopoisk(rawGenres)
-        : null;
+      await this.cartoonRepository.save(cartoon);
 
-      const country = countries?.map(c => c.name) || null;
-
-      const hidden =
-        !name ||
-        !worldReleaseDate ||
-        !description ||
-        !genres ||
-        !duration ||
-        duration === 0 ||
-        !country ||
-        country.length === 0;
-
-      let handledCartoon: Cartoon | null = null;
-
-      if (cartoon) {
-        // TODO:
-        const cartonDto: CartonUpdateDto = {
-          videUrl: key,
-          kpId,
-          duration: duration || 0,
-          name: name || 'unknown',
-          originalName,
-          genres,
-          alternativeName,
-          country,
-          description: description || null,
-          releaseDate: worldReleaseDate ? this.dateUtil.formatDateYyMmDd(worldReleaseDate) : null,
-          titleUrl: null,
-          previewUrl: null,
-          trailerUrl: null,
-          backgroundContentUrl: null,
-        };
-        handledCartoon = this.handleExistCartoon(cartoon, cartonDto);
-      } else {
-        // TODO: + Обновить модель создания для прикрепления трейлеров и превью
-        const cartonDto: CartonCreateDto = {
-          key,
-          kpId,
-          duration: duration || 0,
-          name: name || 'unknown',
-          originalName,
-          hidden,
-          genres,
-          alternativeName,
-          country,
-          description: description || null,
-          releaseDate: worldReleaseDate ? this.dateUtil.formatDateYyMmDd(worldReleaseDate) : null,
-          handleStatus: MovieHandleStatus.PROCESSING,
-        };
-        handledCartoon = this.handleNewCartoon(cartonDto);
-      }
-
-      if (!handledCartoon) {
-        this.logger.error(
-          'Something went wrong. There is no movie being processed.',
-          this.execute.name,
-        );
-
-        return this.appNotification.internalServerError();
-      }
-
-      if (!hidden) {
-        handledCartoon.updateHandleStatus(MovieHandleStatus.PRODUCTION);
-      } else {
-        handledCartoon.updateHandleStatus(MovieHandleStatus.MODERATE);
-      }
-
-      await this.cartoonRepository.save(handledCartoon);
-
-      if (hidden) {
-        this.logger.log('Moderate cartoon', this.execute.name);
+      if (cartoon.handleStatus === MovieHandleStatus.MODERATE) {
+        this.logger.log('Cartoon sent to moderation', this.execute.name);
         // TODO: moderate
       }
       return this.appNotification.success(null);
@@ -181,12 +83,55 @@ export class NewCartoonNotificationCommandHandler
     }
   }
 
-  private handleExistCartoon(cartoon: Cartoon, cartoonDto: CartonUpdateDto): Cartoon {
+  private updateExistingCartoon(
+    cartoon: Cartoon,
+    metadata: MovieKpMetadata,
+    key: string,
+    duration: number,
+    kpId: string,
+  ): Cartoon {
+    // TODO: Трейлеры и тд
+    const cartoonDto: CartonUpdateDto = {
+      videUrl: key,
+      kpId,
+      duration: duration || 0,
+      name: metadata.name || 'unknown',
+      originalName: metadata.originalName,
+      genres: metadata.genres,
+      alternativeName: metadata.alternativeName,
+      country: metadata.countries,
+      description: metadata.description,
+      releaseDate: metadata.releaseDate,
+      titleUrl: null,
+      previewUrl: null,
+      trailerUrl: null,
+      backgroundContentUrl: null,
+    };
     cartoon.update(cartoonDto);
     return cartoon;
   }
 
-  private handleNewCartoon(cartoonDto: CartonCreateDto): Cartoon {
+  private createNewCartoon(
+    metadata: MovieKpMetadata,
+    key: string,
+    duration: number,
+    kpId: string,
+  ): Cartoon {
+    // TODO: Трейлеры и тд
+    const cartoonDto: CartonCreateDto = {
+      key,
+      kpId,
+      duration: duration || 0,
+      name: metadata.name || 'unknown',
+      originalName: metadata.originalName,
+      hidden: false,
+      genres: metadata.genres,
+      alternativeName: metadata.alternativeName,
+      country: metadata.countries,
+      description: metadata.description,
+      releaseDate: metadata.releaseDate,
+      handleStatus: MovieHandleStatus.PROCESSING,
+    };
     return this.cartoonEntity.create(cartoonDto);
   }
 }

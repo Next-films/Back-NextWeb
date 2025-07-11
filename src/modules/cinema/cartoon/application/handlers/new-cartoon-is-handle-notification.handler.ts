@@ -7,7 +7,6 @@ import { ErrorFieldExceptionDto } from '@/common/exception-filters/http/http-exc
 import { LoggerService } from '@/common/utils/logger/logger.service';
 import { Inject } from '@nestjs/common';
 import { KinopoiskService } from '@/external-api/kinopoisk/application/kinopoisk.service';
-import { DateUtil } from '@/common/utils/date.util';
 import { MovieHandleStatus } from '@/movies/domain/types';
 import { DataSource, QueryRunner } from 'typeorm';
 import { InjectDataSource } from '@nestjs/typeorm';
@@ -35,7 +34,6 @@ export class NewCartoonIsHandleNotificationCommandHandler
     @Inject(Cartoon.name) private readonly cartoonEntity: typeof Cartoon,
     private readonly cartoonRepository: CartoonRepository,
     private readonly kinopoiskService: KinopoiskService,
-    private readonly dateUtil: DateUtil,
     private readonly moviesService: MoviesService,
     @InjectDataSource() private readonly dataSource: DataSource,
   ) {
@@ -87,32 +85,9 @@ export class NewCartoonIsHandleNotificationCommandHandler
       return;
     }
 
-    const {
-      name: rawName,
-      enName,
-      alternativeName: rawAlternativeName,
-      year,
-      countries,
-      premiere,
-      description,
-      genres: rawGenres,
-    } = kpMovie;
-
-    let worldReleaseDate: string | null = null;
-    if (premiere) {
-      const { world } = premiere;
-      worldReleaseDate = world || null;
-    }
-
-    const name = rawName || rawAlternativeName || enName || null;
-    const originalName = enName || rawAlternativeName || null;
-    const alternativeName = [rawName, rawAlternativeName, enName, year].filter(Boolean).join(' ');
-
-    const genres = rawGenres
-      ? await this.moviesService.getOrCreateGenreFromKinopoisk(rawGenres, queryRunner)
-      : null;
-
-    const country = countries?.map(c => c.name) || null;
+    const metadata = await this.moviesService.extractMovieMetadata(kpMovie, queryRunner);
+    const { description, genres, alternativeName, name, originalName, releaseDate, countries } =
+      metadata;
 
     const cartoonDto: CartonCreateDto = {
       key: null,
@@ -123,9 +98,9 @@ export class NewCartoonIsHandleNotificationCommandHandler
       hidden: true,
       genres,
       alternativeName,
-      country,
+      country: countries,
       description: description || null,
-      releaseDate: worldReleaseDate ? this.dateUtil.formatDateYyMmDd(worldReleaseDate) : null,
+      releaseDate: releaseDate,
       handleStatus: MovieHandleStatus.PROCESSING,
     };
 

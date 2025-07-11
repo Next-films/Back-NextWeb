@@ -5,7 +5,7 @@ export class MovieCreateDto {
   key: string | null;
   name: string;
   originalName: string | null;
-  alternativeName: string;
+  alternativeName: string | null;
   country: string[] | null;
   releaseDate: string | null;
   description: string | null;
@@ -37,4 +37,14 @@ export class MovieUpdateDto {
   backgroundContentUrl: string | null;
   previewUrl: string | null;
   titleUrl: string | null;
+}
+
+export class MovieKpMetadata {
+  name: string | null;
+  originalName: string | null;
+  alternativeName: string | null;
+  genres: Genre[] | null;
+  countries: string[] | null;
+  description: string | null;
+  releaseDate: string | null;
 }

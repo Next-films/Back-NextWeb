@@ -7,12 +7,11 @@ import { ErrorFieldExceptionDto } from '@/common/exception-filters/http/http-exc
 import { LoggerService } from '@/common/utils/logger/logger.service';
 import { Inject } from '@nestjs/common';
 import { KinopoiskService } from '@/external-api/kinopoisk/application/kinopoisk.service';
-import { DateUtil } from '@/common/utils/date.util';
 import { EXCEPTION_KEYS_ENUM } from '@/common/enums/exception-keys.enum';
 import { FilmRepository } from '@/films/infrastructure/film.repository';
 import { FilmCreateDto, FilmUpdateDto } from '@/films/domain/types';
 import { Film } from '@/films/domain/film.entity';
-import { MovieHandleStatus } from '@/movies/domain/types';
+import { MovieHandleStatus, MovieKpMetadata } from '@/movies/domain/types';
 import { MoviesService } from '@/movies/application/movies.service';
 import { NewFilmNotificationPayloadDto } from '@/films/api/dtos/input/new-film-notification.input.dto';
 
@@ -34,7 +33,6 @@ export class NewFilmNotificationCommandHandler
     @Inject(Film.name) private readonly filmEntity: typeof Film,
     private readonly filmRepository: FilmRepository,
     private readonly kinopoiskService: KinopoiskService,
-    private readonly dateUtil: DateUtil,
     private readonly moviesService: MoviesService,
   ) {
     this.logger.setContext(NewFilmNotificationCommandHandler.name);
@@ -47,26 +45,14 @@ export class NewFilmNotificationCommandHandler
     const { kpId, key, duration } = inputDto;
     this.logger.log(`New film notification command`, this.execute.name);
     try {
-      const [kpMovie, film] = await Promise.all([
+      const [kpMovie, existingFilm] = await Promise.all([
         this.kinopoiskService.getMovieById(Number(kpId)),
         this.filmRepository.getFilmByKinopoiskId(kpId),
       ]);
 
       // TODO: доработать трейлеры и фото
-      // TODO: отправка нотификации админу что нужно проверить фильм, фильм. Подумать как обработать
-      if (!kpMovie) {
-        return this.appNotification.badRequest({
-          errorKey: EXCEPTION_KEYS_ENUM.KP_MOVIE_NOT_FOUND,
-          message: 'Movie not found',
-          field: 'kpId',
-        });
-      }
-
       // TODO: отправка нотификации админу что нужно проверить фильм. Подумать как обработать (вернуть в очередь или создать фильм но с hidden)
-      if (
-        (film && film.handleStatus === MovieHandleStatus.PRODUCTION) ||
-        (film && film.handleStatus === MovieHandleStatus.MODERATE)
-      ) {
+      if (this.moviesService.isFilmInProductionOrModerate(existingFilm)) {
         this.logger.warn('Film already exist', this.execute.name);
 
         return this.appNotification.badRequest({
@@ -76,104 +62,18 @@ export class NewFilmNotificationCommandHandler
         });
       }
 
-      const {
-        name: rawName,
-        enName,
-        alternativeName: rawAlternativeName,
-        year,
-        countries,
-        premiere,
-        description,
-        genres: rawGenres,
-      } = kpMovie;
+      const metadata = await this.moviesService.extractMovieMetadata(kpMovie);
 
-      let worldReleaseDate: string | null = null;
-      if (premiere) {
-        const { world } = premiere;
-        worldReleaseDate = world || null;
-      }
+      const film = existingFilm
+        ? this.updateExistingFilm(existingFilm, metadata, key, duration || 0, kpId)
+        : this.createNewFilm(metadata, key, duration || 0, kpId);
 
-      const name = rawName || rawAlternativeName || enName || null;
-      const originalName = enName || rawAlternativeName || null;
-      const alternativeName = [rawName, rawAlternativeName, enName, year].filter(Boolean).join(' ');
+      this.moviesService.setHandleProductionStatus(film);
 
-      const genres = rawGenres
-        ? await this.moviesService.getOrCreateGenreFromKinopoisk(rawGenres)
-        : null;
+      await this.filmRepository.save(film);
 
-      const country = countries?.map(c => c.name) || null;
-
-      // TODO: Movie service (check valid for prod or not)
-      const hidden =
-        !name ||
-        !worldReleaseDate ||
-        !description ||
-        !genres ||
-        !duration ||
-        duration === 0 ||
-        !country ||
-        country.length === 0;
-
-      let handledFilm: Film | null = null;
-
-      if (film) {
-        // TODO:
-        const filmDto: FilmUpdateDto = {
-          videUrl: key,
-          kpId,
-          duration: duration || 0,
-          name: name || 'unknown',
-          originalName,
-          genres,
-          alternativeName,
-          country,
-          description: description || null,
-          releaseDate: worldReleaseDate ? this.dateUtil.formatDateYyMmDd(worldReleaseDate) : null,
-          titleUrl: null,
-          previewUrl: null,
-          trailerUrl: null,
-          backgroundContentUrl: null,
-        };
-        handledFilm = this.handleExistFilm(film, filmDto);
-      } else {
-        // TODO:
-        const filmDto: FilmCreateDto = {
-          key,
-          kpId,
-          duration: duration || 0,
-          name: name || 'unknown',
-          originalName,
-          hidden,
-          genres,
-          alternativeName,
-          country,
-          description: description || null,
-          releaseDate: worldReleaseDate ? this.dateUtil.formatDateYyMmDd(worldReleaseDate) : null,
-          handleStatus: MovieHandleStatus.PROCESSING,
-        };
-        handledFilm = this.handleNewFilm(filmDto);
-      }
-
-      if (!handledFilm) {
-        this.logger.error(
-          'Something went wrong. There is no movie being processed.',
-          this.execute.name,
-        );
-
-        return this.appNotification.internalServerError();
-      }
-
-      if (!hidden) {
-        handledFilm.updateHandleStatus(MovieHandleStatus.PRODUCTION);
-      } else {
-        handledFilm.updateHandleStatus(MovieHandleStatus.MODERATE);
-      }
-
-      await this.filmRepository.save(handledFilm);
-
-      if (hidden) {
-        this.logger.log('Moderate film', this.execute.name);
-
+      if (film.handleStatus === MovieHandleStatus.MODERATE) {
+        this.logger.log('Film sent to moderation', this.execute.name);
         // TODO: moderate
       }
       return this.appNotification.success(null);
@@ -183,12 +83,55 @@ export class NewFilmNotificationCommandHandler
     }
   }
 
-  private handleExistFilm(film: Film, filmDto: FilmUpdateDto): Film {
+  private updateExistingFilm(
+    film: Film,
+    metadata: MovieKpMetadata,
+    key: string,
+    duration: number,
+    kpId: string,
+  ): Film {
+    // TODO: Трейлеры и тд
+    const filmDto: FilmUpdateDto = {
+      videUrl: key,
+      kpId,
+      duration: duration || 0,
+      name: metadata.name || 'unknown',
+      originalName: metadata.originalName,
+      genres: metadata.genres,
+      alternativeName: metadata.alternativeName,
+      country: metadata.countries,
+      description: metadata.description,
+      releaseDate: metadata.releaseDate,
+      titleUrl: null,
+      previewUrl: null,
+      trailerUrl: null,
+      backgroundContentUrl: null,
+    };
     film.update(filmDto);
     return film;
   }
 
-  private handleNewFilm(filmDto: FilmCreateDto): Film {
+  private createNewFilm(
+    metadata: MovieKpMetadata,
+    key: string,
+    duration: number,
+    kpId: string,
+  ): Film {
+    // TODO: Трейлеры и тд
+    const filmDto: FilmCreateDto = {
+      key,
+      kpId,
+      duration: duration || 0,
+      name: metadata.name || 'unknown',
+      originalName: metadata.originalName,
+      hidden: false,
+      genres: metadata.genres,
+      alternativeName: metadata.alternativeName,
+      country: metadata.countries,
+      description: metadata.description,
+      releaseDate: metadata.releaseDate,
+      handleStatus: MovieHandleStatus.PROCESSING,
+    };
     return this.filmEntity.create(filmDto);
   }
 }

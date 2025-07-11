@@ -87,32 +87,9 @@ export class NewFilmIsHandleNotificationCommandHandler
       return;
     }
 
-    const {
-      name: rawName,
-      enName,
-      alternativeName: rawAlternativeName,
-      year,
-      countries,
-      premiere,
-      description,
-      genres: rawGenres,
-    } = kpMovie;
-
-    let worldReleaseDate: string | null = null;
-    if (premiere) {
-      const { world } = premiere;
-      worldReleaseDate = world || null;
-    }
-
-    const name = rawName || rawAlternativeName || enName || null;
-    const originalName = enName || rawAlternativeName || null;
-    const alternativeName = [rawName, rawAlternativeName, enName, year].filter(Boolean).join(' ');
-
-    const genres = rawGenres
-      ? await this.moviesService.getOrCreateGenreFromKinopoisk(rawGenres, queryRunner)
-      : null;
-
-    const country = countries?.map(c => c.name) || null;
+    const metadata = await this.moviesService.extractMovieMetadata(kpMovie, queryRunner);
+    const { description, genres, alternativeName, name, originalName, releaseDate, countries } =
+      metadata;
 
     const filmDto: FilmCreateDto = {
       key: null,
@@ -123,9 +100,9 @@ export class NewFilmIsHandleNotificationCommandHandler
       hidden: true,
       genres,
       alternativeName,
-      country,
+      country: countries,
       description: description || null,
-      releaseDate: worldReleaseDate ? this.dateUtil.formatDateYyMmDd(worldReleaseDate) : null,
+      releaseDate: releaseDate,
       handleStatus: MovieHandleStatus.PROCESSING,
     };
 

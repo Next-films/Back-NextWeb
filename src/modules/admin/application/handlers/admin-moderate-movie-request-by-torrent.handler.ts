@@ -95,6 +95,7 @@ export class AdminModerateRequestByTorrentCommandHandler
 
       const movie = await strategy.getMovie(kpId);
 
+      // TODO: Обработка если фильм уже существует ?
       if (movie)
         return this.appNotification.badRequest({
           message: 'Movie already exist and moderate',
