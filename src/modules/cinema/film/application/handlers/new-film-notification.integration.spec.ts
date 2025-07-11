@@ -16,6 +16,7 @@ import {
 } from '@/films/application/handlers/new-film-is-handle-notification.handler';
 import { NewFilmNotificationPayloadDto } from '@/films/api/dtos/input/new-film-notification.input.dto';
 
+// TODO: Доработать тесты переписать под новую логику
 describe('NewFilmNotificationCommandHandler (integration)', () => {
   let app: INestApplication;
   let handler: NewFilmNotificationCommandHandler;

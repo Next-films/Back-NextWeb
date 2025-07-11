@@ -11,6 +11,7 @@ import {
 } from '@/cartoons/application/handlers/new-cartoon-is-handle-notification.handler';
 import { CartoonRepository } from '@/cartoons/infrastructure/cartoon.repository';
 
+// TODO: Доработать тесты переписать под новую логику
 describe('NewCartoonIsHandleNotificationCommandHandler (integration)', () => {
   let app: INestApplication;
   let handler: NewCartoonIsHandleNotificationCommandHandler;

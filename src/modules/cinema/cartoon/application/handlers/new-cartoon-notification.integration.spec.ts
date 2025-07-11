@@ -16,6 +16,7 @@ import {
 import { EXCEPTION_KEYS_ENUM } from '@/common/enums/exception-keys.enum';
 import { NewCartoonNotificationPayloadDto } from '@/cartoons/api/dtos/input/new-cartoon-notification.input.dto';
 
+// TODO: Доработать тесты переписать под новую логику
 describe('NewCartoonNotificationCommandHandler (integration)', () => {
   let app: INestApplication;
   let handler: NewCartoonNotificationCommandHandler;

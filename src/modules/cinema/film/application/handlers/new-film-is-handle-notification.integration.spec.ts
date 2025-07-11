@@ -11,6 +11,7 @@ import { TestService } from 'test/test.service';
 import { MovieHandleStatus } from '@/movies/domain/types';
 import { GenreRepository } from '@/movies/infrastructure/genre.repository';
 
+// TODO: Доработать тесты переписать под новую логику
 describe('NewFilmIsHandleNotificationCommandHandler (integration)', () => {
   let app: INestApplication;
   let handler: NewFilmIsHandleNotificationCommandHandler;
