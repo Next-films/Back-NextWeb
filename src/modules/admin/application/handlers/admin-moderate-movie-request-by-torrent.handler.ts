@@ -75,6 +75,7 @@ export class AdminModerateRequestByTorrentCommandHandler
       if (finishedTorrentModeration) {
         this.logger.log(`Movie already moderated by torrent`, this.execute.name);
 
+        await queryRunner.rollbackTransaction();
         return this.appNotification.badRequest({
           message: 'Movie already moderated by torrent',
           field: 'kpId',
@@ -86,6 +87,7 @@ export class AdminModerateRequestByTorrentCommandHandler
 
       if (!strategy) {
         this.logger.log(`Undefined movie type`, this.execute.name);
+        await queryRunner.rollbackTransaction();
         return this.appNotification.badRequest({
           message: 'Undefined movie type',
           field: 'type',
@@ -95,7 +97,6 @@ export class AdminModerateRequestByTorrentCommandHandler
 
       const movie = await strategy.getMovie(kpId);
 
-      // TODO: Обработка если фильм уже существует ?
       if (movie)
         return this.appNotification.badRequest({
           message: 'Movie already exist and moderate',
