@@ -62,7 +62,6 @@ export class MovieEntity {
 
   genres: Genre[];
 
-  // TODO:
   static createFromDto<T extends MovieEntity>(
     this: new () => T,
     inputDto: CartonCreateDto | FilmCreateDto,
@@ -81,6 +80,10 @@ export class MovieEntity {
       duration,
       releaseDate,
       handleStatus,
+      previewUrl,
+      trailerUrl,
+      titleUrl,
+      backgroundContentUrl,
     } = inputDto;
 
     const instance = new this();
@@ -99,10 +102,10 @@ export class MovieEntity {
     instance.updatedAt = currentDate;
     instance.handleStatus = handleStatus;
 
-    instance.trailerUrl = '';
-    instance.backgroundContentUrl = '';
-    instance.previewUrl = '';
-    instance.titleUrl = '';
+    instance.trailerUrl = trailerUrl;
+    instance.backgroundContentUrl = backgroundContentUrl;
+    instance.previewUrl = previewUrl;
+    instance.titleUrl = titleUrl;
 
     if (genres && genres.length > 0) {
       instance.genres = genres;
@@ -152,6 +155,12 @@ export class MovieEntity {
 
   updateHandleStatus(status: MovieHandleStatus): void {
     this.handleStatus = status;
+
+    if (status !== MovieHandleStatus.PRODUCTION) {
+      this.isHidden = true;
+    } else {
+      this.isHidden = false;
+    }
   }
 
   showOrHiddeMovie(isHidden: boolean, status?: MovieHandleStatus): void {

@@ -116,6 +116,10 @@ export class AdminModerateRequestByTorrentCommandHandler
         key: null,
         releaseDate: null,
         originalName: null,
+        backgroundContentUrl: null,
+        trailerUrl: null,
+        previewUrl: null,
+        titleUrl: null,
       };
 
       const newMovie = strategy.createMovie(createDto);

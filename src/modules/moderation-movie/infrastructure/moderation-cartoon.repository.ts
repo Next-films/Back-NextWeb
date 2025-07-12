@@ -43,4 +43,8 @@ export class ModerationCartoonRepository {
     }
     await this.moderationCartoonEntity.remove(task);
   }
+
+  async getAllModeration(): Promise<ModerationCartoonEntity[]> {
+    return this.moderationCartoonEntity.find();
+  }
 }

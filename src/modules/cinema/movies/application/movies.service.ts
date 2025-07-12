@@ -107,6 +107,9 @@ export class MoviesService {
         countries: null,
         description: null,
         releaseDate: null,
+        posterUrl: null,
+        titleUrl: null,
+        trailerUrl: null,
       };
     }
 
@@ -119,6 +122,9 @@ export class MoviesService {
       premiere,
       description,
       genres: rawGenres,
+      poster,
+      logo,
+      videos,
     } = kpMovie || {};
 
     let worldReleaseDate: string | null = null;
@@ -138,6 +144,10 @@ export class MoviesService {
 
     const countryNames = countries?.map(c => c.name) || null;
 
+    const posterUrl = poster?.url || null;
+    const titleUrl = logo?.url || null;
+    const trailerUrl = videos?.trailers?.find(t => t.site === 'youtube')?.url || null;
+
     return {
       name,
       originalName,
@@ -146,6 +156,9 @@ export class MoviesService {
       countries: countryNames,
       description: description || null,
       releaseDate: worldReleaseDate ? this.dateUtil.formatDateYyMmDd(worldReleaseDate) : null,
+      posterUrl,
+      trailerUrl,
+      titleUrl,
     };
   }
 
@@ -158,6 +171,9 @@ export class MoviesService {
 
   setHandleProductionStatus<T extends MovieEntity>(movie: T): void {
     const isValid = this.isValidMovieForProduction(movie);
-    movie.updateHandleStatus(isValid ? MovieHandleStatus.PRODUCTION : MovieHandleStatus.MODERATE);
+    movie.showOrHiddeMovie(
+      !isValid,
+      isValid ? MovieHandleStatus.PRODUCTION : MovieHandleStatus.MODERATE,
+    );
   }
 }

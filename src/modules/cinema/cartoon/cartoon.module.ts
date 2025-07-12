@@ -19,6 +19,7 @@ import { GetRpcCartoonsByKinopoiskIdQueryHandler } from '@/cartoons/application/
 import { CartoonsPublicOutputDtoMapper } from '@/cartoons/api/dtos/output/cartoons-public.output.dto';
 import { CartoonsPrivateOutputDtoMapper } from '@/cartoons/api/dtos/output/cartoons-private.output.dto';
 import { CartoonPublicQueryRepository } from '@/cartoons/infrastructure/cartoon-public.query-repository';
+import { ModerationMovieModule } from '@/moderation-movie/moderation-movie.module';
 
 const cartoonProvider = {
   provide: 'Cartoon',
@@ -42,7 +43,12 @@ const handlers = [
 const exportProviders = [CartoonRepository, cartoonProvider];
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Cartoon]), MoviesModules, KinopoiskModule],
+  imports: [
+    TypeOrmModule.forFeature([Cartoon]),
+    MoviesModules,
+    KinopoiskModule,
+    ModerationMovieModule,
+  ],
   controllers: [
     PublicCartoonController,
     CartoonPrivateRpcController,

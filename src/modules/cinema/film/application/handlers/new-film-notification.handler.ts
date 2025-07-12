@@ -1,4 +1,4 @@
-import { CommandHandler, ICommand, ICommandHandler } from '@nestjs/cqrs';
+import { CommandBus, CommandHandler, ICommand, ICommandHandler } from '@nestjs/cqrs';
 import {
   ApplicationNotification,
   AppNotificationResult,
@@ -14,6 +14,13 @@ import { Film } from '@/films/domain/film.entity';
 import { MovieHandleStatus, MovieKpMetadata } from '@/movies/domain/types';
 import { MoviesService } from '@/movies/application/movies.service';
 import { NewFilmNotificationPayloadDto } from '@/films/api/dtos/input/new-film-notification.input.dto';
+import { CreateModerationDto } from '@/moderation-movie/domain/types';
+import { ModerationFilmRepository } from '@/moderation-movie/infrastructure/moderation-film.repository';
+import { ModerationFilmEntity } from '@/moderation-movie/domain/moderation-film.entity';
+import { MovieTypesEnum } from '@/common/types/types';
+import { TelegramAdminBotSendNotificationNewModerationMovieCommand } from '@/telegram/admin-bot/application/handlers/bot-send-notification-new-moderation-movie.handler';
+import { InjectDataSource } from '@nestjs/typeorm';
+import { DataSource, QueryRunner } from 'typeorm';
 
 export class NewFilmNotificationCommand implements ICommand {
   constructor(public inputDto: NewFilmNotificationPayloadDto) {}
@@ -34,6 +41,11 @@ export class NewFilmNotificationCommandHandler
     private readonly filmRepository: FilmRepository,
     private readonly kinopoiskService: KinopoiskService,
     private readonly moviesService: MoviesService,
+    private readonly moderationFilmRepository: ModerationFilmRepository,
+    @Inject(ModerationFilmEntity.name)
+    private readonly moderationFilmEntity: typeof ModerationFilmEntity,
+    private readonly commandBus: CommandBus,
+    @InjectDataSource() private readonly dataSource: DataSource,
   ) {
     this.logger.setContext(NewFilmNotificationCommandHandler.name);
   }
@@ -44,17 +56,21 @@ export class NewFilmNotificationCommandHandler
     const { inputDto } = command;
     const { kpId, key, duration } = inputDto;
     this.logger.log(`New film notification command`, this.execute.name);
+
+    const queryRunner = this.dataSource.createQueryRunner();
     try {
+      await queryRunner.connect();
+      await queryRunner.startTransaction();
+
       const [kpMovie, existingFilm] = await Promise.all([
         this.kinopoiskService.getMovieById(Number(kpId)),
-        this.filmRepository.getFilmByKinopoiskId(kpId),
+        this.filmRepository.getFilmByKinopoiskId(kpId, queryRunner),
       ]);
 
-      // TODO: доработать трейлеры и фото
-      // TODO: отправка нотификации админу что нужно проверить фильм. Подумать как обработать (вернуть в очередь или создать фильм но с hidden)
       if (this.moviesService.isFilmInProductionOrModerate(existingFilm)) {
         this.logger.warn('Film already exist', this.execute.name);
 
+        await queryRunner.rollbackTransaction();
         return this.appNotification.badRequest({
           errorKey: EXCEPTION_KEYS_ENUM.FILM_ALREADY_EXIST,
           message: 'Film already exist',
@@ -62,7 +78,7 @@ export class NewFilmNotificationCommandHandler
         });
       }
 
-      const metadata = await this.moviesService.extractMovieMetadata(kpMovie);
+      const metadata = await this.moviesService.extractMovieMetadata(kpMovie, queryRunner);
 
       const film = existingFilm
         ? this.updateExistingFilm(existingFilm, metadata, key, duration || 0, kpId)
@@ -70,16 +86,23 @@ export class NewFilmNotificationCommandHandler
 
       this.moviesService.setHandleProductionStatus(film);
 
-      await this.filmRepository.save(film);
+      await this.filmRepository.save(film, queryRunner);
 
       if (film.handleStatus === MovieHandleStatus.MODERATE) {
         this.logger.log('Film sent to moderation', this.execute.name);
-        // TODO: moderate
+        const moderationResult = await this.movieModeration(film, queryRunner);
+
+        this.publish(moderationResult);
       }
+
+      await queryRunner.commitTransaction();
       return this.appNotification.success(null);
     } catch (e) {
       this.logger.error(e, this.execute.name);
+      await queryRunner.rollbackTransaction();
       return this.appNotification.internalServerError();
+    } finally {
+      await queryRunner.release();
     }
   }
 
@@ -102,10 +125,10 @@ export class NewFilmNotificationCommandHandler
       country: metadata.countries,
       description: metadata.description,
       releaseDate: metadata.releaseDate,
-      titleUrl: null,
-      previewUrl: null,
-      trailerUrl: null,
-      backgroundContentUrl: null,
+      previewUrl: metadata.posterUrl, // TODO: сделать резайс через sharp и сохранить в хранилище
+      backgroundContentUrl: metadata.trailerUrl, // TODO: отрезать 10-15 секунд от трейлера и сохрнаить в хранилище
+      trailerUrl: metadata.trailerUrl,
+      titleUrl: metadata.titleUrl, // TODO: Проверка что это PNG файл + сделать резайс через sharp и сохранить в хранилище
     };
     film.update(filmDto);
     return film;
@@ -131,7 +154,36 @@ export class NewFilmNotificationCommandHandler
       description: metadata.description,
       releaseDate: metadata.releaseDate,
       handleStatus: MovieHandleStatus.PROCESSING,
+      previewUrl: metadata.posterUrl, // TODO: сделать резайс через sharp и сохранить в хранилище
+      backgroundContentUrl: metadata.trailerUrl, // TODO: отрезать 10-15 секунд от трейлера и сохрнаить в хранилище
+      trailerUrl: metadata.trailerUrl,
+      titleUrl: metadata.titleUrl, // TODO: Проверка что это PNG файл + сделать резайс через sharp и сохранить в хранилище
     };
     return this.filmEntity.create(filmDto);
+  }
+
+  private async movieModeration(film: Film, queryRunner: QueryRunner): Promise<number> {
+    const { id } = film;
+    const createModerationDto: CreateModerationDto = {
+      movieId: id,
+    };
+
+    const newModeration =
+      this.moderationFilmEntity.create<ModerationFilmEntity>(createModerationDto);
+
+    const moderationResult = await this.moderationFilmRepository.save(newModeration, queryRunner);
+
+    const { id: moderationId } = moderationResult;
+
+    return moderationId;
+  }
+
+  private publish(moderationId: number): void {
+    this.commandBus.execute(
+      new TelegramAdminBotSendNotificationNewModerationMovieCommand(
+        MovieTypesEnum.FILM,
+        moderationId,
+      ),
+    );
   }
 }

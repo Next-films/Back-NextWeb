@@ -14,6 +14,11 @@ export class MovieCreateDto {
 
   hidden: boolean;
   handleStatus: MovieHandleStatus;
+
+  trailerUrl: string | null;
+  backgroundContentUrl: string | null;
+  previewUrl: string | null;
+  titleUrl: string | null;
 }
 
 export enum MovieHandleStatus {
@@ -47,4 +52,8 @@ export class MovieKpMetadata {
   countries: string[] | null;
   description: string | null;
   releaseDate: string | null;
+
+  trailerUrl: string | null;
+  posterUrl: string | null;
+  titleUrl: string | null;
 }

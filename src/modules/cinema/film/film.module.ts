@@ -19,6 +19,7 @@ import { FilmsRpcOutputDtoMapper } from '@/films/api/dtos/output/films-rpc.outpu
 import { GetRpcFilmByKinopoiskIdQueryHandler } from '@/films/application/query-handlers/get-rpc-film-by-kinopoisk-id.query-handler';
 import { FilmPublicQueryRepository } from '@/films/infrastructure/film-public.query-repository';
 import { FilmsPrivateOutputDtoMapper } from '@/films/api/dtos/output/films-private.output.dto';
+import { ModerationMovieModule } from '@/moderation-movie/moderation-movie.module';
 
 const queryHandlers = [
   GetPublicFilmByIdQueryHandler,
@@ -39,7 +40,12 @@ const handlers = [NewFilmNotificationCommandHandler, NewFilmIsHandleNotification
 const exportProviders = [FilmRepository, filmProvider, FilmQueryRepository];
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Film]), MoviesModules, KinopoiskModule],
+  imports: [
+    TypeOrmModule.forFeature([Film]),
+    MoviesModules,
+    KinopoiskModule,
+    ModerationMovieModule,
+  ],
   controllers: [
     PublicFilmController,
     FilmPrivateController,

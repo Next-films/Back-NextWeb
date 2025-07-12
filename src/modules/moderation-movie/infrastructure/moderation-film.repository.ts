@@ -53,4 +53,8 @@ export class ModerationFilmRepository {
     }
     await this.moderationFilmEntity.remove(task);
   }
+
+  async getAllModeration(): Promise<ModerationFilmEntity[]> {
+    return this.moderationFilmEntity.find();
+  }
 }

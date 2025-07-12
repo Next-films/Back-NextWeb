@@ -10,7 +10,6 @@ import { KinopoiskService } from '@/external-api/kinopoisk/application/kinopoisk
 import { MovieHandleStatus } from '@/movies/domain/types';
 import { DataSource, QueryRunner } from 'typeorm';
 import { InjectDataSource } from '@nestjs/typeorm';
-import { MoviesService } from '@/movies/application/movies.service';
 import { Cartoon } from '@/cartoons/domain/cartoon.entity';
 import { CartoonRepository } from '@/cartoons/infrastructure/cartoon.repository';
 import { CartonCreateDto } from '@/cartoons/domain/types';
@@ -34,7 +33,6 @@ export class NewCartoonIsHandleNotificationCommandHandler
     @Inject(Cartoon.name) private readonly cartoonEntity: typeof Cartoon,
     private readonly cartoonRepository: CartoonRepository,
     private readonly kinopoiskService: KinopoiskService,
-    private readonly moviesService: MoviesService,
     @InjectDataSource() private readonly dataSource: DataSource,
   ) {
     this.logger.setContext(NewCartoonIsHandleNotificationCommandHandler.name);
@@ -66,7 +64,6 @@ export class NewCartoonIsHandleNotificationCommandHandler
     }
   }
 
-  // TODO: доработать трейлеры и фото
   private async processCartoon(kpId: string, queryRunner: QueryRunner): Promise<void> {
     const [kpMovie, cartoon] = await Promise.all([
       this.kinopoiskService.getMovieById(Number(kpId)),
@@ -85,23 +82,25 @@ export class NewCartoonIsHandleNotificationCommandHandler
       return;
     }
 
-    const metadata = await this.moviesService.extractMovieMetadata(kpMovie, queryRunner);
-    const { description, genres, alternativeName, name, originalName, releaseDate, countries } =
-      metadata;
+    const { name } = kpMovie;
 
     const cartoonDto: CartonCreateDto = {
       key: null,
       kpId,
       duration: 0,
       name: name || 'unknown',
-      originalName,
+      originalName: null,
       hidden: true,
-      genres,
-      alternativeName,
-      country: countries,
-      description: description || null,
-      releaseDate: releaseDate,
+      genres: null,
+      alternativeName: null,
+      country: null,
+      description: null,
+      releaseDate: null,
       handleStatus: MovieHandleStatus.PROCESSING,
+      titleUrl: null,
+      trailerUrl: null,
+      previewUrl: null,
+      backgroundContentUrl: null,
     };
 
     const newCartoon = this.cartoonEntity.create(cartoonDto);
