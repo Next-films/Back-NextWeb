@@ -97,12 +97,15 @@ export class AdminModerateRequestByTorrentCommandHandler
 
       const movie = await strategy.getMovie(kpId);
 
-      if (movie)
+      if (movie) {
+        await queryRunner.rollbackTransaction();
+
         return this.appNotification.badRequest({
           message: 'Movie already exist and moderate',
           errorKey: EXCEPTION_KEYS_ENUM.MOVIE_ALREADY_EXIST,
           field: 'kpId',
         });
+      }
 
       const createDto: MovieCreateDto = {
         kpId,
