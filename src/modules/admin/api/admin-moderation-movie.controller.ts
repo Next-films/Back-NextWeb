@@ -119,7 +119,7 @@ export class AdminModerationMovieController {
     this.appNotification.handleHttpResult(result);
   }
 
-  // TODO: check
+  @HttpCode(HttpStatus.NO_CONTENT)
   @Post(`:taskId/${ADMIN_MODERATION_MOVIE_ROUTE.APPLY}`)
   @SwaggerDecoratorAdminApplyModerationMovieTask()
   async applyMovie(

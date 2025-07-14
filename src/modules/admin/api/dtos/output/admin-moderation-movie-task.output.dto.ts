@@ -9,6 +9,7 @@ import {
   TorApiMovieById,
   TorApiProvidersEnum,
 } from '@/common/types/types';
+import { Genre } from '@/movies/domain/genre.entity';
 
 /*
  *
@@ -83,8 +84,8 @@ class AdminModerationMovieTaskMovieByIdOutputDto {
   @ApiProperty({ description: 'Value in seconds' })
   duration: number;
 
-  @ApiProperty({ type: MovieGenreOutputDto, isArray: true })
-  genres: MovieGenreOutputDto[];
+  @ApiProperty({ type: MovieGenreOutputDto, isArray: true, nullable: true })
+  genres: MovieGenreOutputDto[] | null;
 
   @ApiProperty({ isArray: true, nullable: true })
   country: string[] | null;
@@ -267,6 +268,18 @@ export class AdminModerationMovieTaskOutputDtoMapper {
     };
   }
 
+  private mapGenre(genre: Genre): MovieGenreOutputDto {
+    const { id, name } = genre;
+    return {
+      id,
+      name,
+    };
+  }
+
+  private mapGenres(genres: Genre[]): MovieGenreOutputDto[] {
+    return genres.map(g => this.mapGenre(g));
+  }
+
   private mapMovieById<T extends MovieEntity>(
     movie: T,
   ): AdminModerationMovieTaskMovieByIdOutputDto {
@@ -292,7 +305,7 @@ export class AdminModerationMovieTaskOutputDtoMapper {
       releaseDate,
       createdAt,
       duration,
-      genres,
+      genres: genres && genres.length > 0 ? this.mapGenres(genres) : null,
       updatedAt,
       kpId,
       country,

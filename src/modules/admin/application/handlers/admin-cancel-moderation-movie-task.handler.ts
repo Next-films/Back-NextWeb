@@ -68,6 +68,7 @@ export class AdminCancelModerationMovieTaskCommandHandler
 
       const strategy = this.getStrategyByType(type, queryRunner);
       if (!strategy) {
+        await queryRunner.rollbackTransaction();
         return this.appNotification.badRequest({
           field: 'type',
           message: 'Undefined movie type',
@@ -77,31 +78,39 @@ export class AdminCancelModerationMovieTaskCommandHandler
 
       const task = await strategy.getTask(taskId);
 
-      if (!task)
+      if (!task) {
+        await queryRunner.rollbackTransaction();
+
         return this.appNotification.notFound({
           field: 'taskId',
-          errorKey: EXCEPTION_KEYS_ENUM.MODERATION_MOVIE_TASK_NOT_FOUND,
+          errorKey: EXCEPTION_KEYS_ENUM.MODERATION_TASK_NOT_FOUND,
           message: 'Task not found',
         });
+      }
 
       const { admin: attachedAdmin, movie } = task;
 
-      if (!attachedAdmin)
+      if (!attachedAdmin) {
+        await queryRunner.rollbackTransaction();
+
         return this.appNotification.badRequest({
           message: 'The task not been accepted',
           errorKey: EXCEPTION_KEYS_ENUM.MODERATION_TASK_NOT_ACCEPTED,
           field: 'taskId',
         });
+      }
 
       const { id: attachedAdminId } = attachedAdmin;
 
-      if (attachedAdminId !== adminId)
+      if (attachedAdminId !== adminId) {
+        await queryRunner.rollbackTransaction();
+
         return this.appNotification.forbidden({
           message: 'The task does not belong to the current user',
           errorKey: EXCEPTION_KEYS_ENUM.MODERATION_TASK_NOT_BELONG_YOU,
           field: 'taskId',
         });
-
+      }
       movie.showOrHiddeMovie(true, MovieHandleStatus.PROCESSING);
 
       const { kpId, id: movieId } = movie;

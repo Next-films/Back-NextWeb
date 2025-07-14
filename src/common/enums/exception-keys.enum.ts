@@ -36,6 +36,7 @@ export enum EXCEPTION_KEYS_ENUM {
   PROVIDER_NOT_FOUND = 'error_provider_not_found',
   PROVIDER_MOVIE_NOT_FOUND = 'error_provider_movie_not_found',
   MOVIE_NOT_MODERATED = 'error_movie_not_moderated', // When user try to apply moderation but film have not moderate keys
+  PROVIDER_NOT_PASSED = 'error_provider_not_passed', // When user try to apply moderation but film have not moderate keys
   /*
    *
    * Input validation error
@@ -72,4 +73,16 @@ export enum EXCEPTION_KEYS_ENUM {
   status = 'error_input.status',
   searchMovieName = 'error_input.searchMovieName',
   isModerate = 'error_input.isModerate',
+  description = 'error_input.description',
+  releaseDate = 'error_input.releaseDate',
+  originalName = 'error_input.originalName',
+  alternativeName = 'error_input.alternativeName',
+  country = 'error_input.country',
+  trailerUrl = 'error_input.trailerUrl',
+  previewUrl = 'error_input.previewUrl',
+  genres = 'error_input.genres',
+  duration = 'error_input.duration',
+  videUrl = 'error_input.videUrl',
+  backgroundContentUrl = 'error_input.backgroundContentUrl',
+  titleUrl = 'error_input.titleUrl',
 }

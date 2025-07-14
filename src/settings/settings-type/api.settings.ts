@@ -64,4 +64,10 @@ export class ApiSettings {
 
   @IsString()
   NEW_FILM_TELEGRAM_THREAD_ID: string = this.environmentVariables.NEW_FILM_TELEGRAM_THREAD_ID;
+
+  @IsString()
+  ADMIN_TG_ID: string = this.environmentVariables.ADMIN_TG_ID;
+
+  @IsString()
+  ADMIN_TG_USERNAME: string = this.environmentVariables.ADMIN_TG_USERNAME;
 }

@@ -1,17 +1,28 @@
 import { applyDecorators } from '@nestjs/common';
-import { ApiBadRequestResponse, ApiCreatedResponse, ApiOperation } from '@nestjs/swagger';
+import {
+  ApiBadRequestResponse,
+  ApiForbiddenResponse,
+  ApiNoContentResponse,
+  ApiNotFoundResponse,
+  ApiOperation,
+} from '@nestjs/swagger';
 import { RequestExceptionDto } from '@/common/exception-filters/http/http-exception.filter';
 
-// TODO: доп ответы
 export function SwaggerDecoratorAdminApplyModerationMovieTask(): MethodDecorator {
   return applyDecorators(
     ApiOperation({ summary: 'Apply moderation movie task with correct data' }),
-    ApiCreatedResponse({
+    ApiNoContentResponse({
       description: 'Success',
     }),
     ApiBadRequestResponse({
-      description: 'Bad input data',
+      description: 'Bad input data or task not accepted or provider does not pass',
       type: RequestExceptionDto,
+    }),
+    ApiNotFoundResponse({
+      description: 'Task not found or torrent validation error',
+    }),
+    ApiForbiddenResponse({
+      description: 'The task does not belong to current user',
     }),
   );
 }

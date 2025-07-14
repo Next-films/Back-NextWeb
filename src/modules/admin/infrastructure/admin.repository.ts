@@ -1,4 +1,4 @@
-import { Repository } from 'typeorm';
+import { QueryRunner, Repository } from 'typeorm';
 import { Admin } from '@/admin/domain/admin.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Injectable } from '@nestjs/common';
@@ -18,7 +18,10 @@ export class AdminRepository {
     });
   }
 
-  async getAdminById(id: number): Promise<Admin | null> {
+  async getAdminById(id: number, queryRunner?: QueryRunner): Promise<Admin | null> {
+    if (queryRunner) {
+      return queryRunner.manager.findOne(this.adminRepository.target, { where: { id: id } });
+    }
     return this.adminRepository.findOne({
       where: { id },
     });

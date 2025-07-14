@@ -12,8 +12,17 @@ export class GenreRepository {
 
   async save(genre: Genre, queryRunner?: QueryRunner): Promise<Genre> {
     if (queryRunner) {
-      return queryRunner.manager.save(genre);
+      await queryRunner.manager.upsert(this.genreRepository.target, [genre], {
+        conflictPaths: ['name'],
+      });
+
+      const genreResult = await queryRunner.manager.findOneBy(this.genreRepository.target, {
+        name: genre.name,
+      });
+
+      return genreResult!;
     }
+
     return this.genreRepository.save(genre);
   }
 

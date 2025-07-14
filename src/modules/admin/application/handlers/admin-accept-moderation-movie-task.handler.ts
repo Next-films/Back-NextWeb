@@ -14,6 +14,8 @@ import { AdminRepository } from '@/admin/infrastructure/admin.repository';
 import { TelegramAdminBotSendNotificationAdminAcceptModerationCommand } from '@/telegram/admin-bot/application/handlers/bot-send-notification-admin-accept-moderation.handler';
 import { ModerationCartoonRepository } from '@/moderation-movie/infrastructure/moderation-cartoon.repository';
 import { IAcceptModerationMovieTaskByIdStrategy } from '@/admin/domain/types';
+import { InjectDataSource } from '@nestjs/typeorm';
+import { DataSource, QueryRunner } from 'typeorm';
 
 export class AdminAcceptModerationMovieTaskCommand implements ICommand {
   constructor(
@@ -38,6 +40,7 @@ export class AdminAcceptModerationMovieTaskCommandHandler
     private readonly moderationFilmRepository: ModerationFilmRepository,
     private readonly moderationCartoonRepository: ModerationCartoonRepository,
     private readonly adminRepository: AdminRepository,
+    @InjectDataSource() private readonly dataSource: DataSource,
   ) {
     this.logger.setContext(AdminAcceptModerationMovieTaskCommandHandler.name);
   }
@@ -46,9 +49,15 @@ export class AdminAcceptModerationMovieTaskCommandHandler
   ): Promise<AppNotificationResult<null, ErrorFieldExceptionDto | null>> {
     this.logger.log(`Accept moderation movie task command`, this.execute.name);
     const { taskId, type, adminId } = command;
+
+    const queryRunner = this.dataSource.createQueryRunner();
     try {
-      const strategy = this.getStrategyByType(type);
+      await queryRunner.connect();
+      await queryRunner.startTransaction('SERIALIZABLE');
+      const strategy = this.getStrategyByType(type, queryRunner);
       if (!strategy) {
+        await queryRunner.rollbackTransaction();
+
         return this.appNotification.badRequest({
           field: 'type',
           message: 'Undefined movie type',
@@ -58,30 +67,39 @@ export class AdminAcceptModerationMovieTaskCommandHandler
 
       const task = await strategy.getTask(taskId);
 
-      if (!task)
+      if (!task) {
+        await queryRunner.rollbackTransaction();
+
         return this.appNotification.notFound({
           field: 'taskId',
-          errorKey: EXCEPTION_KEYS_ENUM.MODERATION_MOVIE_TASK_NOT_FOUND,
+          errorKey: EXCEPTION_KEYS_ENUM.MODERATION_TASK_NOT_FOUND,
           message: 'Task not found',
         });
+      }
 
       const { admin: attachedAdmin } = task;
 
-      if (attachedAdmin)
+      if (attachedAdmin) {
+        await queryRunner.rollbackTransaction();
+
         return this.appNotification.badRequest({
           message: 'The task has already been accepted',
           errorKey: EXCEPTION_KEYS_ENUM.MODERATION_TASK_ALREADY_ACCEPTED,
           field: 'taskId',
         });
+      }
 
-      const admin = await this.adminRepository.getAdminById(adminId);
+      const admin = await this.adminRepository.getAdminById(adminId, queryRunner);
 
-      if (!admin)
+      if (!admin) {
+        await queryRunner.rollbackTransaction();
+
         return this.appNotification.unauthorized({
           field: 'token',
           errorKey: EXCEPTION_KEYS_ENUM.UNAUTHORIZED,
           message: 'Unauthorized',
         });
+      }
 
       task.attachAdmin(admin);
 
@@ -89,10 +107,14 @@ export class AdminAcceptModerationMovieTaskCommandHandler
 
       this.publish(type, taskId);
 
+      await queryRunner.commitTransaction();
       return this.appNotification.success(null);
     } catch (e) {
       this.logger.error(e, this.execute.name);
+      await queryRunner.rollbackTransaction();
       return this.appNotification.internalServerError();
+    } finally {
+      await queryRunner.release();
     }
   }
 
@@ -102,20 +124,31 @@ export class AdminAcceptModerationMovieTaskCommandHandler
     );
   }
 
-  private getStrategyByType(type: MovieTypesEnum): IAcceptModerationMovieTaskByIdStrategy | null {
+  private getStrategyByType(
+    type: MovieTypesEnum,
+    queryRunner: QueryRunner,
+  ): IAcceptModerationMovieTaskByIdStrategy | null {
     switch (type) {
       case MovieTypesEnum.FILM:
         return {
           getTask: (...args) =>
-            this.moderationFilmRepository.getModerationByIdWithMovieAndAdminInfo(...args),
-          saveTask: (task: ModerationFilmEntity) => this.moderationFilmRepository.save(task),
+            this.moderationFilmRepository.getModerationByIdWithMovieAndAdminInfo(
+              ...args,
+              queryRunner,
+            ),
+          saveTask: (task: ModerationFilmEntity) =>
+            this.moderationFilmRepository.save(task, queryRunner),
         };
 
       case MovieTypesEnum.CARTOON:
         return {
           getTask: (...args) =>
-            this.moderationCartoonRepository.getModerationByIdWithMovieAndAdminInfo(...args),
-          saveTask: (task: ModerationCartoonEntity) => this.moderationCartoonRepository.save(task),
+            this.moderationCartoonRepository.getModerationByIdWithMovieAndAdminInfo(
+              ...args,
+              queryRunner,
+            ),
+          saveTask: (task: ModerationCartoonEntity) =>
+            this.moderationCartoonRepository.save(task, queryRunner),
         };
 
       case MovieTypesEnum.SERIAL:

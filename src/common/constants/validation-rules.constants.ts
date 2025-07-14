@@ -53,6 +53,7 @@ export const FILMS_VALIDATION_RULES /* as ValidationRulesConstantsType */ = {
   DURATION: { LENGTH_MIN: 0, LENGTH_MAX: 40_000 },
   COUNTRY: { LENGTH_MIN: 1, LENGTH_MAX: 60 },
   GENRE: { LENGTH_MIN: 1, LENGTH_MAX: 50 },
+  PROVIDER_ID: { LENGTH_MIN: 1, LENGTH_MAX: 20 },
 } as const;
 /*
 *

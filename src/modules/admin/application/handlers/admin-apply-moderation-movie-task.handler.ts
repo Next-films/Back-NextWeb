@@ -37,7 +37,6 @@ import { DateUtil } from '@/common/utils/date.util';
 import { MovieEntity } from '@/movies/domain/movie.entity';
 import { MovieHandleStatus } from '@/movies/domain/types';
 
-// TODO
 export class AdminApplyModerationMovieTaskCommand implements ICommand {
   constructor(
     public taskId: number,
@@ -87,6 +86,7 @@ export class AdminApplyModerationMovieTaskCommandHandler
 
       const strategy = this.getStrategyByType(type, queryRunner);
       if (!strategy) {
+        await queryRunner.rollbackTransaction();
         return this.appNotification.badRequest({
           field: 'type',
           message: 'Undefined movie type',
@@ -96,30 +96,38 @@ export class AdminApplyModerationMovieTaskCommandHandler
 
       const task = await strategy.getTask(taskId);
 
-      if (!task)
+      if (!task) {
+        await queryRunner.rollbackTransaction();
         return this.appNotification.notFound({
           field: 'taskId',
-          errorKey: EXCEPTION_KEYS_ENUM.MODERATION_MOVIE_TASK_NOT_FOUND,
+          errorKey: EXCEPTION_KEYS_ENUM.MODERATION_TASK_NOT_FOUND,
           message: 'Task not found',
         });
+      }
 
       const { admin: attachedAdmin, torrentData, movie } = task;
 
-      if (!attachedAdmin)
+      if (!attachedAdmin) {
+        await queryRunner.rollbackTransaction();
+
         return this.appNotification.badRequest({
           message: 'The task not been accepted',
           errorKey: EXCEPTION_KEYS_ENUM.MODERATION_TASK_NOT_ACCEPTED,
           field: 'taskId',
         });
+      }
 
       const { id: attachedAdminId } = attachedAdmin;
 
-      if (attachedAdminId !== adminId)
+      if (attachedAdminId !== adminId) {
+        await queryRunner.rollbackTransaction();
+
         return this.appNotification.forbidden({
           message: 'The task does not belong to the current user',
           errorKey: EXCEPTION_KEYS_ENUM.MODERATION_TASK_NOT_BELONG_YOU,
           field: 'taskId',
         });
+      }
 
       let validationResult: AppNotificationResult<null, ErrorFieldExceptionDto | null> | null =
         null;
@@ -127,7 +135,12 @@ export class AdminApplyModerationMovieTaskCommandHandler
       await this.updateMovie(movie, inputDto, queryRunner);
 
       if (torrentData) {
-        validationResult = await this.torrentValidation(torrentData, provider, providerId, type);
+        validationResult = await this.torrentValidation(
+          torrentData,
+          provider || null,
+          providerId || null,
+          type,
+        );
         movie.showOrHiddeMovie(true, MovieHandleStatus.PROCESSING);
       } else {
         validationResult = this.validateMovie(movie);
@@ -213,8 +226,8 @@ export class AdminApplyModerationMovieTaskCommandHandler
 
   private async torrentValidation(
     torrentData: FindTorApiTorrentFilmType,
-    provider: TorApiProvidersEnum,
-    providerId: string,
+    provider: TorApiProvidersEnum | null,
+    providerId: string | null,
     type: MovieTypesEnum,
   ): Promise<AppNotificationResult<null, ErrorFieldExceptionDto | null> | null> {
     if (!torrentData)
@@ -222,6 +235,13 @@ export class AdminApplyModerationMovieTaskCommandHandler
         field: 'provider',
         errorKey: EXCEPTION_KEYS_ENUM.PROVIDER_NOT_FOUND,
         message: 'Provider not found',
+      });
+
+    if (!provider || !providerId)
+      return this.appNotification.badRequest({
+        field: 'provider',
+        errorKey: EXCEPTION_KEYS_ENUM.PROVIDER_NOT_PASSED,
+        message: 'Information about the provider must be transmitted',
       });
 
     const matchedProviderKey = Object.keys(torrentData).find(
@@ -273,6 +293,7 @@ export class AdminApplyModerationMovieTaskCommandHandler
         field: 'taskId',
       });
 
+    movie.showOrHiddeMovie(false, MovieHandleStatus.PRODUCTION);
     return null;
   }
 

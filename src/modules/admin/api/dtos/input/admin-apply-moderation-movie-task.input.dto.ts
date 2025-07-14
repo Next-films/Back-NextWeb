@@ -41,12 +41,21 @@ export class AdminApplyModerationMovieTaskInputDto {
   @ApiPropertyOptional({ enum: TorApiProvidersEnum })
   @IsOptional()
   @IsEnum(TorApiProvidersEnum)
-  provider: TorApiProvidersEnum;
+  provider?: TorApiProvidersEnum;
 
-  // TODO: Validation
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    minLength: FILMS_VALIDATION_RULES.PROVIDER_ID.LENGTH_MIN,
+    maxLength: FILMS_VALIDATION_RULES.PROVIDER_ID.LENGTH_MAX,
+  })
   @IsOptional()
-  providerId: string;
+  @Trim()
+  @IsString()
+  @IsNotEmpty()
+  @Length(
+    FILMS_VALIDATION_RULES.PROVIDER_ID.LENGTH_MIN,
+    FILMS_VALIDATION_RULES.PROVIDER_ID.LENGTH_MAX,
+  )
+  providerId?: string;
 
   @ApiPropertyOptional({
     minLength: FILMS_VALIDATION_RULES.DESCRIPTION.LENGTH_MIN,
