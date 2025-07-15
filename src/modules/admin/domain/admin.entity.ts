@@ -22,7 +22,7 @@ export class Admin {
   @Column({ type: 'timestamp with time zone', default: () => 'CURRENT_TIMESTAMP' })
   createdAt: Date;
 
-  @OneToOne(() => AdminTelegram, (telegram: AdminTelegram) => telegram.admin)
+  @OneToOne(() => AdminTelegram, (telegram: AdminTelegram) => telegram.admin, { cascade: true })
   adminTelegram: AdminTelegram;
 
   @OneToMany(() => AdminSession, (adminSession: AdminSession) => adminSession.admin)

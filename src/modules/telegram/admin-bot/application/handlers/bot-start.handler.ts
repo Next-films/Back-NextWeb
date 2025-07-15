@@ -55,7 +55,7 @@ export class TelegramAdminBotStartCommandHandler
         return;
       }
 
-      if (!user.username && username) {
+      if (!user.adminTelegram.username && username) {
         this.logger.log(`Update username for user: ${chatId}, ${username}`, this.execute.name);
         user.updateTelegramInfo(username);
         await this.adminRepository.save(user);

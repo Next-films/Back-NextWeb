@@ -7,8 +7,8 @@ export class AdminTelegram {
   @Column({ primary: true, unique: true })
   telegramId: string;
 
-  @Column({ nullable: true })
-  username: string;
+  @Column({ type: 'varchar', nullable: true })
+  username: string | null;
 
   @Column({ type: 'timestamp with time zone', default: () => 'CURRENT_TIMESTAMP' })
   createdAt: Date;

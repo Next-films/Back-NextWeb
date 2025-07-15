@@ -78,7 +78,7 @@ export class TelegramAdminBotSendNotificationNewModerationMovieCommandHandler
         duration: MovieDurationUtil.formatDuration(duration),
         releaseDate: releaseDate || 'unknown',
         originalTitle: originalTitle || 'unknown',
-        link: `${this.moderation_movie_front_url}/${moderationId}`,
+        link: `${this.moderation_movie_front_url}/${type}/${moderationId}`,
         movieId: id,
         type: this.botService.getMovieTypeString(type),
       };

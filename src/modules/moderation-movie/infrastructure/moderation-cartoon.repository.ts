@@ -27,12 +27,12 @@ export class ModerationCartoonRepository {
     if (queryRunner) {
       return queryRunner.manager.findOne(this.moderationCartoonEntity.target, {
         where: { id },
-        relations: { movie: true, admin: true },
+        relations: { movie: true, admin: { adminTelegram: true } },
       });
     }
     return this.moderationCartoonEntity.findOne({
       where: { id },
-      relations: { movie: true, admin: true },
+      relations: { movie: true, admin: { adminTelegram: true } },
     });
   }
 
