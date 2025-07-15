@@ -8,6 +8,7 @@ import {
   IsString,
   IsUrl,
   Length,
+  Matches,
   Max,
   Min,
 } from 'class-validator';
@@ -26,10 +27,14 @@ export class AdminUpdateFilmInputDto {
   @Length(FILMS_VALIDATION_RULES.NAME.LENGTH_MIN, FILMS_VALIDATION_RULES.NAME.LENGTH_MAX)
   name: string;
 
-  @ApiProperty()
+  @ApiProperty({
+    minLength: FILMS_VALIDATION_RULES.KP_ID.LENGTH_MIN,
+    maxLength: FILMS_VALIDATION_RULES.KP_ID.LENGTH_MAX,
+  })
   @Trim()
   @IsNotEmpty()
   @IsString()
+  @Length(FILMS_VALIDATION_RULES.KP_ID.LENGTH_MIN, FILMS_VALIDATION_RULES.KP_ID.LENGTH_MAX)
   kpId: string;
 
   @ApiProperty({
@@ -58,6 +63,7 @@ export class AdminUpdateFilmInputDto {
   @Length(FILMS_VALIDATION_RULES.GENRE.LENGTH_MIN, FILMS_VALIDATION_RULES.GENRE.LENGTH_MAX, {
     each: true,
   })
+  @Matches(/\S/, { each: true, message: 'genre must not be blank' })
   genres?: string[];
 
   @ApiProperty()
@@ -115,6 +121,7 @@ export class AdminUpdateFilmInputDto {
   @Length(FILMS_VALIDATION_RULES.COUNTRY.LENGTH_MIN, FILMS_VALIDATION_RULES.COUNTRY.LENGTH_MAX, {
     each: true,
   })
+  @Matches(/\S/, { each: true, message: 'country must not be blank' })
   country: string[];
 
   @ApiProperty()

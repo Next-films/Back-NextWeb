@@ -50,12 +50,14 @@ export class AdminUpdateFilmCommandHandler
       await queryRunner.startTransaction();
       const film = await this.filmRepository.getFilmById(filmId);
 
-      if (!film)
+      if (!film) {
+        await queryRunner.rollbackTransaction();
         return this.appNotification.notFound({
           field: 'filmId',
           message: 'Film not found',
           errorKey: EXCEPTION_KEYS_ENUM.FILM_NOT_FOUND,
         });
+      }
 
       const { genres: rawGenres, releaseDate } = inputDto;
 

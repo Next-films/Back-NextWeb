@@ -58,12 +58,14 @@ export class AdminShowOrHiddeFilmCommandHandler
 
       const film = await this.filmRepository.getFilmById(filmId, queryRunner);
 
-      if (!film)
+      if (!film) {
+        await queryRunner.rollbackTransaction();
         return this.appNotification.notFound({
           field: 'filmId',
           message: 'Film not found',
           errorKey: EXCEPTION_KEYS_ENUM.FILM_NOT_FOUND,
         });
+      }
 
       const { id } = film;
 
@@ -74,6 +76,8 @@ export class AdminShowOrHiddeFilmCommandHandler
         moderationId = await this.handleModerationStatus(id, queryRunner);
 
         if (!moderationId) {
+          await queryRunner.rollbackTransaction();
+
           return this.appNotification.badRequest({
             message: 'Film already under moderation',
             errorKey: EXCEPTION_KEYS_ENUM.MOVIE_ALREADY_UNDER_MODERATION,

@@ -85,4 +85,5 @@ export enum EXCEPTION_KEYS_ENUM {
   videUrl = 'error_input.videUrl',
   backgroundContentUrl = 'error_input.backgroundContentUrl',
   titleUrl = 'error_input.titleUrl',
+  isHidden = 'error_input.isHidden',
 }

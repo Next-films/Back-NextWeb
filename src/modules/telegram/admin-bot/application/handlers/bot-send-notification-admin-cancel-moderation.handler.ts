@@ -76,8 +76,8 @@ export class TelegramAdminBotSendNotificationAdminCancelModerationCommandHandler
         return;
       }
 
-      const { adminTelegram } = admin;
-      const { username } = adminTelegram;
+      const adminTelegram = admin.adminTelegram || null;
+      const username = adminTelegram?.username || 'unknown';
       const { title } = movie;
 
       const payload: BotSendMessagePayloadDto = {
