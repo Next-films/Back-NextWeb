@@ -1,5 +1,5 @@
 import { EnvironmentVariable } from '@/settings/configuration';
-import { IsNumber, IsString } from 'class-validator';
+import { IsBoolean, IsNumber, IsString } from 'class-validator';
 
 export class BusinessRulesSettings {
   constructor(private environmentVariables: EnvironmentVariable) {}
@@ -15,4 +15,7 @@ export class BusinessRulesSettings {
 
   @IsString()
   MODERATION_MOVIE_FRONT_URL: string = this.environmentVariables.MODERATION_MOVIE_FRONT_URL;
+
+  @IsBoolean()
+  IS_RMQ_ENABLE: boolean = this.environmentVariables.IS_RMQ_ENABLE === 'true';
 }

@@ -1,3 +1,6 @@
+import { AppNotificationResult } from '@/common/utils/app-notification.util';
+import { ErrorFieldExceptionDto } from '@/common/exception-filters/http/http-exception.filter';
+
 export type FindTorApiTorrentFilmType = Partial<
   Record<keyof TorApiSearchByTitleAllProviders, TorApiMovieById[] | null>
 >;
@@ -110,3 +113,26 @@ export type HandledRmqErrorType = {
   isError: boolean;
   isStopProcess: boolean;
 };
+
+export interface IDownloaderServiceAdapter {
+  bridgeFindFilms(): void;
+
+  bridgeDownloadFilms(): void;
+  bridgeFindCartoons(): void;
+
+  bridgeDownloadCartoons(): void;
+
+  bridgeFindSerials(): void;
+
+  bridgeDownloadSerials(): void;
+
+  clearLogs(keys: string[]): Promise<AppNotificationResult<null, ErrorFieldExceptionDto | null>>;
+
+  removeMovie(key: string): Promise<AppNotificationResult<null, ErrorFieldExceptionDto | null>>;
+
+  addMovieToQueue(
+    torrent: TorApiMovieById,
+    provider: TorApiProvidersEnum,
+    type: MovieTypesEnum,
+  ): Promise<AppNotificationResult<null, ErrorFieldExceptionDto | null>>;
+}

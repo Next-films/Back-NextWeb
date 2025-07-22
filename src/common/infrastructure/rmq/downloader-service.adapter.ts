@@ -24,16 +24,21 @@ import { ConfigurationType } from '@/settings/configuration';
 import { RmqAuthPayload } from '@/common/infrastructure/rmq/types';
 import { ClearConverterLogsPayloadDto } from '@/converter-logs/domain/types';
 import { AddMovieToDownloadQueuePayloadDto, RemoveMoviePayloadDto } from '@/admin/domain/types';
-import { MovieTypesEnum, TorApiMovieById, TorApiProvidersEnum } from '@/common/types/types';
+import {
+  IDownloaderServiceAdapter,
+  MovieTypesEnum,
+  TorApiMovieById,
+  TorApiProvidersEnum,
+} from '@/common/types/types';
 
 @Injectable()
-export class DownloaderServiceAdapter {
+export class DownloaderServiceAdapter implements IDownloaderServiceAdapter {
   private readonly auth_token: string;
 
   constructor(
+    private logger: LoggerService,
+    private appNotification: ApplicationNotification,
     @Inject(DOWNLOAD_SERVICE_RMQ_NAME) private readonly client: ClientProxy,
-    protected readonly logger: LoggerService,
-    protected readonly appNotification: ApplicationNotification,
     private readonly configService: ConfigService<ConfigurationType, true>,
   ) {
     this.logger.setContext(DownloaderServiceAdapter.name);
@@ -156,14 +161,11 @@ export class DownloaderServiceAdapter {
 }
 
 @Injectable()
-export class DownloaderServiceAdapterMock extends DownloaderServiceAdapter {
+export class DownloaderServiceAdapterMock implements IDownloaderServiceAdapter {
   constructor(
-    client: ClientProxy,
-    logger: LoggerService,
-    appNotification: ApplicationNotification,
-    configService: ConfigService<ConfigurationType, true>,
+    private readonly logger: LoggerService,
+    private readonly appNotification: ApplicationNotification,
   ) {
-    super(client, logger, appNotification, configService);
     this.logger.setContext(DownloaderServiceAdapterMock.name);
   }
 

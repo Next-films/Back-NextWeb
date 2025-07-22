@@ -70,4 +70,7 @@ export class ApiSettings {
 
   @IsString()
   ADMIN_TG_USERNAME: string = this.environmentVariables.ADMIN_TG_USERNAME;
+
+  @IsString()
+  DOWNLOAD_SERVICE_HTTP_URL: string = this.environmentVariables.DOWNLOAD_SERVICE_HTTP_URL;
 }
