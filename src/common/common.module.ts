@@ -38,7 +38,7 @@ const downloaderServiceAdapterProvider = {
     const businessRulesSettings = configService.get('businessRulesSettings', { infer: true });
     const isRmqEnable = businessRulesSettings.IS_RMQ_ENABLE;
 
-    if (env.isTesting) {
+    if (env.isTesting || env.isDevelopment) {
       return new DownloaderServiceAdapterMock(logger, appNotification);
     }
 

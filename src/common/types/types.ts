@@ -115,16 +115,17 @@ export type HandledRmqErrorType = {
 };
 
 export interface IDownloaderServiceAdapter {
-  bridgeFindFilms(): void;
+  bridgeFindFilms(): void | Promise<void>;
 
-  bridgeDownloadFilms(): void;
-  bridgeFindCartoons(): void;
+  bridgeDownloadFilms(): void | Promise<void>;
 
-  bridgeDownloadCartoons(): void;
+  bridgeFindCartoons(): void | Promise<void>;
 
-  bridgeFindSerials(): void;
+  bridgeDownloadCartoons(): void | Promise<void>;
 
-  bridgeDownloadSerials(): void;
+  bridgeFindSerials(): void | Promise<void>;
+
+  bridgeDownloadSerials(): void | Promise<void>;
 
   clearLogs(keys: string[]): Promise<AppNotificationResult<null, ErrorFieldExceptionDto | null>>;
 

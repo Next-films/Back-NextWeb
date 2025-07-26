@@ -43,112 +43,91 @@ export class DownloaderServiceRestAdapter implements IDownloaderServiceAdapter {
       },
     };
   }
+  private handleError<T = null, D = null>(error: any): AppNotificationResult<T, D> {
+    const data: AppNotificationResult<T, D> = error?.response?.data;
+
+    if (error?.response?.data?.appResult) {
+      return data;
+    }
+
+    return this.appNotification.success(null) as AppNotificationResult<T, D>;
+  }
 
   /*
    *
    *  Bridges to download service
    *
    */
-  bridgeFindFilms(): void {
-    this.httpService
-      .post(
+  async bridgeFindFilms(): Promise<void> {
+    try {
+      await this.httpService.axiosRef.post(
         `${DOWNLOADER_SERVICE_REST_BRIDGE_METHODS_CONSTANTS.MAIN}/${DOWNLOADER_SERVICE_REST_BRIDGE_METHODS_CONSTANTS.FILMS}/${DOWNLOADER_SERVICE_REST_BRIDGE_METHODS_CONSTANTS.FIND}`,
         {},
         this.baseAuthHeaders,
-      )
-      .subscribe({
-        error: err => {
-          this.logger.error(
-            ` Request error: ${JSON.stringify(err, null, 2)}`,
-            this.bridgeFindFilms.name,
-          );
-        },
-      });
+      );
+    } catch (e) {
+      this.logger.error(e, this.bridgeFindFilms.name);
+    }
   }
 
-  bridgeDownloadFilms(): void {
-    this.httpService
-      .post(
+  async bridgeDownloadFilms(): Promise<void> {
+    try {
+      await this.httpService.axiosRef.post(
         `${DOWNLOADER_SERVICE_REST_BRIDGE_METHODS_CONSTANTS.MAIN}/${DOWNLOADER_SERVICE_REST_BRIDGE_METHODS_CONSTANTS.FILMS}/${DOWNLOADER_SERVICE_REST_BRIDGE_METHODS_CONSTANTS.DOWNLOAD}`,
         {},
         this.baseAuthHeaders,
-      )
-      .subscribe({
-        error: err => {
-          this.logger.error(
-            ` Request error: ${JSON.stringify(err, null, 2)}`,
-            this.bridgeDownloadFilms.name,
-          );
-        },
-      });
+      );
+    } catch (e) {
+      this.logger.error(e, this.bridgeFindFilms.name);
+    }
   }
 
-  bridgeFindCartoons(): void {
-    this.httpService
-      .post(
+  async bridgeFindCartoons(): Promise<void> {
+    try {
+      await this.httpService.axiosRef.post(
         `${DOWNLOADER_SERVICE_REST_BRIDGE_METHODS_CONSTANTS.MAIN}/${DOWNLOADER_SERVICE_REST_BRIDGE_METHODS_CONSTANTS.CARTOONS}/${DOWNLOADER_SERVICE_REST_BRIDGE_METHODS_CONSTANTS.FIND}`,
         {},
         this.baseAuthHeaders,
-      )
-      .subscribe({
-        error: err => {
-          this.logger.error(
-            ` Request error: ${JSON.stringify(err, null, 2)}`,
-            this.bridgeFindCartoons.name,
-          );
-        },
-      });
+      );
+    } catch (e) {
+      this.logger.error(e, this.bridgeFindCartoons.name);
+    }
   }
 
-  bridgeDownloadCartoons(): void {
-    this.httpService
-      .post(
+  async bridgeDownloadCartoons(): Promise<void> {
+    try {
+      await this.httpService.axiosRef.post(
         `${DOWNLOADER_SERVICE_REST_BRIDGE_METHODS_CONSTANTS.MAIN}/${DOWNLOADER_SERVICE_REST_BRIDGE_METHODS_CONSTANTS.CARTOONS}/${DOWNLOADER_SERVICE_REST_BRIDGE_METHODS_CONSTANTS.DOWNLOAD}`,
         {},
         this.baseAuthHeaders,
-      )
-      .subscribe({
-        error: err => {
-          this.logger.error(
-            ` Request error: ${JSON.stringify(err, null, 2)}`,
-            this.bridgeDownloadCartoons.name,
-          );
-        },
-      });
+      );
+    } catch (e) {
+      this.logger.error(e, this.bridgeDownloadCartoons.name);
+    }
   }
 
-  bridgeFindSerials(): void {
-    this.httpService
-      .post(
+  async bridgeFindSerials(): Promise<void> {
+    try {
+      await this.httpService.axiosRef.post(
         `${DOWNLOADER_SERVICE_REST_BRIDGE_METHODS_CONSTANTS.MAIN}/${DOWNLOADER_SERVICE_REST_BRIDGE_METHODS_CONSTANTS.SERIALS}/${DOWNLOADER_SERVICE_REST_BRIDGE_METHODS_CONSTANTS.FIND}`,
         {},
         this.baseAuthHeaders,
-      )
-      .subscribe({
-        error: err => {
-          this.logger.error(
-            ` Request error: ${JSON.stringify(err, null, 2)}`,
-            this.bridgeFindSerials.name,
-          );
-        },
-      });
+      );
+    } catch (e) {
+      this.logger.error(e, this.bridgeFindSerials.name);
+    }
   }
 
-  bridgeDownloadSerials(): void {
-    this.httpService
-      .post(
+  async bridgeDownloadSerials(): Promise<void> {
+    try {
+      await this.httpService.axiosRef.post(
         `${DOWNLOADER_SERVICE_REST_BRIDGE_METHODS_CONSTANTS.MAIN}/${DOWNLOADER_SERVICE_REST_BRIDGE_METHODS_CONSTANTS.SERIALS}/${DOWNLOADER_SERVICE_REST_BRIDGE_METHODS_CONSTANTS.DOWNLOAD}`,
         {},
         this.baseAuthHeaders,
-      )
-      .subscribe({
-        error: err => {
-          this.logger.error(
-            ` Request error: ${JSON.stringify(err, null, 2)}`,
-            this.bridgeDownloadSerials.name,
-          );
-        },
-      });
+      );
+    } catch (e) {
+      this.logger.error(e, this.bridgeDownloadSerials.name);
+    }
   }
   /*
    *
@@ -177,7 +156,7 @@ export class DownloaderServiceRestAdapter implements IDownloaderServiceAdapter {
     } catch (error) {
       this.logger.error(error, this.clearLogs.name);
 
-      return this.appNotification.internalServerError();
+      return this.handleError(error);
     }
   }
   /*
@@ -206,7 +185,7 @@ export class DownloaderServiceRestAdapter implements IDownloaderServiceAdapter {
     } catch (error) {
       this.logger.error(error, this.removeMovie.name);
 
-      return this.appNotification.internalServerError();
+      return this.handleError(error);
     }
   }
 
@@ -241,7 +220,7 @@ export class DownloaderServiceRestAdapter implements IDownloaderServiceAdapter {
     } catch (error) {
       this.logger.error(error, this.addMovieToQueue.name);
 
-      return this.appNotification.internalServerError();
+      return this.handleError(error);
     }
   }
 }
