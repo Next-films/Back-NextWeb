@@ -62,6 +62,8 @@ export const FILMS_ROUTE = {
 
 export const PRIVATE_FILMS_ROUTE = {
   MAIN: `${CINEMA_PREFIX}/private/films`,
+  NEW_FILM: 'new-film',
+  NEW_FILM_IS_HANDLE: 'new-film/is-handle',
   KP: `kp`,
 };
 
@@ -88,6 +90,8 @@ export const CARTOONS_ROUTE = {
 export const PRIVATE_CARTOONS_ROUTE = {
   MAIN: `${CINEMA_PREFIX}/private/cartoons`,
   KP: `kp`,
+  NEW_CARTOON: 'new-cartoon',
+  NEW_CARTOON_IS_HANDLE: 'new-cartoon/is-handle',
 };
 
 export const BRIDGE_RMG_CARTOON_ROUTE = {

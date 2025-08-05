@@ -169,3 +169,13 @@ export const CONVERTER_LOGS_VALIDATION_RULES /* as ValidationRulesConstantsType 
     LENGTH_MAX: 255,
   },
 } as const;
+/*
+*
+*
+        Basic movies
+*
+*
+*/
+export const MOVIES_VALIDATION_RULES /* as ValidationRulesConstantsType */ = {
+  KP_ID: { LENGTH_MIN: 1, LENGTH_MAX: 30 },
+} as const;

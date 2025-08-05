@@ -1,4 +1,14 @@
-import { Controller, Get, Param, UseFilters, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Post,
+  UseFilters,
+  UseGuards,
+} from '@nestjs/common';
 import { PRIVATE_FILMS_ROUTE } from '@/common/constants/route.constants';
 import { ApiBearerAuth, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger';
 import { LoggerService } from '@/common/utils/logger/logger.service';
@@ -6,7 +16,7 @@ import {
   ApplicationNotification,
   AppNotificationResult,
 } from '@/common/utils/app-notification.util';
-import { QueryBus } from '@nestjs/cqrs';
+import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import { ErrorFieldExceptionDto } from '@/common/exception-filters/http/http-exception.filter';
 import { SwaggerDecoratorGetPrivateFilmByKinopoiskId } from '@/films/api/swagger/get-private-film-by-kinopoisk-id.swagger.decorator';
 import { GetPrivateFilmByKinopoiskIdQuery } from '@/films/application/query-handlers/get-private-film-by-kinopoisk-id.query-handler';
@@ -16,6 +26,12 @@ import {
   HttpPrivateExceptionDto,
   HttpPrivateExceptionsFilter,
 } from '@/common/exception-filters/http/http-private-exception.filter';
+import { NewMovieIsHandleNotificationPayloadDto } from '@/movies/api/dtos/input/new-movie-is-handle-notification.input.dto';
+import { NewFilmIsHandleNotificationCommand } from '@/films/application/handlers/new-film-is-handle-notification.handler';
+import { SwaggerDecoratorNewFilmIsHandle } from '@/films/api/swagger/new-film-is-handle-private.swagger.decorator';
+import { NewFilmNotificationPayloadDto } from '@/films/api/dtos/input/new-film-notification.input.dto';
+import { NewFilmNotificationCommand } from '@/films/application/handlers/new-film-notification.handler';
+import { SwaggerDecoratorNewFilm } from '@/films/api/swagger/new-film-private.swagger.decorator';
 
 @ApiBearerAuth()
 @ApiUnauthorizedResponse({ description: 'Unauthorized', type: HttpPrivateExceptionDto })
@@ -27,6 +43,7 @@ export class FilmPrivateController {
   constructor(
     private readonly logger: LoggerService,
     private readonly appNotification: ApplicationNotification,
+    private readonly commandBus: CommandBus,
     private readonly queryBus: QueryBus,
   ) {
     this.logger.setContext(FilmPrivateController.name);
@@ -45,6 +62,42 @@ export class FilmPrivateController {
     >(new GetPrivateFilmByKinopoiskIdQuery(kpId));
 
     this.logger.log(result.appResult, this.getFilmByKpId.name);
+
+    return this.appNotification.handleHttpResult(result, true);
+  }
+
+  @HttpCode(HttpStatus.CREATED)
+  @Post(`${PRIVATE_FILMS_ROUTE.NEW_FILM_IS_HANDLE}`)
+  @SwaggerDecoratorNewFilmIsHandle()
+  async newFilmIsHandle(
+    @Body() body: NewMovieIsHandleNotificationPayloadDto,
+  ): Promise<AppNotificationResult<null, ErrorFieldExceptionDto | null> | void> {
+    this.logger.log(`Execute: New film is handle notification`, this.newFilmIsHandle.name);
+
+    const result = await this.commandBus.execute<
+      NewFilmIsHandleNotificationCommand,
+      AppNotificationResult<null, ErrorFieldExceptionDto | null>
+    >(new NewFilmIsHandleNotificationCommand(body));
+
+    this.logger.log(result.appResult, this.newFilmIsHandle.name);
+
+    return this.appNotification.handleHttpResult(result, true);
+  }
+
+  @HttpCode(HttpStatus.CREATED)
+  @Post(`${PRIVATE_FILMS_ROUTE.NEW_FILM}`)
+  @SwaggerDecoratorNewFilm()
+  async newFilm(
+    @Body() body: NewFilmNotificationPayloadDto,
+  ): Promise<AppNotificationResult<null, ErrorFieldExceptionDto | null> | void> {
+    this.logger.log(`Execute: New film notification`, this.newFilm.name);
+
+    const result = await this.commandBus.execute<
+      NewFilmNotificationCommand,
+      AppNotificationResult<null, ErrorFieldExceptionDto | null>
+    >(new NewFilmNotificationCommand(body));
+
+    this.logger.log(result.appResult, this.newFilm.name);
 
     return this.appNotification.handleHttpResult(result, true);
   }
