@@ -1,21 +1,17 @@
 import { applyDecorators } from '@nestjs/common';
-import {
-  ApiBadRequestResponse,
-  ApiNotFoundResponse,
-  ApiOkResponse,
-  ApiOperation,
-} from '@nestjs/swagger';
-import { RequestExceptionDto } from '@/common/exception-filters/http/http-exception.filter';
+import { ApiBadRequestResponse, ApiNotFoundResponse, ApiOperation } from '@nestjs/swagger';
 import { FilmPrivateOutputDto } from '@/films/api/dtos/output/films-private.output.dto';
+import { ApiAppResponse } from '@/common/decorators/app-response.swagger.decorator';
+import { HttpPrivateExceptionDto } from '@/common/exception-filters/http/http-private-exception.filter';
 
 export function SwaggerDecoratorGetPrivateFilmByKinopoiskId(): MethodDecorator {
   return applyDecorators(
     ApiOperation({ summary: 'Get private film by kinopoisk id' }),
-    ApiOkResponse({ description: 'Success', type: FilmPrivateOutputDto }),
-    ApiNotFoundResponse({ description: 'Film not found' }),
+    ApiAppResponse(FilmPrivateOutputDto),
+    ApiNotFoundResponse({ type: HttpPrivateExceptionDto, description: 'Film not found' }),
     ApiBadRequestResponse({
       description: 'Bad input data',
-      type: RequestExceptionDto,
+      type: HttpPrivateExceptionDto,
     }),
   );
 }

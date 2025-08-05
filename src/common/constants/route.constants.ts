@@ -62,6 +62,7 @@ export const FILMS_ROUTE = {
 
 export const PRIVATE_FILMS_ROUTE = {
   MAIN: `${CINEMA_PREFIX}/private/films`,
+  KP: `kp`,
 };
 
 export const BRIDGE_RMG_FILMS_ROUTE = {
@@ -86,6 +87,7 @@ export const CARTOONS_ROUTE = {
 
 export const PRIVATE_CARTOONS_ROUTE = {
   MAIN: `${CINEMA_PREFIX}/private/cartoons`,
+  KP: `kp`,
 };
 
 export const BRIDGE_RMG_CARTOON_ROUTE = {
@@ -106,4 +108,15 @@ export const EXTERNAL_API_ROUTE = {
   MAIN: `${EXTERNAL_API_PREFIX}`,
   TOKEN: 'token',
   CHECK: 'check',
+};
+/*
+*
+*
+        Logs
+*
+*
+*/
+const LOGS_PREFIX = 'logs';
+export const PRIVATE_CONVERTER_LOGS_ROUTE = {
+  MAIN: `${LOGS_PREFIX}/private/converter`,
 };

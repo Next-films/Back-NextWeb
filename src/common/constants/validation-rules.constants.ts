@@ -152,3 +152,20 @@ export const ADMIN_MODERATION_MOVIES_TASK_VALIDATION_RULES /* as ValidationRules
     LENGTH_MAX: 100,
   },
 } as const;
+/*
+*
+*
+        Logs
+*
+*
+*/
+export const CONVERTER_LOGS_VALIDATION_RULES /* as ValidationRulesConstantsType */ = {
+  MOVIE_KP_ID: {
+    LENGTH_MIN: 1,
+    LENGTH_MAX: 30,
+  },
+  KEYS: {
+    LENGTH_MIN: 5,
+    LENGTH_MAX: 255,
+  },
+} as const;
