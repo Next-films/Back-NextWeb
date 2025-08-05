@@ -36,6 +36,13 @@ export const ADMIN_CINEMA_ROUTE = {
   CARTOONS: `cartoons`,
 };
 
+export const ADMIN_PRIVATE_CINEMA_ROUTE = {
+  MAIN: `${ADMIN_PREFIX}/private/cinema`,
+  FILMS: `films`,
+  CARTOONS: `cartoons`,
+  MODERATION: `moderation`,
+};
+
 export const ADMIN_MODERATION_MOVIE_ROUTE = {
   MAIN: `${ADMIN_PREFIX}/movie/moderation`,
   APPLY: `apply`,
@@ -127,7 +134,7 @@ export const PRIVATE_CONVERTER_LOGS_ROUTE = {
 /*
 *
 *
-        Logs
+        Banned providers
 *
 *
 */

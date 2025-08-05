@@ -42,6 +42,7 @@ import { AdminGetAllFilmsQueryHandler } from '@/admin/application/query-handlers
 import { AdminUpdateFilmCommandHandler } from '@/admin/application/handlers/admin-update-film.handler';
 import { AdminRemoveFilmCommandHandler } from '@/admin/application/handlers/admin-remove-film.handler';
 import { AdminApplyModerationMovieTaskCommandHandler } from '@/admin/application/handlers/admin-apply-moderation-movie-task.handler';
+import { AdminCinemaPrivateController } from '@/admin/api/admin-cinema-private.controller';
 
 export const AdminProvider = {
   provide: 'Admin',
@@ -95,6 +96,7 @@ const exportProviders = [TypeOrmModule.forFeature([Admin]), AdminProvider, Admin
     AdminBannedProvidersMovieController,
     AdminCinemaFilmsController,
     AdminModerationMovieController,
+    AdminCinemaPrivateController,
   ],
   providers: [
     ...handlers,
