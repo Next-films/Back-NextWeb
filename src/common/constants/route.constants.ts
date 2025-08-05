@@ -120,3 +120,13 @@ const LOGS_PREFIX = 'logs';
 export const PRIVATE_CONVERTER_LOGS_ROUTE = {
   MAIN: `${LOGS_PREFIX}/private/converter`,
 };
+/*
+*
+*
+        Logs
+*
+*
+*/
+export const PRIVATE_BANNED_PROVIDERS_ROUTE = {
+  MAIN: `banned-providers-movies/private`,
+};

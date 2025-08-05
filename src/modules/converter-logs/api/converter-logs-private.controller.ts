@@ -40,7 +40,7 @@ export class ConverterLogsPrivateController {
   }
 
   @Post()
-  @HttpCode(HttpStatus.NO_CONTENT)
+  @HttpCode(HttpStatus.CREATED)
   @SwaggerDecoratorSaveConverterLogs()
   async saveLog(
     @Body() body: UploadedLogFilePayloadDto,
