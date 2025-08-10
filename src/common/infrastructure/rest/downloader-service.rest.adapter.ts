@@ -43,14 +43,15 @@ export class DownloaderServiceRestAdapter implements IDownloaderServiceAdapter {
       },
     };
   }
-  private handleError<T = null, D = null>(error: any): AppNotificationResult<T, D> {
+  private handleError<T = null, D = null>(error: any, scope?: string): AppNotificationResult<T, D> {
     const data: AppNotificationResult<T, D> = error?.response?.data;
 
     if (error?.response?.data?.appResult) {
       return data;
     }
 
-    return this.appNotification.success(null) as AppNotificationResult<T, D>;
+    this.logger.error(error, scope ? scope : this.handleError.name);
+    return this.appNotification.internalServerError();
   }
 
   /*
@@ -154,9 +155,7 @@ export class DownloaderServiceRestAdapter implements IDownloaderServiceAdapter {
 
       return result.data;
     } catch (error) {
-      this.logger.error(error, this.clearLogs.name);
-
-      return this.handleError(error);
+      return this.handleError(error, this.clearLogs.name);
     }
   }
   /*
@@ -183,9 +182,7 @@ export class DownloaderServiceRestAdapter implements IDownloaderServiceAdapter {
 
       return result.data;
     } catch (error) {
-      this.logger.error(error, this.removeMovie.name);
-
-      return this.handleError(error);
+      return this.handleError(error, this.removeMovie.name);
     }
   }
 
@@ -218,9 +215,7 @@ export class DownloaderServiceRestAdapter implements IDownloaderServiceAdapter {
 
       return result.data;
     } catch (error) {
-      this.logger.error(error, this.addMovieToQueue.name);
-
-      return this.handleError(error);
+      return this.handleError(error, this.addMovieToQueue.name);
     }
   }
 }
