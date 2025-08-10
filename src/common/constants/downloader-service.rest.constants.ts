@@ -9,14 +9,15 @@ export const DOWNLOADER_SERVICE_REST_BRIDGE_METHODS_CONSTANTS = {
   FIND: 'find',
 };
 
-export const DOWNLOADER_SERVICE_REST_LOGS_METHODS_CONSTANTS = {
-  MAIN: 'logs',
-  CONVERTER_LOGS: 'converter-logs',
+const CONVERTER_PREFIX = 'converter';
+export const DOWNLOADER_SERVICE_REST_CONVERTER_METHODS_CONSTANTS = {
+  MAIN: `${CONVERTER_PREFIX}/private`,
+  LOGS: 'logs',
   CLEAR: 'clear',
 };
 
 export const DOWNLOADER_SERVICE_REST_MOVIES_METHODS_CONSTANTS = {
-  MAIN: 'movies',
+  MAIN: 'movies/private',
   REMOVE: 'remove',
   ADD_TO_QUEUE: 'add-to-queue',
 };

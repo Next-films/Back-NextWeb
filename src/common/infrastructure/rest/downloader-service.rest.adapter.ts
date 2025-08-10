@@ -19,7 +19,7 @@ import { HttpService } from '@nestjs/axios';
 import {
   DOWNLOADER_HTTP_SERVICE,
   DOWNLOADER_SERVICE_REST_BRIDGE_METHODS_CONSTANTS,
-  DOWNLOADER_SERVICE_REST_LOGS_METHODS_CONSTANTS,
+  DOWNLOADER_SERVICE_REST_CONVERTER_METHODS_CONSTANTS,
   DOWNLOADER_SERVICE_REST_MOVIES_METHODS_CONSTANTS,
 } from '@/common/constants/downloader-service.rest.constants';
 import { AxiosRequestConfig } from 'axios';
@@ -145,7 +145,7 @@ export class DownloaderServiceRestAdapter implements IDownloaderServiceAdapter {
       const result = await this.httpService.axiosRef.post<
         AppNotificationResult<null, ErrorFieldExceptionDto | null>
       >(
-        `${DOWNLOADER_SERVICE_REST_BRIDGE_METHODS_CONSTANTS.MAIN}/${DOWNLOADER_SERVICE_REST_LOGS_METHODS_CONSTANTS.CONVERTER_LOGS}/${DOWNLOADER_SERVICE_REST_LOGS_METHODS_CONSTANTS.CLEAR}`,
+        `${DOWNLOADER_SERVICE_REST_CONVERTER_METHODS_CONSTANTS.MAIN}/${DOWNLOADER_SERVICE_REST_CONVERTER_METHODS_CONSTANTS.LOGS}/${DOWNLOADER_SERVICE_REST_CONVERTER_METHODS_CONSTANTS.CLEAR}`,
         payload,
         this.baseAuthHeaders,
       );
