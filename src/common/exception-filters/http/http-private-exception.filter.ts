@@ -27,13 +27,16 @@ export class HttpPrivateExceptionsFilter implements ExceptionFilter {
   catch(exception: HttpException, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
+    const isHttpInstance = exception instanceof HttpException;
 
-    return this.handleHttp(exception, response);
+    if (isHttpInstance) return this.handleHttp(exception, response);
+
+    this.handleOther(exception, response);
   }
 
   handleHttp(exception: HttpException, response: Response): void {
-    const status = exception.getStatus();
-    const res = exception.getResponse();
+    const status = exception?.getStatus() || HttpStatus.INTERNAL_SERVER_ERROR;
+    const res = exception?.getResponse() || null;
 
     let err: HttpPrivateExceptionDto = this.appNotification.internalServerError();
     let errorField: ErrorFieldExceptionDto[] | null = null;
@@ -75,5 +78,11 @@ export class HttpPrivateExceptionsFilter implements ExceptionFilter {
     }
 
     response.status(status).json(err);
+  }
+
+  handleOther(exception: any, response: Response): void {
+    response
+      .status(HttpStatus.INTERNAL_SERVER_ERROR)
+      .json(this.appNotification.internalServerError());
   }
 }
