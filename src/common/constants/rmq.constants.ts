@@ -53,3 +53,18 @@ export const GET_BANNED_MOVIE_BY_PROVIDER_CMD = 'get_banned_movie_by_provider_cm
  */
 export const REMOVE_MOVIE_CMD = 'remove_movie_cmd';
 export const ADD_MOVIE_TO_DOWNLOAD_QUEUE_CMD = 'add_movie_to_download_queue_cmd';
+
+/*
+ *
+ * Downloader cmd
+ *
+ */
+export const DOWNLOAD_YT_CLIP_CMD = 'download_yt_clip_cmd';
+
+/*
+ *
+ * Convert img cmd
+ *
+ */
+export const RESIZE_SAVE_POSTER_CMD = 'resize_save_poster_cmd';
+export const RESIZE_SAVE_LOGO_CMD = 'resize_save_logo_cmd';

@@ -10,7 +10,10 @@ import {
   BRIDGE_FIND_SERIALS_CMD,
   CLEAR_LOGS_CMD,
   DOWNLOAD_SERVICE_RMQ_NAME,
+  DOWNLOAD_YT_CLIP_CMD,
   REMOVE_MOVIE_CMD,
+  RESIZE_SAVE_LOGO_CMD,
+  RESIZE_SAVE_POSTER_CMD,
 } from '@/common/constants/rmq.constants';
 import { LoggerService } from '@/common/utils/logger/logger.service';
 import {
@@ -25,8 +28,11 @@ import { RmqAuthPayload } from '@/common/infrastructure/rmq/types';
 import { ClearConverterLogsPayloadDto } from '@/converter-logs/domain/types';
 import { AddMovieToDownloadQueuePayloadDto, RemoveMoviePayloadDto } from '@/admin/domain/types';
 import {
+  DownloadPreviewYtClipPayloadDto,
   IDownloaderServiceAdapter,
   MovieTypesEnum,
+  ResizeAndSafeLogoPayloadDto,
+  ResizeAndSafePosterPayloadDto,
   TorApiMovieById,
   TorApiProvidersEnum,
 } from '@/common/types/types';
@@ -158,6 +164,94 @@ export class DownloaderServiceAdapter implements IDownloaderServiceAdapter {
       return this.appNotification.internalServerError();
     }
   }
+
+  /*
+   *
+   *  Send request to download preview yt clip
+   *
+   */
+  async downloadPreviewClip(
+    kpId: string,
+    url: string,
+    type: MovieTypesEnum,
+  ): Promise<AppNotificationResult<string, ErrorFieldExceptionDto | null>> {
+    try {
+      const payload: RmqAuthPayload<DownloadPreviewYtClipPayloadDto> = {
+        payload: {
+          kpId,
+          url,
+          type,
+        },
+        token: this.auth_token,
+      };
+
+      const response: Observable<AppNotificationResult<string, ErrorFieldExceptionDto | null>> =
+        this.client.send({ cmd: DOWNLOAD_YT_CLIP_CMD }, payload).pipe(timeout(60_000));
+
+      return await firstValueFrom(response);
+    } catch (error) {
+      this.logger.error(error, this.downloadPreviewClip.name);
+
+      return this.appNotification.internalServerError();
+    }
+  }
+
+  /*
+   *
+   *  Resize poster, logo and save
+   *
+   */
+  async resizeAndSavePoster(
+    kpId: string,
+    url: string,
+    type: MovieTypesEnum,
+  ): Promise<AppNotificationResult<string, ErrorFieldExceptionDto | null>> {
+    try {
+      const payload: RmqAuthPayload<ResizeAndSafePosterPayloadDto> = {
+        payload: {
+          kpId,
+          url,
+          type,
+        },
+        token: this.auth_token,
+      };
+
+      const response: Observable<AppNotificationResult<string, ErrorFieldExceptionDto | null>> =
+        this.client.send({ cmd: RESIZE_SAVE_POSTER_CMD }, payload).pipe(timeout(60_000));
+
+      return await firstValueFrom(response);
+    } catch (error) {
+      this.logger.error(error, this.resizeAndSavePoster.name);
+
+      return this.appNotification.internalServerError();
+    }
+  }
+
+  async resizeAndSaveLogo(
+    kpId: string,
+    url: string,
+    type: MovieTypesEnum,
+  ): Promise<AppNotificationResult<string, ErrorFieldExceptionDto | null>> {
+    try {
+      const payload: RmqAuthPayload<ResizeAndSafeLogoPayloadDto> = {
+        payload: {
+          kpId,
+          url,
+          type,
+        },
+        token: this.auth_token,
+      };
+
+      const response: Observable<AppNotificationResult<string, ErrorFieldExceptionDto | null>> =
+        this.client.send({ cmd: RESIZE_SAVE_LOGO_CMD }, payload).pipe(timeout(60_000));
+
+      return await firstValueFrom(response);
+    } catch (error) {
+      this.logger.error(error, this.resizeAndSavePoster.name);
+
+      return this.appNotification.internalServerError();
+    }
+  }
 }
 
 @Injectable()
@@ -248,5 +342,54 @@ export class DownloaderServiceAdapterMock implements IDownloaderServiceAdapter {
     );
     await new Promise(resolve => resolve(null));
     return this.appNotification.success(null);
+  }
+
+  /*
+   *
+   *  Send request to download preview yt clip
+   *
+   */
+  async downloadPreviewClip(
+    kpId: string,
+    url: string,
+    type: MovieTypesEnum,
+  ): Promise<AppNotificationResult<string, ErrorFieldExceptionDto | null>> {
+    this.logger.log(
+      `Execute: download yt clip (mock). Kp id: ${kpId}, type: ${type}, url: ${url}`,
+      this.downloadPreviewClip.name,
+    );
+    await new Promise(resolve => resolve(null));
+    return this.appNotification.success('mock');
+  }
+
+  /*
+   *
+   *  Resize poster, logo and save
+   *
+   */
+  async resizeAndSavePoster(
+    kpId: string,
+    url: string,
+    type: MovieTypesEnum,
+  ): Promise<AppNotificationResult<string, ErrorFieldExceptionDto | null>> {
+    this.logger.log(
+      `Execute: resize and save poster (mock). Kp id: ${kpId}, type: ${type}, url: ${url}`,
+      this.resizeAndSavePoster.name,
+    );
+    await new Promise(resolve => resolve(null));
+    return this.appNotification.success('mock');
+  }
+
+  async resizeAndSaveLogo(
+    kpId: string,
+    url: string,
+    type: MovieTypesEnum,
+  ): Promise<AppNotificationResult<string, ErrorFieldExceptionDto | null>> {
+    this.logger.log(
+      `Execute: resize and save logo (mock). Kp id: ${kpId}, type: ${type}, url: ${url}`,
+      this.resizeAndSaveLogo.name,
+    );
+    await new Promise(resolve => resolve(null));
+    return this.appNotification.success('mock');
   }
 }

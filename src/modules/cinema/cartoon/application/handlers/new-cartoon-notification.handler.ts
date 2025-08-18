@@ -81,8 +81,8 @@ export class NewCartoonNotificationCommandHandler
       const metadata = await this.moviesService.extractMovieMetadata(kpMovie, queryRunner);
 
       const cartoon = existingCartoon
-        ? this.updateExistingCartoon(existingCartoon, metadata, key, duration || 0, kpId)
-        : this.createNewCartoon(metadata, key, duration || 0, kpId);
+        ? await this.updateExistingCartoon(existingCartoon, metadata, key, duration || 0, kpId)
+        : await this.createNewCartoon(metadata, key, duration || 0, kpId);
 
       this.moviesService.setHandleProductionStatus(cartoon);
 
@@ -107,14 +107,28 @@ export class NewCartoonNotificationCommandHandler
     }
   }
 
-  private updateExistingCartoon(
+  private async updateExistingCartoon(
     cartoon: Cartoon,
     metadata: MovieKpMetadata,
     key: string,
     duration: number,
     kpId: string,
-  ): Cartoon {
-    // TODO: Трейлеры и тд
+  ): Promise<Cartoon> {
+    const tasks: Promise<string | null>[] = [];
+
+    if (!cartoon.previewUrl)
+      tasks.push(this.moviesService.getPosterUrl(metadata.posterUrl, kpId, MovieTypesEnum.FILM));
+
+    if (!cartoon.backgroundContentUrl)
+      tasks.push(
+        this.moviesService.getBackgroundContentUrl(metadata.trailerUrl, kpId, MovieTypesEnum.FILM),
+      );
+
+    if (!cartoon.titleUrl)
+      tasks.push(this.moviesService.getLogoUrl(metadata.titleUrl, kpId, MovieTypesEnum.FILM));
+
+    const [previewUrl, backgroundContentUrl, titleUrl] = await Promise.all(tasks);
+
     const cartoonDto: CartonUpdateDto = {
       videUrl: key,
       kpId,
@@ -126,22 +140,27 @@ export class NewCartoonNotificationCommandHandler
       country: metadata.countries,
       description: metadata.description,
       releaseDate: metadata.releaseDate,
-      titleUrl: metadata.titleUrl, // TODO: Проверка что это PNG файл + сделать резайс через sharp и сохранить в хранилище
-      previewUrl: metadata.posterUrl, // TODO: сделать резайс через sharp и сохранить в хранилище
+      titleUrl: cartoon.titleUrl || titleUrl || null,
+      previewUrl: cartoon.previewUrl || previewUrl || null,
       trailerUrl: metadata.trailerUrl,
-      backgroundContentUrl: metadata.trailerUrl, // TODO: отрезать 10-15 секунд от трейлера и сохрнаить в хранилище
+      backgroundContentUrl: cartoon.backgroundContentUrl || backgroundContentUrl || null,
     };
     cartoon.update(cartoonDto);
     return cartoon;
   }
 
-  private createNewCartoon(
+  private async createNewCartoon(
     metadata: MovieKpMetadata,
     key: string,
     duration: number,
     kpId: string,
-  ): Cartoon {
-    // TODO: Трейлеры и тд
+  ): Promise<Cartoon> {
+    const [backgroundContentUrl, posterUrl, titleUrl] = await Promise.all([
+      this.moviesService.getBackgroundContentUrl(metadata.trailerUrl, kpId, MovieTypesEnum.FILM),
+      this.moviesService.getPosterUrl(metadata.posterUrl, kpId, MovieTypesEnum.FILM),
+      this.moviesService.getLogoUrl(metadata.titleUrl, kpId, MovieTypesEnum.FILM),
+    ]);
+
     const cartoonDto: CartonCreateDto = {
       key,
       kpId,
@@ -155,10 +174,10 @@ export class NewCartoonNotificationCommandHandler
       description: metadata.description,
       releaseDate: metadata.releaseDate,
       handleStatus: MovieHandleStatus.PROCESSING,
-      titleUrl: metadata.titleUrl, // TODO: Проверка что это PNG файл + сделать резайс через sharp и сохранить в хранилище
-      previewUrl: metadata.posterUrl, // TODO: сделать резайс через sharp и сохранить в хранилище
+      titleUrl,
+      previewUrl: posterUrl,
       trailerUrl: metadata.trailerUrl,
-      backgroundContentUrl: metadata.trailerUrl, // TODO: отрезать 10-15 секунд от трейлера и сохрнаить в хранилище
+      backgroundContentUrl,
     };
     return this.cartoonEntity.create(cartoonDto);
   }

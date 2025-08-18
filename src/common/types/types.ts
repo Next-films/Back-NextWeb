@@ -137,3 +137,21 @@ export interface IDownloaderServiceAdapter {
     type: MovieTypesEnum,
   ): Promise<AppNotificationResult<null, ErrorFieldExceptionDto | null>>;
 }
+
+export class DownloadPreviewYtClipPayloadDto {
+  type: MovieTypesEnum;
+  kpId: string;
+  url: string;
+}
+
+export class ResizeAndSafePosterPayloadDto {
+  type: MovieTypesEnum;
+  url: string;
+  kpId: string;
+}
+
+export class ResizeAndSafeLogoPayloadDto {
+  type: MovieTypesEnum;
+  url: string;
+  kpId: string;
+}

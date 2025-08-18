@@ -81,8 +81,8 @@ export class NewFilmNotificationCommandHandler
       const metadata = await this.moviesService.extractMovieMetadata(kpMovie, queryRunner);
 
       const film = existingFilm
-        ? this.updateExistingFilm(existingFilm, metadata, key, duration || 0, kpId)
-        : this.createNewFilm(metadata, key, duration || 0, kpId);
+        ? await this.updateExistingFilm(existingFilm, metadata, key, duration || 0, kpId)
+        : await this.createNewFilm(metadata, key, duration || 0, kpId);
 
       this.moviesService.setHandleProductionStatus(film);
 
@@ -106,14 +106,28 @@ export class NewFilmNotificationCommandHandler
     }
   }
 
-  private updateExistingFilm(
+  private async updateExistingFilm(
     film: Film,
     metadata: MovieKpMetadata,
     key: string,
     duration: number,
     kpId: string,
-  ): Film {
-    // TODO: Трейлеры и тд
+  ): Promise<Film> {
+    const tasks: Promise<string | null>[] = [];
+
+    if (!film.previewUrl)
+      tasks.push(this.moviesService.getPosterUrl(metadata.posterUrl, kpId, MovieTypesEnum.FILM));
+
+    if (!film.backgroundContentUrl)
+      tasks.push(
+        this.moviesService.getBackgroundContentUrl(metadata.trailerUrl, kpId, MovieTypesEnum.FILM),
+      );
+
+    if (!film.titleUrl)
+      tasks.push(this.moviesService.getLogoUrl(metadata.titleUrl, kpId, MovieTypesEnum.FILM));
+
+    const [previewUrl, backgroundContentUrl, titleUrl] = await Promise.all(tasks);
+
     const filmDto: FilmUpdateDto = {
       videUrl: key,
       kpId,
@@ -125,22 +139,27 @@ export class NewFilmNotificationCommandHandler
       country: metadata.countries,
       description: metadata.description,
       releaseDate: metadata.releaseDate,
-      previewUrl: metadata.posterUrl, // TODO: сделать резайс через sharp и сохранить в хранилище
-      backgroundContentUrl: metadata.trailerUrl, // TODO: отрезать 10-15 секунд от трейлера и сохрнаить в хранилище
-      trailerUrl: metadata.trailerUrl,
-      titleUrl: metadata.titleUrl, // TODO: Проверка что это PNG файл + сделать резайс через sharp и сохранить в хранилище
+      previewUrl: film.previewUrl || previewUrl || null,
+      backgroundContentUrl: film.backgroundContentUrl || backgroundContentUrl || null,
+      trailerUrl: film.trailerUrl || metadata.trailerUrl,
+      titleUrl: film.titleUrl || titleUrl || null,
     };
     film.update(filmDto);
     return film;
   }
 
-  private createNewFilm(
+  private async createNewFilm(
     metadata: MovieKpMetadata,
     key: string,
     duration: number,
     kpId: string,
-  ): Film {
-    // TODO: Трейлеры и тд
+  ): Promise<Film> {
+    const [backgroundContentUrl, posterUrl, titleUrl] = await Promise.all([
+      this.moviesService.getBackgroundContentUrl(metadata.trailerUrl, kpId, MovieTypesEnum.FILM),
+      this.moviesService.getPosterUrl(metadata.posterUrl, kpId, MovieTypesEnum.FILM),
+      this.moviesService.getLogoUrl(metadata.titleUrl, kpId, MovieTypesEnum.FILM),
+    ]);
+
     const filmDto: FilmCreateDto = {
       key,
       kpId,
@@ -154,10 +173,10 @@ export class NewFilmNotificationCommandHandler
       description: metadata.description,
       releaseDate: metadata.releaseDate,
       handleStatus: MovieHandleStatus.PROCESSING,
-      previewUrl: metadata.posterUrl, // TODO: сделать резайс через sharp и сохранить в хранилище
-      backgroundContentUrl: metadata.trailerUrl, // TODO: отрезать 10-15 секунд от трейлера и сохрнаить в хранилище
+      previewUrl: posterUrl,
+      backgroundContentUrl,
       trailerUrl: metadata.trailerUrl,
-      titleUrl: metadata.titleUrl, // TODO: Проверка что это PNG файл + сделать резайс через sharp и сохранить в хранилище
+      titleUrl,
     };
     return this.filmEntity.create(filmDto);
   }

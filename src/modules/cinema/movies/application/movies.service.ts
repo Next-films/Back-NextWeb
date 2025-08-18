@@ -6,6 +6,10 @@ import { QueryRunner } from 'typeorm';
 import { MovieEntity } from '@/movies/domain/movie.entity';
 import { MovieHandleStatus, MovieKpMetadata } from '@/movies/domain/types';
 import { DateUtil } from '@/common/utils/date.util';
+import { MovieTypesEnum } from '@/common/types/types';
+import { DownloaderServiceAdapter } from '@/common/infrastructure/rmq/downloader-service.adapter';
+import { RmqResultHandlerUtil } from '@/common/utils/rmq-result-handler.util';
+import { AppNotificationResultEnum } from '@/common/utils/app-notification.util';
 
 @Injectable()
 export class MoviesService {
@@ -13,6 +17,8 @@ export class MoviesService {
     @Inject(Genre.name) private readonly genreEntity: typeof Genre,
     private readonly genreRepository: GenreRepository,
     private readonly dateUtil: DateUtil,
+    private readonly downloaderServiceAdapter: DownloaderServiceAdapter,
+    private readonly rmqResultHandlerUtil: RmqResultHandlerUtil,
   ) {}
 
   async getOrCreateGenreFromKinopoisk(
@@ -175,5 +181,56 @@ export class MoviesService {
       !isValid,
       isValid ? MovieHandleStatus.PRODUCTION : MovieHandleStatus.MODERATE,
     );
+  }
+
+  async getBackgroundContentUrl(
+    trailerUrl: string | null,
+    kpId: string,
+    movieType: MovieTypesEnum,
+  ): Promise<string | null> {
+    if (!trailerUrl) return null;
+
+    const result = await this.rmqResultHandlerUtil.getRmqData(
+      () => this.downloaderServiceAdapter.downloadPreviewClip(kpId, trailerUrl, movieType),
+      this.getBackgroundContentUrl.name,
+    );
+
+    if (result.appResult !== AppNotificationResultEnum.Success) return null;
+
+    return result.data;
+  }
+
+  async getPosterUrl(
+    posterUrl: string | null,
+    kpId: string,
+    movieType: MovieTypesEnum,
+  ): Promise<string | null> {
+    if (!posterUrl) return null;
+
+    const result = await this.rmqResultHandlerUtil.getRmqData(
+      () => this.downloaderServiceAdapter.resizeAndSavePoster(kpId, posterUrl, movieType),
+      this.getPosterUrl.name,
+    );
+
+    if (result.appResult !== AppNotificationResultEnum.Success) return null;
+
+    return result.data;
+  }
+
+  async getLogoUrl(
+    logoUrl: string | null,
+    kpId: string,
+    movieType: MovieTypesEnum,
+  ): Promise<string | null> {
+    if (!logoUrl) return null;
+
+    const result = await this.rmqResultHandlerUtil.getRmqData(
+      () => this.downloaderServiceAdapter.resizeAndSaveLogo(kpId, logoUrl, movieType),
+      this.getLogoUrl.name,
+    );
+
+    if (result.appResult !== AppNotificationResultEnum.Success) return null;
+
+    return result.data;
   }
 }

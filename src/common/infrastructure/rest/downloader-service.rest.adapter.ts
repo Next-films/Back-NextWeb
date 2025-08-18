@@ -10,8 +10,11 @@ import { ErrorFieldExceptionDto } from '@/common/exception-filters/http/http-exc
 import { ClearConverterLogsPayloadDto } from '@/converter-logs/domain/types';
 import { AddMovieToDownloadQueuePayloadDto, RemoveMoviePayloadDto } from '@/admin/domain/types';
 import {
+  DownloadPreviewYtClipPayloadDto,
   IDownloaderServiceAdapter,
   MovieTypesEnum,
+  ResizeAndSafeLogoPayloadDto,
+  ResizeAndSafePosterPayloadDto,
   TorApiMovieById,
   TorApiProvidersEnum,
 } from '@/common/types/types';
@@ -20,6 +23,7 @@ import {
   DOWNLOADER_HTTP_SERVICE,
   DOWNLOADER_SERVICE_REST_BRIDGE_METHODS_CONSTANTS,
   DOWNLOADER_SERVICE_REST_CONVERTER_METHODS_CONSTANTS,
+  DOWNLOADER_SERVICE_REST_DOWNLOADER_METHODS_CONSTANTS,
   DOWNLOADER_SERVICE_REST_MOVIES_METHODS_CONSTANTS,
 } from '@/common/constants/downloader-service.rest.constants';
 import { AxiosRequestConfig } from 'axios';
@@ -216,6 +220,100 @@ export class DownloaderServiceRestAdapter implements IDownloaderServiceAdapter {
       return result.data;
     } catch (error) {
       return this.handleError(error, this.addMovieToQueue.name);
+    }
+  }
+
+  /*
+   *
+   *  Send request to download preview yt clip
+   *
+   */
+  async downloadPreviewClip(
+    kpId: string,
+    url: string,
+    type: MovieTypesEnum,
+  ): Promise<AppNotificationResult<string, ErrorFieldExceptionDto | null>> {
+    try {
+      const payload: DownloadPreviewYtClipPayloadDto = {
+        kpId,
+        url,
+        type,
+      };
+
+      const result = await this.httpService.axiosRef.post<
+        AppNotificationResult<string, ErrorFieldExceptionDto | null>
+      >(
+        `${DOWNLOADER_SERVICE_REST_DOWNLOADER_METHODS_CONSTANTS.MAIN}/${DOWNLOADER_SERVICE_REST_DOWNLOADER_METHODS_CONSTANTS.YT_CLIP}/${DOWNLOADER_SERVICE_REST_DOWNLOADER_METHODS_CONSTANTS.DOWNLOAD}`,
+        payload,
+        this.baseAuthHeaders,
+      );
+
+      if (!result.data.appResult) return this.appNotification.internalServerError();
+
+      return result.data;
+    } catch (error) {
+      return this.handleError(error, this.downloadPreviewClip.name);
+    }
+  }
+
+  /*
+   *
+   *  Resize poster, logo and save
+   *
+   */
+  async resizeAndSavePoster(
+    kpId: string,
+    url: string,
+    type: MovieTypesEnum,
+  ): Promise<AppNotificationResult<string, ErrorFieldExceptionDto | null>> {
+    try {
+      const payload: ResizeAndSafePosterPayloadDto = {
+        kpId,
+        url,
+        type,
+      };
+
+      const result = await this.httpService.axiosRef.post<
+        AppNotificationResult<string, ErrorFieldExceptionDto | null>
+      >(
+        `${DOWNLOADER_SERVICE_REST_CONVERTER_METHODS_CONSTANTS.MAIN}/${DOWNLOADER_SERVICE_REST_CONVERTER_METHODS_CONSTANTS.POSTER}/${DOWNLOADER_SERVICE_REST_CONVERTER_METHODS_CONSTANTS.RESIZE}`,
+        payload,
+        this.baseAuthHeaders,
+      );
+
+      if (!result.data.appResult) return this.appNotification.internalServerError();
+
+      return result.data;
+    } catch (error) {
+      return this.handleError(error, this.resizeAndSavePoster.name);
+    }
+  }
+
+  async resizeAndSaveLogo(
+    kpId: string,
+    url: string,
+    type: MovieTypesEnum,
+  ): Promise<AppNotificationResult<string, ErrorFieldExceptionDto | null>> {
+    try {
+      const payload: ResizeAndSafeLogoPayloadDto = {
+        kpId,
+        url,
+        type,
+      };
+
+      const result = await this.httpService.axiosRef.post<
+        AppNotificationResult<string, ErrorFieldExceptionDto | null>
+      >(
+        `${DOWNLOADER_SERVICE_REST_CONVERTER_METHODS_CONSTANTS.MAIN}/${DOWNLOADER_SERVICE_REST_CONVERTER_METHODS_CONSTANTS.LOGO}/${DOWNLOADER_SERVICE_REST_CONVERTER_METHODS_CONSTANTS.RESIZE}`,
+        payload,
+        this.baseAuthHeaders,
+      );
+
+      if (!result.data.appResult) return this.appNotification.internalServerError();
+
+      return result.data;
+    } catch (error) {
+      return this.handleError(error, this.resizeAndSaveLogo.name);
     }
   }
 }
