@@ -40,7 +40,7 @@ const handlers = [
   NewCartoonIsHandleNotificationCommandHandler,
 ];
 
-const exportProviders = [CartoonRepository, cartoonProvider];
+const exportProviders = [CartoonRepository, CartoonQueryRepository, cartoonProvider];
 
 @Module({
   imports: [

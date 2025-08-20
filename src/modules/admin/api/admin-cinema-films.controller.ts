@@ -5,6 +5,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  InternalServerErrorException,
   Param,
   Patch,
   Post,
@@ -79,7 +80,9 @@ export class AdminCinemaFilmsController {
   // TODO:
   @Post()
   @SwaggerDecoratorAdminCreateFilm()
-  async addFilm(): Promise<any> {}
+  addFilm() {
+    throw new InternalServerErrorException('Method not implemented');
+  }
 
   @HttpCode(HttpStatus.NO_CONTENT)
   @Put(`:filmId`)

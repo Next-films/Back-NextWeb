@@ -36,6 +36,18 @@ export class ModerationCartoonRepository {
     });
   }
 
+  async getModerationByMovieId(
+    movieId: number,
+    queryRunner?: QueryRunner,
+  ): Promise<ModerationCartoonEntity | null> {
+    if (queryRunner) {
+      return queryRunner.manager.findOne(this.moderationCartoonEntity.target, {
+        where: { movieId },
+      });
+    }
+    return this.moderationCartoonEntity.findOne({ where: { movieId } });
+  }
+
   async removeTask(task: ModerationCartoonEntity, queryRunner?: QueryRunner): Promise<void> {
     if (queryRunner) {
       await queryRunner.manager.remove(task);

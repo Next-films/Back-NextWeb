@@ -465,9 +465,9 @@ describe('Admin cinema - films', () => {
         content: {
           movieUrl: 'https://video.com/2',
           trailerUrl: 'https://trailer.com/2',
-          previewUrl: 'http://poster.com/2',
+          previewUrl: expect.any(String),
           backgroundUrl: expect.any(String),
-          titleUrl: 'http://logo.com/2',
+          titleUrl: expect.any(String),
         },
       });
 

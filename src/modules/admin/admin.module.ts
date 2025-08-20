@@ -43,6 +43,11 @@ import { AdminUpdateFilmCommandHandler } from '@/admin/application/handlers/admi
 import { AdminRemoveFilmCommandHandler } from '@/admin/application/handlers/admin-remove-film.handler';
 import { AdminApplyModerationMovieTaskCommandHandler } from '@/admin/application/handlers/admin-apply-moderation-movie-task.handler';
 import { AdminCinemaPrivateController } from '@/admin/api/admin-cinema-private.controller';
+import { AdminCinemaCartoonsController } from '@/admin/api/admin-cinema-cartoons.controller';
+import { AdminGetAllCartoonsQueryHandler } from '@/admin/application/query-handlers/admin-get-all-cartoons.query-handler';
+import { AdminUpdateCartoonCommandHandler } from '@/admin/application/handlers/admin-update-cartoon.handler';
+import { AdminRemoveCartoonCommandHandler } from '@/admin/application/handlers/admin-remove-cartoon.handler';
+import { AdminShowOrHiddeCartoonCommandHandler } from '@/admin/application/handlers/admin-show-or-hide-cartoon.handler';
 
 export const AdminProvider = {
   provide: 'Admin',
@@ -65,6 +70,9 @@ const handlers = [
   AdminUpdateFilmCommandHandler,
   AdminRemoveFilmCommandHandler,
   AdminApplyModerationMovieTaskCommandHandler,
+  AdminUpdateCartoonCommandHandler,
+  AdminRemoveCartoonCommandHandler,
+  AdminShowOrHiddeCartoonCommandHandler,
 ];
 
 const queryHandlers = [
@@ -73,6 +81,7 @@ const queryHandlers = [
   AdminGetAllModerationMovieTaskQueryHandler,
   AdminGetModerationMovieTaskByIdQueryHandler,
   AdminGetAllFilmsQueryHandler,
+  AdminGetAllCartoonsQueryHandler,
 ];
 
 const exportProviders = [TypeOrmModule.forFeature([Admin]), AdminProvider, AdminRepository];
@@ -97,6 +106,7 @@ const exportProviders = [TypeOrmModule.forFeature([Admin]), AdminProvider, Admin
     AdminCinemaFilmsController,
     AdminModerationMovieController,
     AdminCinemaPrivateController,
+    AdminCinemaCartoonsController,
   ],
   providers: [
     ...handlers,
