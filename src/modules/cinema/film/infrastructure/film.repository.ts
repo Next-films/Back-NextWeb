@@ -7,12 +7,15 @@ import { Film } from '@/films/domain/film.entity';
 export class FilmRepository {
   constructor(@InjectRepository(Film) private readonly filmRepository: Repository<Film>) {}
 
-  async save(film: Film, queryRunner?: QueryRunner): Promise<void> {
+  async save(film: Film, queryRunner?: QueryRunner): Promise<Film> {
     if (queryRunner) {
-      await queryRunner.manager.save(film);
-      return;
+      return await queryRunner.manager.save(film);
     }
-    await this.filmRepository.save(film);
+    return await this.filmRepository.save(film);
+  }
+
+  async remove(film: Film): Promise<void> {
+    await this.filmRepository.remove(film);
   }
 
   async getFilmByKinopoiskId(kpId: string, queryRunner?: QueryRunner): Promise<Film | null> {
@@ -20,5 +23,12 @@ export class FilmRepository {
       return queryRunner.manager.findOne(this.filmRepository.target, { where: { kpId } });
     }
     return this.filmRepository.findOne({ where: { kpId } });
+  }
+
+  async getFilmById(id: number, queryRunner?: QueryRunner): Promise<Film | null> {
+    if (queryRunner) {
+      return queryRunner.manager.findOne(this.filmRepository.target, { where: { id } });
+    }
+    return this.filmRepository.findOne({ where: { id } });
   }
 }

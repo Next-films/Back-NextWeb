@@ -15,6 +15,7 @@ import {
 } from '@/cartoons/application/handlers/new-cartoon-notification.handler';
 import { EXCEPTION_KEYS_ENUM } from '@/common/enums/exception-keys.enum';
 import { NewCartoonNotificationPayloadDto } from '@/cartoons/api/dtos/input/new-cartoon-notification.input.dto';
+import { ModerationCartoonRepository } from '@/moderation-movie/infrastructure/moderation-cartoon.repository';
 
 describe('NewCartoonNotificationCommandHandler (integration)', () => {
   let app: INestApplication;
@@ -23,6 +24,7 @@ describe('NewCartoonNotificationCommandHandler (integration)', () => {
   let cartoonRepository: CartoonRepository;
   let kinopoiskService: KinopoiskService;
   let testService: TestService;
+  let moderationCartoonRepository: ModerationCartoonRepository;
 
   const newCartoonData: NewCartoonNotificationPayloadDto = {
     key: 'key',
@@ -39,6 +41,7 @@ describe('NewCartoonNotificationCommandHandler (integration)', () => {
     handlerIsHandling = app.get(NewCartoonIsHandleNotificationCommandHandler);
     cartoonRepository = app.get(CartoonRepository);
     kinopoiskService = app.get(KinopoiskService);
+    moderationCartoonRepository = app.get(ModerationCartoonRepository);
   });
 
   beforeEach(async () => {
@@ -49,7 +52,62 @@ describe('NewCartoonNotificationCommandHandler (integration)', () => {
     await app.close();
   });
 
-  it('should add new cartoon', async () => {
+  it('should add new cartoon without moderation', async () => {
+    const kinopoiskServiceSpy = jest.spyOn(kinopoiskService, 'getMovieById');
+
+    kinopoiskServiceSpy.mockResolvedValueOnce({
+      name: `Film 1`,
+      enName: `FilmEn 1`,
+      alternativeName: `AltName 1`,
+      year: 2020,
+      countries: [{ name: 'Country1' }],
+      description: `Description 1`,
+      genres: [{ name: 'Боевик' }],
+      premiere: { world: '2022-01-01' },
+      poster: { url: 'https://poster.com' },
+      logo: { url: 'https://logo.com' },
+      videos: {
+        trailers: [
+          {
+            site: 'youtube',
+            url: 'https://youtube.com',
+          },
+        ],
+      },
+    });
+
+    const cartoonRepositorySaveSpy = jest.spyOn(cartoonRepository, 'save');
+    const cartoonRepositoryGetFilmByKpIdSpy = jest.spyOn(
+      cartoonRepository,
+      'getCartoonByKinopoiskId',
+    );
+
+    const result = await handler.execute(new NewCartoonNotificationCommand(newCartoonData));
+
+    kinopoiskServiceSpy.mockRestore();
+
+    try {
+      expect(result.appResult).toBe(AppNotificationResultEnum.Success);
+      expect(cartoonRepositoryGetFilmByKpIdSpy).toHaveBeenCalled();
+      expect(cartoonRepositorySaveSpy).toHaveBeenCalled();
+    } finally {
+      cartoonRepositorySaveSpy.mockRestore();
+      cartoonRepositoryGetFilmByKpIdSpy.mockRestore();
+    }
+
+    const cartoon = await cartoonRepository.getCartoonByKinopoiskId('1');
+
+    expect(cartoon).not.toBeNull();
+    expect(cartoon?.title).toBe('Film 1');
+    expect(cartoon?.handleStatus).toBe(MovieHandleStatus.PRODUCTION);
+    expect(cartoon?.isHidden).toBeFalsy();
+
+    const moderation = await moderationCartoonRepository.getAllModeration();
+
+    expect(moderation).toHaveLength(0);
+  });
+
+  it('should add new cartoon with moderation', async () => {
     const kinopoiskServiceSpy = jest.spyOn(kinopoiskService, 'getMovieById');
 
     kinopoiskServiceSpy.mockResolvedValueOnce({
@@ -86,46 +144,12 @@ describe('NewCartoonNotificationCommandHandler (integration)', () => {
 
     expect(cartoon).not.toBeNull();
     expect(cartoon?.title).toBe('Film 1');
-    expect(cartoon?.handleStatus).toBe(MovieHandleStatus.PRODUCTION);
-    expect(cartoon?.isHidden).toBeFalsy();
-  });
-
-  it('should add new cartoon without all information', async () => {
-    const kinopoiskServiceSpy = jest.spyOn(kinopoiskService, 'getMovieById');
-
-    kinopoiskServiceSpy.mockResolvedValueOnce({
-      name: `Film 1`,
-      enName: `FilmEn 1`,
-      alternativeName: `AltName 1`,
-      year: 2020,
-      description: `Description 1`,
-    });
-
-    const cartoonRepositorySaveSpy = jest.spyOn(cartoonRepository, 'save');
-    const cartoonRepositoryGetFilmByKpIdSpy = jest.spyOn(
-      cartoonRepository,
-      'getCartoonByKinopoiskId',
-    );
-
-    const result = await handler.execute(new NewCartoonNotificationCommand(newCartoonData));
-
-    kinopoiskServiceSpy.mockRestore();
-
-    try {
-      expect(result.appResult).toBe(AppNotificationResultEnum.Success);
-      expect(cartoonRepositoryGetFilmByKpIdSpy).toHaveBeenCalled();
-      expect(cartoonRepositorySaveSpy).toHaveBeenCalled();
-    } finally {
-      cartoonRepositorySaveSpy.mockRestore();
-      cartoonRepositoryGetFilmByKpIdSpy.mockRestore();
-    }
-
-    const cartoon = await cartoonRepository.getCartoonByKinopoiskId('1');
-
-    expect(cartoon).not.toBeNull();
-    expect(cartoon?.title).toBe('Film 1');
     expect(cartoon?.handleStatus).toBe(MovieHandleStatus.MODERATE);
     expect(cartoon?.isHidden).toBeTruthy();
+
+    const moderation = await moderationCartoonRepository.getAllModeration();
+    expect(moderation).toHaveLength(1);
+    expect(moderation[0].movieId).toBe(1);
   });
 
   it('should send notification about handling new cartoon, then notification about new downloading cartoon. Cartoon schould be updated', async () => {
@@ -192,8 +216,8 @@ describe('NewCartoonNotificationCommandHandler (integration)', () => {
     expect(cartoon2?.isHidden).toBeTruthy();
     expect(cartoon1?.duration).toBe(0);
     expect(cartoon2?.duration).toBe(0);
-    expect(cartoon1?.country).toEqual(['Country1']);
-    expect(cartoon2?.country).toEqual(['Country2']);
+    expect(cartoon1?.country).toBeNull();
+    expect(cartoon2?.country).toBeNull();
 
     // Notification about new cartoon
     const kinopoiskServiceSpy2 = jest.spyOn(kinopoiskService, 'getMovieById');
@@ -207,6 +231,16 @@ describe('NewCartoonNotificationCommandHandler (integration)', () => {
       description: `Updated films Description 1`,
       genres: [{ name: 'Драма' }],
       premiere: { world: '2022-01-01' },
+      poster: { url: 'https://poster.com' },
+      logo: { url: 'https://logo.com' },
+      videos: {
+        trailers: [
+          {
+            site: 'youtube',
+            url: 'https://youtube.com',
+          },
+        ],
+      },
     });
 
     const cartoonRepositorySaveSpy2 = jest.spyOn(cartoonRepository, 'save');
@@ -330,8 +364,8 @@ describe('NewCartoonNotificationCommandHandler (integration)', () => {
     expect(cartoon2?.isHidden).toBeTruthy();
     expect(cartoon1?.duration).toBe(0);
     expect(cartoon2?.duration).toBe(0);
-    expect(cartoon1?.country).toEqual(['Country1']);
-    expect(cartoon2?.country).toEqual(['Country2']);
+    expect(cartoon1?.country).toBeNull();
+    expect(cartoon2?.country).toBeNull();
 
     // Notification about new cartoon
     const kinopoiskServiceSpy2 = jest.spyOn(kinopoiskService, 'getMovieById');
@@ -345,6 +379,16 @@ describe('NewCartoonNotificationCommandHandler (integration)', () => {
       description: `Updated films Description 1`,
       genres: [{ name: 'Драма' }],
       premiere: { world: '2022-01-01' },
+      poster: { url: 'https://poster.com' },
+      logo: { url: 'https://logo.com' },
+      videos: {
+        trailers: [
+          {
+            site: 'youtube',
+            url: 'https://youtube.com',
+          },
+        ],
+      },
     });
 
     const cartoonRepositorySaveSpy2 = jest.spyOn(cartoonRepository, 'save');
@@ -415,6 +459,16 @@ describe('NewCartoonNotificationCommandHandler (integration)', () => {
         description: `Updated films Description 3`,
         genres: [{ name: 'Драма' }],
         premiere: { world: '2022-01-01' },
+        poster: { url: 'https://poster.com' },
+        logo: { url: 'https://logo.com' },
+        videos: {
+          trailers: [
+            {
+              site: 'youtube',
+              url: 'https://youtube.com',
+            },
+          ],
+        },
       })
       .mockResolvedValueOnce({
         name: `Updated films 4`,
@@ -482,9 +536,8 @@ describe('NewCartoonNotificationCommandHandler (integration)', () => {
     expect(cartoon6?.country).toBeNull();
   });
 
-  it('should not add new cartoon, kp movie not found', async () => {
+  it('should add new cartoon without metadata with moderation, kp movie not found', async () => {
     const kinopoiskServiceSpy = jest.spyOn(kinopoiskService, 'getMovieById');
-
     kinopoiskServiceSpy.mockResolvedValue(null);
 
     const cartoonRepositorySaveSpy = jest.spyOn(cartoonRepository, 'save');
@@ -492,27 +545,27 @@ describe('NewCartoonNotificationCommandHandler (integration)', () => {
       cartoonRepository,
       'getCartoonByKinopoiskId',
     );
-
     const result = await handler.execute(new NewCartoonNotificationCommand(newCartoonData));
 
     kinopoiskServiceSpy.mockRestore();
 
     try {
-      expect(result.appResult).toBe(AppNotificationResultEnum.BadRequest);
-      expect(result.errorField).toEqual({
-        errorKey: EXCEPTION_KEYS_ENUM.KP_MOVIE_NOT_FOUND,
-        message: expect.any(String),
-        field: 'kpId',
-      });
+      expect(result.appResult).toBe(AppNotificationResultEnum.Success);
       expect(cartoonRepositoryGetFilmByKpIdSpy).toHaveBeenCalled();
-      expect(cartoonRepositorySaveSpy).toHaveBeenCalledTimes(0);
+      expect(cartoonRepositorySaveSpy).toHaveBeenCalled();
     } finally {
       cartoonRepositorySaveSpy.mockRestore();
       cartoonRepositoryGetFilmByKpIdSpy.mockRestore();
     }
-
     const cartoon = await cartoonRepository.getCartoonByKinopoiskId('1');
 
-    expect(cartoon).toBeNull();
+    expect(cartoon).toBeDefined();
+    expect(cartoon?.isHidden).toBeTruthy();
+    expect(cartoon?.handleStatus).toBe(MovieHandleStatus.MODERATE);
+
+    const moderation = await moderationCartoonRepository.getAllModeration();
+
+    expect(moderation).toHaveLength(1);
+    expect(moderation[0].movieId).toBe(1);
   });
 });

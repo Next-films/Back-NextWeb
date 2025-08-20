@@ -3,7 +3,7 @@ import { Genre } from '@/movies/domain/genre.entity';
 import { CartonCreateDto } from '@/cartoons/domain/types';
 import { FilmCreateDto } from '@/films/domain/types';
 import { RU_PG_COLLATION } from '@/common/constants/collation.constant';
-import { MovieHandleStatus } from '@/movies/domain/types';
+import { MovieHandleStatus, MovieUpdateDto } from '@/movies/domain/types';
 
 export class MovieEntity {
   @PrimaryGeneratedColumn()
@@ -43,13 +43,13 @@ export class MovieEntity {
   trailerUrl: string | null;
 
   @Column({ type: 'varchar', nullable: true })
-  backgroundImg: string | null;
+  backgroundContentUrl: string | null;
 
   @Column({ type: 'varchar', nullable: true })
-  cardImg: string | null;
+  previewUrl: string | null;
 
   @Column({ type: 'varchar', nullable: true })
-  titleImg: string | null;
+  titleUrl: string | null; // Movie name in the picture png
 
   @Column({ enum: MovieHandleStatus, default: MovieHandleStatus.PROCESSING })
   handleStatus: MovieHandleStatus;
@@ -62,7 +62,6 @@ export class MovieEntity {
 
   genres: Genre[];
 
-  // TODO:
   static createFromDto<T extends MovieEntity>(
     this: new () => T,
     inputDto: CartonCreateDto | FilmCreateDto,
@@ -80,6 +79,11 @@ export class MovieEntity {
       country,
       duration,
       releaseDate,
+      handleStatus,
+      previewUrl,
+      trailerUrl,
+      titleUrl,
+      backgroundContentUrl,
     } = inputDto;
 
     const instance = new this();
@@ -96,11 +100,12 @@ export class MovieEntity {
     instance.releaseDate = releaseDate;
     instance.createdAt = currentDate;
     instance.updatedAt = currentDate;
+    instance.handleStatus = handleStatus;
 
-    instance.trailerUrl = '';
-    instance.backgroundImg = '';
-    instance.cardImg = '';
-    instance.titleImg = '';
+    instance.trailerUrl = trailerUrl;
+    instance.backgroundContentUrl = backgroundContentUrl;
+    instance.previewUrl = previewUrl;
+    instance.titleUrl = titleUrl;
 
     if (genres && genres.length > 0) {
       instance.genres = genres;
@@ -109,25 +114,26 @@ export class MovieEntity {
     return instance;
   }
 
-  // TODO:
-  update(inputDto: CartonCreateDto | FilmCreateDto): void {
+  update<T extends MovieUpdateDto>(inputDto: T): void {
     const {
       kpId,
-      key,
-      hidden,
-      description,
-      genres,
-      originalName,
-      alternativeName,
-      name,
+      backgroundContentUrl,
+      trailerUrl,
+      titleUrl,
+      previewUrl,
       country,
       duration,
       releaseDate,
+      videUrl,
+      genres,
+      alternativeName,
+      name,
+      originalName,
+      description,
     } = inputDto;
 
     this.kpId = kpId;
-    this.videoUrl = key;
-    this.isHidden = hidden;
+    this.videoUrl = videUrl;
     this.title = name;
     this.originalTitle = originalName;
     this.description = description;
@@ -137,10 +143,10 @@ export class MovieEntity {
     this.releaseDate = releaseDate;
     this.updatedAt = new Date();
 
-    this.trailerUrl = '';
-    this.backgroundImg = '';
-    this.cardImg = '';
-    this.titleImg = '';
+    this.trailerUrl = trailerUrl;
+    this.backgroundContentUrl = backgroundContentUrl;
+    this.previewUrl = previewUrl;
+    this.titleUrl = titleUrl;
 
     if (genres && genres.length > 0) {
       this.genres = genres;
@@ -149,5 +155,22 @@ export class MovieEntity {
 
   updateHandleStatus(status: MovieHandleStatus): void {
     this.handleStatus = status;
+
+    if (status !== MovieHandleStatus.PRODUCTION) {
+      this.isHidden = true;
+    } else {
+      this.isHidden = false;
+    }
+  }
+
+  showOrHiddeMovie(isHidden: boolean, status?: MovieHandleStatus): void {
+    this.isHidden = isHidden;
+    this.updatedAt = new Date();
+    if (status) {
+      if (status !== MovieHandleStatus.PRODUCTION) {
+        this.isHidden = true;
+      }
+      this.handleStatus = status;
+    }
   }
 }

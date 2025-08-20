@@ -29,6 +29,26 @@ export const ADMIN_EXTERNAL_API_ROUTE = {
 export const ADMIN_BANNED_PROVIDERS_MOVIES_ROUTE = {
   MAIN: `${ADMIN_PREFIX}/banned-providers-movies`,
 };
+
+export const ADMIN_CINEMA_ROUTE = {
+  MAIN: `${ADMIN_PREFIX}/cinema`,
+  FILMS: `films`,
+  CARTOONS: `cartoons`,
+};
+
+export const ADMIN_PRIVATE_CINEMA_ROUTE = {
+  MAIN: `${ADMIN_PREFIX}/private/cinema`,
+  FILMS: `films`,
+  CARTOONS: `cartoons`,
+  MODERATION: `moderation`,
+};
+
+export const ADMIN_MODERATION_MOVIE_ROUTE = {
+  MAIN: `${ADMIN_PREFIX}/movie/moderation`,
+  APPLY: `apply`,
+  CANCEL: `cancel`,
+  ACCEPT: 'accept',
+};
 /*
 *
 *
@@ -49,6 +69,9 @@ export const FILMS_ROUTE = {
 
 export const PRIVATE_FILMS_ROUTE = {
   MAIN: `${CINEMA_PREFIX}/private/films`,
+  NEW_FILM: 'new-film',
+  NEW_FILM_IS_HANDLE: 'new-film/is-handle',
+  KP: `kp`,
 };
 
 export const BRIDGE_RMG_FILMS_ROUTE = {
@@ -73,6 +96,9 @@ export const CARTOONS_ROUTE = {
 
 export const PRIVATE_CARTOONS_ROUTE = {
   MAIN: `${CINEMA_PREFIX}/private/cartoons`,
+  KP: `kp`,
+  NEW_CARTOON: 'new-cartoon',
+  NEW_CARTOON_IS_HANDLE: 'new-cartoon/is-handle',
 };
 
 export const BRIDGE_RMG_CARTOON_ROUTE = {
@@ -93,4 +119,25 @@ export const EXTERNAL_API_ROUTE = {
   MAIN: `${EXTERNAL_API_PREFIX}`,
   TOKEN: 'token',
   CHECK: 'check',
+};
+/*
+*
+*
+        Logs
+*
+*
+*/
+const LOGS_PREFIX = 'logs';
+export const PRIVATE_CONVERTER_LOGS_ROUTE = {
+  MAIN: `${LOGS_PREFIX}/private/converter`,
+};
+/*
+*
+*
+        Banned providers
+*
+*
+*/
+export const PRIVATE_BANNED_PROVIDERS_ROUTE = {
+  MAIN: `banned-providers-movies/private`,
 };

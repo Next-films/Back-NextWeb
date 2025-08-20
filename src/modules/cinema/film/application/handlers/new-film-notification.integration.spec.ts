@@ -15,6 +15,7 @@ import {
   NewFilmIsHandleNotificationCommandHandler,
 } from '@/films/application/handlers/new-film-is-handle-notification.handler';
 import { NewFilmNotificationPayloadDto } from '@/films/api/dtos/input/new-film-notification.input.dto';
+import { ModerationFilmRepository } from '@/moderation-movie/infrastructure/moderation-film.repository';
 
 describe('NewFilmNotificationCommandHandler (integration)', () => {
   let app: INestApplication;
@@ -23,6 +24,7 @@ describe('NewFilmNotificationCommandHandler (integration)', () => {
   let filmRepository: FilmRepository;
   let kinopoiskService: KinopoiskService;
   let testService: TestService;
+  let moderationFilmRepository: ModerationFilmRepository;
 
   const newFilmData: NewFilmNotificationPayloadDto = {
     key: 'key',
@@ -39,6 +41,7 @@ describe('NewFilmNotificationCommandHandler (integration)', () => {
     handlerIsHandling = app.get(NewFilmIsHandleNotificationCommandHandler);
     filmRepository = app.get(FilmRepository);
     kinopoiskService = app.get(KinopoiskService);
+    moderationFilmRepository = app.get(ModerationFilmRepository);
   });
 
   beforeEach(async () => {
@@ -49,7 +52,7 @@ describe('NewFilmNotificationCommandHandler (integration)', () => {
     await app.close();
   });
 
-  it('should add new film', async () => {
+  it('should add new film without moderation', async () => {
     const kinopoiskServiceSpy = jest.spyOn(kinopoiskService, 'getMovieById');
 
     kinopoiskServiceSpy.mockResolvedValueOnce({
@@ -61,6 +64,16 @@ describe('NewFilmNotificationCommandHandler (integration)', () => {
       description: `Description 1`,
       genres: [{ name: 'Боевик' }],
       premiere: { world: '2022-01-01' },
+      poster: { url: 'https://poster.com' },
+      logo: { url: 'https://logo.com' },
+      videos: {
+        trailers: [
+          {
+            site: 'youtube',
+            url: 'https://youtube.com',
+          },
+        ],
+      },
     });
 
     const filmRepositorySaveSpy = jest.spyOn(filmRepository, 'save');
@@ -85,9 +98,13 @@ describe('NewFilmNotificationCommandHandler (integration)', () => {
     expect(film?.title).toBe('Film 1');
     expect(film?.handleStatus).toBe(MovieHandleStatus.PRODUCTION);
     expect(film?.isHidden).toBeFalsy();
+
+    const moderation = await moderationFilmRepository.getAllModeration();
+
+    expect(moderation).toHaveLength(0);
   });
 
-  it('should add new film without all information', async () => {
+  it('should add new film with moderation', async () => {
     const kinopoiskServiceSpy = jest.spyOn(kinopoiskService, 'getMovieById');
 
     kinopoiskServiceSpy.mockResolvedValueOnce({
@@ -120,6 +137,10 @@ describe('NewFilmNotificationCommandHandler (integration)', () => {
     expect(film?.title).toBe('Film 1');
     expect(film?.handleStatus).toBe(MovieHandleStatus.MODERATE);
     expect(film?.isHidden).toBeTruthy();
+
+    const moderation = await moderationFilmRepository.getAllModeration();
+    expect(moderation).toHaveLength(1);
+    expect(moderation[0].movieId).toBe(1);
   });
 
   it('should send notification about handling new film, then notification about new downloading film. Film schould be updated', async () => {
@@ -183,8 +204,8 @@ describe('NewFilmNotificationCommandHandler (integration)', () => {
     expect(film2?.isHidden).toBeTruthy();
     expect(film1?.duration).toBe(0);
     expect(film2?.duration).toBe(0);
-    expect(film1?.country).toEqual(['Country1']);
-    expect(film2?.country).toEqual(['Country2']);
+    expect(film1?.country).toBeNull();
+    expect(film2?.country).toBeNull();
 
     // Notification about new film
     const kinopoiskServiceSpy2 = jest.spyOn(kinopoiskService, 'getMovieById');
@@ -198,6 +219,16 @@ describe('NewFilmNotificationCommandHandler (integration)', () => {
       description: `Updated films Description 1`,
       genres: [{ name: 'Драма' }],
       premiere: { world: '2022-01-01' },
+      poster: { url: 'https://poster.com' },
+      logo: { url: 'https://logo.com' },
+      videos: {
+        trailers: [
+          {
+            site: 'youtube',
+            url: 'https://youtube.com',
+          },
+        ],
+      },
     });
 
     const filmRepositorySaveSpy2 = jest.spyOn(filmRepository, 'save');
@@ -315,8 +346,8 @@ describe('NewFilmNotificationCommandHandler (integration)', () => {
     expect(film2?.isHidden).toBeTruthy();
     expect(film1?.duration).toBe(0);
     expect(film2?.duration).toBe(0);
-    expect(film1?.country).toEqual(['Country1']);
-    expect(film2?.country).toEqual(['Country2']);
+    expect(film1?.country).toBeNull();
+    expect(film2?.country).toBeNull();
 
     // Notification about new film
     const kinopoiskServiceSpy2 = jest.spyOn(kinopoiskService, 'getMovieById');
@@ -330,6 +361,16 @@ describe('NewFilmNotificationCommandHandler (integration)', () => {
       description: `Updated films Description 1`,
       genres: [{ name: 'Драма' }],
       premiere: { world: '2022-01-01' },
+      poster: { url: 'https://poster.com' },
+      logo: { url: 'https://logo.com' },
+      videos: {
+        trailers: [
+          {
+            site: 'youtube',
+            url: 'https://youtube.com',
+          },
+        ],
+      },
     });
 
     const filmRepositorySaveSpy2 = jest.spyOn(filmRepository, 'save');
@@ -397,6 +438,16 @@ describe('NewFilmNotificationCommandHandler (integration)', () => {
         description: `Updated films Description 3`,
         genres: [{ name: 'Драма' }],
         premiere: { world: '2022-01-01' },
+        poster: { url: 'https://poster.com' },
+        logo: { url: 'https://logo.com' },
+        videos: {
+          trailers: [
+            {
+              site: 'youtube',
+              url: 'https://youtube.com',
+            },
+          ],
+        },
       })
       .mockResolvedValueOnce({
         name: `Updated films 4`,
@@ -461,7 +512,7 @@ describe('NewFilmNotificationCommandHandler (integration)', () => {
     expect(film6?.country).toBeNull();
   });
 
-  it('should not add new film, kp movie not found', async () => {
+  it('should add new film without metadata with moderation, kp movie not found', async () => {
     const kinopoiskServiceSpy = jest.spyOn(kinopoiskService, 'getMovieById');
 
     kinopoiskServiceSpy.mockResolvedValue(null);
@@ -474,14 +525,9 @@ describe('NewFilmNotificationCommandHandler (integration)', () => {
     kinopoiskServiceSpy.mockRestore();
 
     try {
-      expect(result.appResult).toBe(AppNotificationResultEnum.BadRequest);
-      expect(result.errorField).toEqual({
-        errorKey: EXCEPTION_KEYS_ENUM.KP_MOVIE_NOT_FOUND,
-        message: expect.any(String),
-        field: 'kpId',
-      });
+      expect(result.appResult).toBe(AppNotificationResultEnum.Success);
       expect(filmRepositoryGetFilmByKpIdSpy).toHaveBeenCalled();
-      expect(filmRepositorySaveSpy).toHaveBeenCalledTimes(0);
+      expect(filmRepositorySaveSpy).toHaveBeenCalled();
     } finally {
       filmRepositorySaveSpy.mockRestore();
       filmRepositoryGetFilmByKpIdSpy.mockRestore();
@@ -489,6 +535,13 @@ describe('NewFilmNotificationCommandHandler (integration)', () => {
 
     const film = await filmRepository.getFilmByKinopoiskId('1');
 
-    expect(film).toBeNull();
+    expect(film).toBeDefined();
+    expect(film?.isHidden).toBeTruthy();
+    expect(film?.handleStatus).toBe(MovieHandleStatus.MODERATE);
+
+    const moderation = await moderationFilmRepository.getAllModeration();
+
+    expect(moderation).toHaveLength(1);
+    expect(moderation[0].movieId).toBe(1);
   });
 });

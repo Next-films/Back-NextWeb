@@ -7,6 +7,7 @@ import { BannedProvidersMovieRpcController } from '@/banned-providers-movie/api/
 import { GetBannedMovieByProviderRpcQueryHandler } from '@/banned-providers-movie/application/query-handlers/get-banned-movie-by-provider-rpc.query-handler';
 import { BannedProvidersMovieQueryRepository } from '@/banned-providers-movie/infrastructure/banned-providers-movie.query-repository';
 import { BannedMoviesByProviderRpcOutputDtpMapper } from '@/banned-providers-movie/api/dtos/output/banned-movies-by-provider-rpc.output.dto';
+import { BannedProvidersMoviePrivateController } from '@/banned-providers-movie/api/banned-providers-movie-private.controller';
 
 const banProviderMovieProvider = {
   provide: 'BannedProvidersMovie',
@@ -27,7 +28,7 @@ const exportProviders = [
 
 @Module({
   imports: [TypeOrmModule.forFeature([BannedProvidersMovie])],
-  controllers: [BannedProvidersMovieRpcController],
+  controllers: [BannedProvidersMovieRpcController, BannedProvidersMoviePrivateController],
   providers: [
     ...providers,
     ...handlers,

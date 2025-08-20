@@ -12,14 +12,18 @@ async function bootstrap(): Promise<void> {
   const apiSettings = configService.get('apiSettings', { infer: true });
   const logger: LoggerService = await app.resolve(LoggerService);
 
-  app.connectMicroservice<MicroserviceOptions>({
-    transport: Transport.RMQ,
-    options: {
-      urls: [apiSettings.RMQ_URI],
-      queue: apiSettings.CINEMA_SERVICE_RMQ_QUEUE_NAME,
-      queueOptions: { durable: false },
-    },
-  });
+  const isRmqEnabled = configService.get('businessRulesSettings', { infer: true }).IS_RMQ_ENABLE;
+
+  if (isRmqEnabled) {
+    app.connectMicroservice<MicroserviceOptions>({
+      transport: Transport.RMQ,
+      options: {
+        urls: [apiSettings.RMQ_URI],
+        queue: apiSettings.CINEMA_SERVICE_RMQ_QUEUE_NAME,
+        queueOptions: { durable: false },
+      },
+    });
+  }
 
   const PORT = apiSettings.PORT;
 

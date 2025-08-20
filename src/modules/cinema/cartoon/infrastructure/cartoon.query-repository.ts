@@ -4,6 +4,7 @@ import { Brackets, Repository, SelectQueryBuilder } from 'typeorm';
 import { SortDirectionEnum } from '@/common/utils/query-filter.util';
 import { Cartoon } from '@/cartoons/domain/cartoon.entity';
 import { GetCartoonSortFieldEnum } from '@/cartoons/api/dtos/input/get-cartoon.input-query';
+import { AdminGetFilmsStatusEnum } from '@/admin/api/dtos/input/admin-get-all-films.input-query.dto';
 
 @Injectable()
 export class CartoonQueryRepository {
@@ -13,6 +14,7 @@ export class CartoonQueryRepository {
     qb: SelectQueryBuilder<Cartoon>,
     searchName: string | null,
     searchGenreIds: number[] | null,
+    status: AdminGetFilmsStatusEnum | null,
   ): SelectQueryBuilder<Cartoon> {
     if (searchGenreIds && searchGenreIds.length > 0) {
       qb.where(qb => {
@@ -45,6 +47,11 @@ export class CartoonQueryRepository {
       qb.setParameter('search', searchValue);
     }
 
+    if (status !== null) {
+      if (status !== AdminGetFilmsStatusEnum.ALL)
+        qb.andWhere('f.handleStatus = :status', { status });
+    }
+
     return qb;
   }
 
@@ -52,7 +59,6 @@ export class CartoonQueryRepository {
     return this.cartoonRepository.findOne({ where: { id }, relations: { genres: true } });
   }
 
-  // TODO: Для публичного роута добавить обработку hidden
   async getCartoons(
     sortField: GetCartoonSortFieldEnum,
     sortDirection: SortDirectionEnum,
@@ -60,9 +66,10 @@ export class CartoonQueryRepository {
     take: number,
     searchName: string | null,
     searchGenreIds: number[] | null,
+    status: AdminGetFilmsStatusEnum | null,
   ): Promise<Cartoon[] | null> {
     let qb = this.cartoonRepository.createQueryBuilder('f').leftJoinAndSelect('f.genres', 'g');
-    qb = this.getSearchCartoonClause(qb, searchName, searchGenreIds);
+    qb = this.getSearchCartoonClause(qb, searchName, searchGenreIds, status);
 
     qb.skip(skip).take(take).orderBy(`f.${sortField}`, sortDirection);
     return qb.getMany();
@@ -71,9 +78,10 @@ export class CartoonQueryRepository {
   async getCartoonCount(
     searchName: string | null,
     searchGenreIds: number[] | null,
+    status: AdminGetFilmsStatusEnum | null,
   ): Promise<number> {
     let qb = this.cartoonRepository.createQueryBuilder('f').leftJoinAndSelect('f.genres', 'g');
-    qb = this.getSearchCartoonClause(qb, searchName, searchGenreIds);
+    qb = this.getSearchCartoonClause(qb, searchName, searchGenreIds, status);
     const result = await qb.getCount();
     return result || 0;
   }

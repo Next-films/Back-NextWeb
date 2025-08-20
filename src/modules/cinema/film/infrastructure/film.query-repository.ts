@@ -3,7 +3,10 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Brackets, Repository, SelectQueryBuilder } from 'typeorm';
 import { Film } from '@/films/domain/film.entity';
 import { SortDirectionEnum } from '@/common/utils/query-filter.util';
-import { GetFilmsSortFieldEnum } from '@/films/api/dtos/input/get-films.input-query';
+import {
+  AdminGetFilmsSortFieldEnum,
+  AdminGetFilmsStatusEnum,
+} from '@/admin/api/dtos/input/admin-get-all-films.input-query.dto';
 
 @Injectable()
 export class FilmQueryRepository {
@@ -13,6 +16,7 @@ export class FilmQueryRepository {
     qb: SelectQueryBuilder<Film>,
     searchName: string | null,
     searchGenreIds: number[] | null,
+    status: AdminGetFilmsStatusEnum | null,
   ): SelectQueryBuilder<Film> {
     if (searchGenreIds && searchGenreIds.length > 0) {
       qb.where(qb => {
@@ -45,6 +49,11 @@ export class FilmQueryRepository {
       qb.setParameter('search', searchValue);
     }
 
+    if (status !== null) {
+      if (status !== AdminGetFilmsStatusEnum.ALL)
+        qb.andWhere('f.handleStatus = :status', { status });
+    }
+
     return qb;
   }
 
@@ -62,26 +71,30 @@ export class FilmQueryRepository {
     });
   }
 
-  // TODO: Для публичного роута добавить обработку hidden
   async getFilms(
-    sortField: GetFilmsSortFieldEnum,
+    sortField: AdminGetFilmsSortFieldEnum,
     sortDirection: SortDirectionEnum,
     skip: number,
     take: number,
     searchName: string | null,
     searchGenreIds: number[] | null,
+    status: AdminGetFilmsStatusEnum | null,
   ): Promise<Film[] | null> {
     let qb = this.filmRepository.createQueryBuilder('f').leftJoinAndSelect('f.genres', 'g');
-    qb = this.getSearchFilmClause(qb, searchName, searchGenreIds);
+    qb = this.getSearchFilmClause(qb, searchName, searchGenreIds, status);
 
     qb.orderBy(`f.${sortField}`, sortDirection).skip(skip).take(take);
 
     return qb.getMany();
   }
 
-  async getFilmsCount(searchName: string | null, searchGenreIds: number[] | null): Promise<number> {
+  async getFilmsCount(
+    searchName: string | null,
+    searchGenreIds: number[] | null,
+    status: AdminGetFilmsStatusEnum | null,
+  ): Promise<number> {
     let qb = this.filmRepository.createQueryBuilder('f').leftJoinAndSelect('f.genres', 'g');
-    qb = this.getSearchFilmClause(qb, searchName, searchGenreIds);
+    qb = this.getSearchFilmClause(qb, searchName, searchGenreIds, status);
     const result = await qb.getCount();
     return result || 0;
   }

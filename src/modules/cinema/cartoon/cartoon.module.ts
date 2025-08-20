@@ -1,13 +1,12 @@
 import { Module } from '@nestjs/common';
-import { CartoonController } from '@/cartoons/api/cartoon.controller';
+import { PublicCartoonController } from '@/cartoons/api/public-cartoon.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Cartoon } from '@/cartoons/domain/cartoon.entity';
 import { CartoonQueryRepository } from '@/cartoons/infrastructure/cartoon.query-repository';
-import { CartoonsOutputDtoMapper } from '@/cartoons/api/dtos/output/cartoons.output.dto';
-import { GetCartoonByIdQueryHandler } from '@/cartoons/application/query-handlers/get-cartoon-by-id.query-handler';
-import { GetCartoonsQueryHandler } from '@/cartoons/application/query-handlers/get-cartoons.query-handler';
+import { GetPublicCartoonByIdQueryHandler } from '@/cartoons/application/query-handlers/get-public-cartoon-by-id.query-handler';
+import { GetPublicCartoonsQueryHandler } from '@/cartoons/application/query-handlers/get-public-cartoons.query-handler';
 import { CartoonPrivateRpcController } from '@/cartoons/api/private-cartoon-rpc.controller';
-import { GetCartoonByKinopoiskIdQueryHandler } from '@/cartoons/application/query-handlers/get-cartoon-by-kinopoisk-id.query-handler';
+import { GetPrivateCartoonByKinopoiskIdQueryHandler } from '@/cartoons/application/query-handlers/get-private-cartoon-by-kinopoisk-id.query-handler';
 import { CartoonPrivateController } from '@/cartoons/api/private-cartoon.controller';
 import { NewCartoonNotificationCommandHandler } from '@/cartoons/application/handlers/new-cartoon-notification.handler';
 import { CartoonRepository } from '@/cartoons/infrastructure/cartoon.repository';
@@ -17,6 +16,10 @@ import { CartoonBridgeRmqController } from '@/cartoons/api/bridge-rpc-cartoon.co
 import { NewCartoonIsHandleNotificationCommandHandler } from '@/cartoons/application/handlers/new-cartoon-is-handle-notification.handler';
 import { CartoonsRpcOutputDtoMapper } from '@/cartoons/api/dtos/output/cartoons-rpc.output.dto';
 import { GetRpcCartoonsByKinopoiskIdQueryHandler } from '@/cartoons/application/query-handlers/get-rpc-cartoons-by-kinopoisk-id.query-handler';
+import { CartoonsPublicOutputDtoMapper } from '@/cartoons/api/dtos/output/cartoons-public.output.dto';
+import { CartoonsPrivateOutputDtoMapper } from '@/cartoons/api/dtos/output/cartoons-private.output.dto';
+import { CartoonPublicQueryRepository } from '@/cartoons/infrastructure/cartoon-public.query-repository';
+import { ModerationMovieModule } from '@/moderation-movie/moderation-movie.module';
 
 const cartoonProvider = {
   provide: 'Cartoon',
@@ -26,9 +29,9 @@ const cartoonProvider = {
 const providers = [cartoonProvider];
 
 const queryHandlers = [
-  GetCartoonByIdQueryHandler,
-  GetCartoonsQueryHandler,
-  GetCartoonByKinopoiskIdQueryHandler,
+  GetPublicCartoonByIdQueryHandler,
+  GetPublicCartoonsQueryHandler,
+  GetPrivateCartoonByKinopoiskIdQueryHandler,
   GetRpcCartoonsByKinopoiskIdQueryHandler,
 ];
 
@@ -37,23 +40,32 @@ const handlers = [
   NewCartoonIsHandleNotificationCommandHandler,
 ];
 
+const exportProviders = [CartoonRepository, CartoonQueryRepository, cartoonProvider];
+
 @Module({
-  imports: [TypeOrmModule.forFeature([Cartoon]), MoviesModules, KinopoiskModule],
+  imports: [
+    TypeOrmModule.forFeature([Cartoon]),
+    MoviesModules,
+    KinopoiskModule,
+    ModerationMovieModule,
+  ],
   controllers: [
-    CartoonController,
+    PublicCartoonController,
     CartoonPrivateRpcController,
     CartoonPrivateController,
     CartoonBridgeRmqController,
   ],
   providers: [
     CartoonQueryRepository,
-    CartoonsOutputDtoMapper,
+    CartoonsPublicOutputDtoMapper,
+    CartoonsPrivateOutputDtoMapper,
     CartoonsRpcOutputDtoMapper,
+    CartoonPublicQueryRepository,
     ...queryHandlers,
     ...handlers,
     ...providers,
     CartoonRepository,
   ],
-  exports: [],
+  exports: [...exportProviders],
 })
 export class CartoonModule {}

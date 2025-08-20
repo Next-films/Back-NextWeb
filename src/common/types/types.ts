@@ -1,3 +1,6 @@
+import { AppNotificationResult } from '@/common/utils/app-notification.util';
+import { ErrorFieldExceptionDto } from '@/common/exception-filters/http/http-exception.filter';
+
 export type FindTorApiTorrentFilmType = Partial<
   Record<keyof TorApiSearchByTitleAllProviders, TorApiMovieById[] | null>
 >;
@@ -52,6 +55,7 @@ export type TorApiSearchByTitle = {
 };
 
 export type TorApiMovieById = {
+  Id: string;
   Name: string;
   Url: string;
   Hash: string;
@@ -109,3 +113,45 @@ export type HandledRmqErrorType = {
   isError: boolean;
   isStopProcess: boolean;
 };
+
+export interface IDownloaderServiceAdapter {
+  bridgeFindFilms(): void | Promise<void>;
+
+  bridgeDownloadFilms(): void | Promise<void>;
+
+  bridgeFindCartoons(): void | Promise<void>;
+
+  bridgeDownloadCartoons(): void | Promise<void>;
+
+  bridgeFindSerials(): void | Promise<void>;
+
+  bridgeDownloadSerials(): void | Promise<void>;
+
+  clearLogs(keys: string[]): Promise<AppNotificationResult<null, ErrorFieldExceptionDto | null>>;
+
+  removeMovie(key: string): Promise<AppNotificationResult<null, ErrorFieldExceptionDto | null>>;
+
+  addMovieToQueue(
+    torrent: TorApiMovieById,
+    provider: TorApiProvidersEnum,
+    type: MovieTypesEnum,
+  ): Promise<AppNotificationResult<null, ErrorFieldExceptionDto | null>>;
+}
+
+export class DownloadPreviewYtClipPayloadDto {
+  type: MovieTypesEnum;
+  kpId: string;
+  url: string;
+}
+
+export class ResizeAndSafePosterPayloadDto {
+  type: MovieTypesEnum;
+  url: string;
+  kpId: string;
+}
+
+export class ResizeAndSafeLogoPayloadDto {
+  type: MovieTypesEnum;
+  url: string;
+  kpId: string;
+}

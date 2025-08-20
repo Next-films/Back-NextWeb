@@ -19,9 +19,7 @@ const kinopoiskServiceProvider = {
   ) => {
     const env = configService.get('environmentSettings', { infer: true });
 
-    // TODO: вернуть
-    //return env.isTesting || env.isDevelopment
-    return env.isTesting
+    return env.isTesting || env.isDevelopment
       ? new KinopoiskServiceMock(logger, httpService)
       : new KinopoiskService(logger, httpService);
   },

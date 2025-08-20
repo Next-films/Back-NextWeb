@@ -31,6 +31,9 @@
       "@/external-api/*": ["modules/external-api/*"],
       "@/converter-logs/*": ["modules/converter-logs/*"],
       "@/banned-providers-movie/*": ["modules/banned-providers-movie/*"],
+      "@/moderation-movie/*": ["modules/moderation-movie/*"],
+      "@/telegram/*": ["modules/telegram/*"],
+      "@/telegram-admin-bot/*": ["modules/telegram/admin-bot/*"],
     }
   }
 }

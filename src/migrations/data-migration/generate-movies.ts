@@ -9,6 +9,7 @@ import { MovieDurationUtil } from '@/common/utils/movie-duration.util';
 import { Cartoon } from '@/cartoons/domain/cartoon.entity';
 import { Serial } from '@/serials/domain/serial.entity';
 import { randomUUID } from 'node:crypto';
+import { MovieHandleStatus } from '@/movies/domain/types';
 
 type FilmJsonType = {
   id: string;
@@ -139,12 +140,13 @@ async function importFilms(queryRunner: QueryRunner) {
     const film = queryRunner.manager.create(Film, {
       country: ['Неизвестно'],
       duration,
-      titleImg,
+      titleUrl: titleImg,
+      previewUrl: cardImg,
+      handleStatus: MovieHandleStatus.PRODUCTION,
+      backgroundContentUrl: backgroundImg,
       title,
       originalTitle: id,
-      cardImg,
       releaseDate: parseDate(date).toISOString(),
-      backgroundImg,
       alternativeTitles: name,
       videoUrl: films,
       trailerUrl: trailer,
@@ -187,12 +189,13 @@ async function importCartoons(queryRunner: QueryRunner): Promise<void> {
     const cartoon = queryRunner.manager.create(Cartoon, {
       country: ['Неизвестно'],
       duration,
-      titleImg,
+      titleUrl: titleImg,
+      previewUrl: cardImg,
+      handleStatus: MovieHandleStatus.PRODUCTION,
+      backgroundContentUrl: backgroundImg,
       title,
       originalTitle: id,
-      cardImg,
       releaseDate: parseDate(date).toISOString(),
-      backgroundImg,
       alternativeTitles: name,
       videoUrl: films,
       trailerUrl: trailer,

@@ -1,4 +1,4 @@
-import { CommandHandler, ICommand, ICommandHandler } from '@nestjs/cqrs';
+import { CommandBus, CommandHandler, ICommand, ICommandHandler } from '@nestjs/cqrs';
 import {
   ApplicationNotification,
   AppNotificationResult,
@@ -7,14 +7,20 @@ import { ErrorFieldExceptionDto } from '@/common/exception-filters/http/http-exc
 import { LoggerService } from '@/common/utils/logger/logger.service';
 import { Inject } from '@nestjs/common';
 import { KinopoiskService } from '@/external-api/kinopoisk/application/kinopoisk.service';
-import { DateUtil } from '@/common/utils/date.util';
 import { EXCEPTION_KEYS_ENUM } from '@/common/enums/exception-keys.enum';
 import { FilmRepository } from '@/films/infrastructure/film.repository';
-import { FilmCreateDto } from '@/films/domain/types';
+import { FilmCreateDto, FilmUpdateDto } from '@/films/domain/types';
 import { Film } from '@/films/domain/film.entity';
-import { MovieHandleStatus } from '@/movies/domain/types';
+import { MovieHandleStatus, MovieKpMetadata } from '@/movies/domain/types';
 import { MoviesService } from '@/movies/application/movies.service';
 import { NewFilmNotificationPayloadDto } from '@/films/api/dtos/input/new-film-notification.input.dto';
+import { CreateModerationDto } from '@/moderation-movie/domain/types';
+import { ModerationFilmRepository } from '@/moderation-movie/infrastructure/moderation-film.repository';
+import { ModerationFilmEntity } from '@/moderation-movie/domain/moderation-film.entity';
+import { MovieTypesEnum } from '@/common/types/types';
+import { TelegramAdminBotSendNotificationNewModerationMovieCommand } from '@/telegram/admin-bot/application/handlers/bot-send-notification-new-moderation-movie.handler';
+import { InjectDataSource } from '@nestjs/typeorm';
+import { DataSource, QueryRunner } from 'typeorm';
 
 export class NewFilmNotificationCommand implements ICommand {
   constructor(public inputDto: NewFilmNotificationPayloadDto) {}
@@ -34,8 +40,12 @@ export class NewFilmNotificationCommandHandler
     @Inject(Film.name) private readonly filmEntity: typeof Film,
     private readonly filmRepository: FilmRepository,
     private readonly kinopoiskService: KinopoiskService,
-    private readonly dateUtil: DateUtil,
     private readonly moviesService: MoviesService,
+    private readonly moderationFilmRepository: ModerationFilmRepository,
+    @Inject(ModerationFilmEntity.name)
+    private readonly moderationFilmEntity: typeof ModerationFilmEntity,
+    private readonly commandBus: CommandBus,
+    @InjectDataSource() private readonly dataSource: DataSource,
   ) {
     this.logger.setContext(NewFilmNotificationCommandHandler.name);
   }
@@ -46,29 +56,21 @@ export class NewFilmNotificationCommandHandler
     const { inputDto } = command;
     const { kpId, key, duration } = inputDto;
     this.logger.log(`New film notification command`, this.execute.name);
+
+    const queryRunner = this.dataSource.createQueryRunner();
     try {
-      const [kpMovie, film] = await Promise.all([
+      await queryRunner.connect();
+      await queryRunner.startTransaction();
+
+      const [kpMovie, existingFilm] = await Promise.all([
         this.kinopoiskService.getMovieById(Number(kpId)),
-        this.filmRepository.getFilmByKinopoiskId(kpId),
+        this.filmRepository.getFilmByKinopoiskId(kpId, queryRunner),
       ]);
 
-      // TODO: доработать трейлеры и фото
-      // TODO: отправка нотификации админу что нужно проверить фильм, фильм. Подумать как обработать
-      if (!kpMovie) {
-        return this.appNotification.badRequest({
-          errorKey: EXCEPTION_KEYS_ENUM.KP_MOVIE_NOT_FOUND,
-          message: 'Movie not found',
-          field: 'kpId',
-        });
-      }
-
-      // TODO: отправка нотификации админу что нужно проверить фильм. Подумать как обработать (вернуть в очередь или создать фильм но с hidden)
-      if (
-        (film && film.handleStatus === MovieHandleStatus.PRODUCTION) ||
-        (film && film.handleStatus === MovieHandleStatus.MODERATE)
-      ) {
+      if (this.moviesService.isFilmInProductionOrModerate(existingFilm)) {
         this.logger.warn('Film already exist', this.execute.name);
 
+        await queryRunner.rollbackTransaction();
         return this.appNotification.badRequest({
           errorKey: EXCEPTION_KEYS_ENUM.FILM_ALREADY_EXIST,
           message: 'Film already exist',
@@ -76,101 +78,131 @@ export class NewFilmNotificationCommandHandler
         });
       }
 
-      const {
-        name: rawName,
-        enName,
-        alternativeName: rawAlternativeName,
-        year,
-        countries,
-        premiere,
-        description,
-        genres: rawGenres,
-      } = kpMovie;
+      const metadata = await this.moviesService.extractMovieMetadata(kpMovie, queryRunner);
 
-      let worldReleaseDate: string | null = null;
-      if (premiere) {
-        const { world } = premiere;
-        worldReleaseDate = world || null;
+      const film = existingFilm
+        ? await this.updateExistingFilm(existingFilm, metadata, key, duration || 0, kpId)
+        : await this.createNewFilm(metadata, key, duration || 0, kpId);
+
+      this.moviesService.setHandleProductionStatus(film);
+
+      await this.filmRepository.save(film, queryRunner);
+
+      if (film.handleStatus === MovieHandleStatus.MODERATE) {
+        this.logger.log('Film sent to moderation', this.execute.name);
+        const moderationResult = await this.movieModeration(film, queryRunner);
+
+        this.publish(moderationResult);
       }
 
-      const name = rawName || rawAlternativeName || enName || null;
-      const originalName = enName || rawAlternativeName || null;
-      const alternativeName = [rawName, rawAlternativeName, enName, year].filter(Boolean).join(' ');
-
-      const genres = rawGenres
-        ? await this.moviesService.getOrCreateGenreFromKinopoisk(rawGenres)
-        : null;
-
-      const country = countries?.map(c => c.name) || null;
-
-      const hidden =
-        !name ||
-        !worldReleaseDate ||
-        !description ||
-        !genres ||
-        !duration ||
-        duration === 0 ||
-        !country ||
-        country.length === 0;
-
-      const filmDto: FilmCreateDto = {
-        key,
-        kpId,
-        duration: duration || 0,
-        name: name || 'unknown',
-        originalName,
-        hidden,
-        genres,
-        alternativeName,
-        country,
-        description: description || null,
-        releaseDate: worldReleaseDate ? this.dateUtil.formatDateYyMmDd(worldReleaseDate) : null,
-        handleStatus: MovieHandleStatus.PROCESSING,
-      };
-
-      let handledFilm: Film | null = null;
-
-      if (film) {
-        handledFilm = this.handleExistFilm(film, filmDto);
-      } else {
-        handledFilm = this.handleNewFilm(filmDto);
-      }
-
-      if (!handledFilm) {
-        this.logger.error(
-          'Something went wrong. There is no movie being processed.',
-          this.execute.name,
-        );
-
-        return this.appNotification.internalServerError();
-      }
-
-      if (!hidden) {
-        handledFilm.updateHandleStatus(MovieHandleStatus.PRODUCTION);
-      } else {
-        handledFilm.updateHandleStatus(MovieHandleStatus.MODERATE);
-      }
-
-      await this.filmRepository.save(handledFilm);
-
-      if (hidden) {
-        this.logger.log('Moderate film', this.execute.name);
-
-        // TODO: moderate
-      }
+      await queryRunner.commitTransaction();
       return this.appNotification.success(null);
     } catch (e) {
       this.logger.error(e, this.execute.name);
+      await queryRunner.rollbackTransaction();
       return this.appNotification.internalServerError();
+    } finally {
+      await queryRunner.release();
     }
   }
 
-  private handleExistFilm(film: Film, filmDto: FilmCreateDto): Film {
+  private async updateExistingFilm(
+    film: Film,
+    metadata: MovieKpMetadata,
+    key: string,
+    duration: number,
+    kpId: string,
+  ): Promise<Film> {
+    const tasks: Promise<string | null>[] = [];
+
+    if (!film.previewUrl)
+      tasks.push(this.moviesService.getPosterUrl(metadata.posterUrl, kpId, MovieTypesEnum.FILM));
+
+    if (!film.backgroundContentUrl)
+      tasks.push(
+        this.moviesService.getBackgroundContentUrl(metadata.trailerUrl, kpId, MovieTypesEnum.FILM),
+      );
+
+    if (!film.titleUrl)
+      tasks.push(this.moviesService.getLogoUrl(metadata.titleUrl, kpId, MovieTypesEnum.FILM));
+
+    const [previewUrl, backgroundContentUrl, titleUrl] = await Promise.all(tasks);
+
+    const filmDto: FilmUpdateDto = {
+      videUrl: key,
+      kpId,
+      duration: duration || 0,
+      name: metadata.name || 'unknown',
+      originalName: metadata.originalName,
+      genres: metadata.genres,
+      alternativeName: metadata.alternativeName,
+      country: metadata.countries,
+      description: metadata.description,
+      releaseDate: metadata.releaseDate,
+      previewUrl: film.previewUrl || previewUrl || null,
+      backgroundContentUrl: film.backgroundContentUrl || backgroundContentUrl || null,
+      trailerUrl: film.trailerUrl || metadata.trailerUrl,
+      titleUrl: film.titleUrl || titleUrl || null,
+    };
     film.update(filmDto);
     return film;
   }
 
-  private handleNewFilm(filmDto: FilmCreateDto): Film {
+  private async createNewFilm(
+    metadata: MovieKpMetadata,
+    key: string,
+    duration: number,
+    kpId: string,
+  ): Promise<Film> {
+    const [backgroundContentUrl, posterUrl, titleUrl] = await Promise.all([
+      this.moviesService.getBackgroundContentUrl(metadata.trailerUrl, kpId, MovieTypesEnum.FILM),
+      this.moviesService.getPosterUrl(metadata.posterUrl, kpId, MovieTypesEnum.FILM),
+      this.moviesService.getLogoUrl(metadata.titleUrl, kpId, MovieTypesEnum.FILM),
+    ]);
+
+    const filmDto: FilmCreateDto = {
+      key,
+      kpId,
+      duration: duration || 0,
+      name: metadata.name || 'unknown',
+      originalName: metadata.originalName,
+      hidden: false,
+      genres: metadata.genres,
+      alternativeName: metadata.alternativeName,
+      country: metadata.countries,
+      description: metadata.description,
+      releaseDate: metadata.releaseDate,
+      handleStatus: MovieHandleStatus.PROCESSING,
+      previewUrl: posterUrl,
+      backgroundContentUrl,
+      trailerUrl: metadata.trailerUrl,
+      titleUrl,
+    };
     return this.filmEntity.create(filmDto);
+  }
+
+  private async movieModeration(film: Film, queryRunner: QueryRunner): Promise<number> {
+    const { id } = film;
+    const createModerationDto: CreateModerationDto = {
+      movieId: id,
+    };
+
+    const newModeration =
+      this.moderationFilmEntity.create<ModerationFilmEntity>(createModerationDto);
+
+    const moderationResult = await this.moderationFilmRepository.save(newModeration, queryRunner);
+
+    const { id: moderationId } = moderationResult;
+
+    return moderationId;
+  }
+
+  private publish(moderationId: number): void {
+    this.commandBus.execute(
+      new TelegramAdminBotSendNotificationNewModerationMovieCommand(
+        MovieTypesEnum.FILM,
+        moderationId,
+      ),
+    );
   }
 }

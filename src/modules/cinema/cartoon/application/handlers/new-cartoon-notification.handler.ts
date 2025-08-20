@@ -1,4 +1,4 @@
-import { CommandHandler, ICommand, ICommandHandler } from '@nestjs/cqrs';
+import { CommandBus, CommandHandler, ICommand, ICommandHandler } from '@nestjs/cqrs';
 import {
   ApplicationNotification,
   AppNotificationResult,
@@ -6,15 +6,21 @@ import {
 import { ErrorFieldExceptionDto } from '@/common/exception-filters/http/http-exception.filter';
 import { LoggerService } from '@/common/utils/logger/logger.service';
 import { Inject } from '@nestjs/common';
-import { CartonCreateDto } from '@/cartoons/domain/types';
+import { CartonCreateDto, CartonUpdateDto } from '@/cartoons/domain/types';
 import { Cartoon } from '@/cartoons/domain/cartoon.entity';
 import { CartoonRepository } from '@/cartoons/infrastructure/cartoon.repository';
 import { KinopoiskService } from '@/external-api/kinopoisk/application/kinopoisk.service';
-import { DateUtil } from '@/common/utils/date.util';
 import { EXCEPTION_KEYS_ENUM } from '@/common/enums/exception-keys.enum';
-import { MovieHandleStatus } from '@/movies/domain/types';
+import { MovieHandleStatus, MovieKpMetadata } from '@/movies/domain/types';
 import { MoviesService } from '@/movies/application/movies.service';
 import { NewCartoonNotificationPayloadDto } from '@/cartoons/api/dtos/input/new-cartoon-notification.input.dto';
+import { InjectDataSource } from '@nestjs/typeorm';
+import { DataSource, QueryRunner } from 'typeorm';
+import { ModerationCartoonRepository } from '@/moderation-movie/infrastructure/moderation-cartoon.repository';
+import { ModerationCartoonEntity } from '@/moderation-movie/domain/moderation-cartoon.entity';
+import { CreateModerationDto } from '@/moderation-movie/domain/types';
+import { TelegramAdminBotSendNotificationNewModerationMovieCommand } from '@/telegram/admin-bot/application/handlers/bot-send-notification-new-moderation-movie.handler';
+import { MovieTypesEnum } from '@/common/types/types';
 
 export class NewCartoonNotificationCommand implements ICommand {
   constructor(public inputDto: NewCartoonNotificationPayloadDto) {}
@@ -34,8 +40,12 @@ export class NewCartoonNotificationCommandHandler
     @Inject(Cartoon.name) private readonly cartoonEntity: typeof Cartoon,
     private readonly cartoonRepository: CartoonRepository,
     private readonly kinopoiskService: KinopoiskService,
-    private readonly dateUtil: DateUtil,
     private readonly moviesService: MoviesService,
+    @InjectDataSource() private readonly dataSource: DataSource,
+    private readonly moderationCartoonRepository: ModerationCartoonRepository,
+    @Inject(ModerationCartoonEntity.name)
+    private readonly moderationCartoonEntity: typeof ModerationCartoonEntity,
+    private readonly commandBus: CommandBus,
   ) {
     this.logger.setContext(NewCartoonNotificationCommandHandler.name);
   }
@@ -46,29 +56,21 @@ export class NewCartoonNotificationCommandHandler
     const { inputDto } = command;
     const { kpId, key, duration } = inputDto;
     this.logger.log(`New cartoon notification command`, this.execute.name);
+
+    const queryRunner = this.dataSource.createQueryRunner();
     try {
-      const [kpMovie, cartoon] = await Promise.all([
+      await queryRunner.connect();
+      await queryRunner.startTransaction();
+
+      const [kpMovie, existingCartoon] = await Promise.all([
         this.kinopoiskService.getMovieById(Number(kpId)),
-        this.cartoonRepository.getCartoonByKinopoiskId(kpId),
+        this.cartoonRepository.getCartoonByKinopoiskId(kpId, queryRunner),
       ]);
 
-      // TODO: доработать трейлеры и фото
-      // TODO: отправка нотификации админу что нужно проверить фильм, фильм. Подумать как обработать
-      if (!kpMovie) {
-        return this.appNotification.badRequest({
-          errorKey: EXCEPTION_KEYS_ENUM.KP_MOVIE_NOT_FOUND,
-          message: 'Movie not found',
-          field: 'kpId',
-        });
-      }
-
-      // TODO: отправка нотификации админу что нужно проверить фильм. Подумать как обработать (вернуть в очередь или создать фильм но с hidden)
-      if (
-        (cartoon && cartoon.handleStatus === MovieHandleStatus.PRODUCTION) ||
-        (cartoon && cartoon.handleStatus === MovieHandleStatus.MODERATE)
-      ) {
+      if (this.moviesService.isFilmInProductionOrModerate(existingCartoon)) {
         this.logger.warn('Cartoon already exist', this.execute.name);
 
+        await queryRunner.rollbackTransaction();
         return this.appNotification.badRequest({
           errorKey: EXCEPTION_KEYS_ENUM.CARTOON_ALREADY_EXIST,
           message: 'Cartoon already exist',
@@ -76,100 +78,135 @@ export class NewCartoonNotificationCommandHandler
         });
       }
 
-      const {
-        name: rawName,
-        enName,
-        alternativeName: rawAlternativeName,
-        year,
-        countries,
-        premiere,
-        description,
-        genres: rawGenres,
-      } = kpMovie;
+      const metadata = await this.moviesService.extractMovieMetadata(kpMovie, queryRunner);
 
-      let worldReleaseDate: string | null = null;
-      if (premiere) {
-        const { world } = premiere;
-        worldReleaseDate = world || null;
+      const cartoon = existingCartoon
+        ? await this.updateExistingCartoon(existingCartoon, metadata, key, duration || 0, kpId)
+        : await this.createNewCartoon(metadata, key, duration || 0, kpId);
+
+      this.moviesService.setHandleProductionStatus(cartoon);
+
+      await this.cartoonRepository.save(cartoon, queryRunner);
+
+      if (cartoon.handleStatus === MovieHandleStatus.MODERATE) {
+        this.logger.log('Cartoon sent to moderation', this.execute.name);
+
+        const moderationResult = await this.movieModeration(cartoon, queryRunner);
+
+        this.publish(moderationResult);
       }
 
-      const name = rawName || rawAlternativeName || enName || null;
-      const originalName = enName || rawAlternativeName || null;
-      const alternativeName = [rawName, rawAlternativeName, enName, year].filter(Boolean).join(' ');
-
-      const genres = rawGenres
-        ? await this.moviesService.getOrCreateGenreFromKinopoisk(rawGenres)
-        : null;
-
-      const country = countries?.map(c => c.name) || null;
-
-      const hidden =
-        !name ||
-        !worldReleaseDate ||
-        !description ||
-        !genres ||
-        !duration ||
-        duration === 0 ||
-        !country ||
-        country.length === 0;
-
-      const cartonDto: CartonCreateDto = {
-        key,
-        kpId,
-        duration: duration || 0,
-        name: name || 'unknown',
-        originalName,
-        hidden,
-        genres,
-        alternativeName,
-        country,
-        description: description || null,
-        releaseDate: worldReleaseDate ? this.dateUtil.formatDateYyMmDd(worldReleaseDate) : null,
-        handleStatus: MovieHandleStatus.PROCESSING,
-      };
-
-      let handledCartoon: Cartoon | null = null;
-
-      if (cartoon) {
-        handledCartoon = this.handleExistCartoon(cartoon, cartonDto);
-      } else {
-        handledCartoon = this.handleNewCartoon(cartonDto);
-      }
-
-      if (!handledCartoon) {
-        this.logger.error(
-          'Something went wrong. There is no movie being processed.',
-          this.execute.name,
-        );
-
-        return this.appNotification.internalServerError();
-      }
-
-      if (!hidden) {
-        handledCartoon.updateHandleStatus(MovieHandleStatus.PRODUCTION);
-      } else {
-        handledCartoon.updateHandleStatus(MovieHandleStatus.MODERATE);
-      }
-
-      await this.cartoonRepository.save(handledCartoon);
-
-      if (hidden) {
-        this.logger.log('Moderate cartoon', this.execute.name);
-        // TODO: moderate
-      }
+      await queryRunner.commitTransaction();
       return this.appNotification.success(null);
     } catch (e) {
       this.logger.error(e, this.execute.name);
+      await queryRunner.rollbackTransaction();
       return this.appNotification.internalServerError();
+    } finally {
+      await queryRunner.release();
     }
   }
 
-  private handleExistCartoon(cartoon: Cartoon, cartoonDto: CartonCreateDto): Cartoon {
+  private async updateExistingCartoon(
+    cartoon: Cartoon,
+    metadata: MovieKpMetadata,
+    key: string,
+    duration: number,
+    kpId: string,
+  ): Promise<Cartoon> {
+    const tasks: Promise<string | null>[] = [];
+
+    if (!cartoon.previewUrl)
+      tasks.push(this.moviesService.getPosterUrl(metadata.posterUrl, kpId, MovieTypesEnum.FILM));
+
+    if (!cartoon.backgroundContentUrl)
+      tasks.push(
+        this.moviesService.getBackgroundContentUrl(metadata.trailerUrl, kpId, MovieTypesEnum.FILM),
+      );
+
+    if (!cartoon.titleUrl)
+      tasks.push(this.moviesService.getLogoUrl(metadata.titleUrl, kpId, MovieTypesEnum.FILM));
+
+    const [previewUrl, backgroundContentUrl, titleUrl] = await Promise.all(tasks);
+
+    const cartoonDto: CartonUpdateDto = {
+      videUrl: key,
+      kpId,
+      duration: duration || 0,
+      name: metadata.name || 'unknown',
+      originalName: metadata.originalName,
+      genres: metadata.genres,
+      alternativeName: metadata.alternativeName,
+      country: metadata.countries,
+      description: metadata.description,
+      releaseDate: metadata.releaseDate,
+      titleUrl: cartoon.titleUrl || titleUrl || null,
+      previewUrl: cartoon.previewUrl || previewUrl || null,
+      trailerUrl: metadata.trailerUrl,
+      backgroundContentUrl: cartoon.backgroundContentUrl || backgroundContentUrl || null,
+    };
     cartoon.update(cartoonDto);
     return cartoon;
   }
 
-  private handleNewCartoon(cartoonDto: CartonCreateDto): Cartoon {
+  private async createNewCartoon(
+    metadata: MovieKpMetadata,
+    key: string,
+    duration: number,
+    kpId: string,
+  ): Promise<Cartoon> {
+    const [backgroundContentUrl, posterUrl, titleUrl] = await Promise.all([
+      this.moviesService.getBackgroundContentUrl(metadata.trailerUrl, kpId, MovieTypesEnum.FILM),
+      this.moviesService.getPosterUrl(metadata.posterUrl, kpId, MovieTypesEnum.FILM),
+      this.moviesService.getLogoUrl(metadata.titleUrl, kpId, MovieTypesEnum.FILM),
+    ]);
+
+    const cartoonDto: CartonCreateDto = {
+      key,
+      kpId,
+      duration: duration || 0,
+      name: metadata.name || 'unknown',
+      originalName: metadata.originalName,
+      hidden: false,
+      genres: metadata.genres,
+      alternativeName: metadata.alternativeName,
+      country: metadata.countries,
+      description: metadata.description,
+      releaseDate: metadata.releaseDate,
+      handleStatus: MovieHandleStatus.PROCESSING,
+      titleUrl,
+      previewUrl: posterUrl,
+      trailerUrl: metadata.trailerUrl,
+      backgroundContentUrl,
+    };
     return this.cartoonEntity.create(cartoonDto);
+  }
+
+  private async movieModeration(film: Cartoon, queryRunner: QueryRunner): Promise<number> {
+    const { id } = film;
+    const createModerationDto: CreateModerationDto = {
+      movieId: id,
+    };
+
+    const newModeration =
+      this.moderationCartoonEntity.create<ModerationCartoonEntity>(createModerationDto);
+
+    const moderationResult = await this.moderationCartoonRepository.save(
+      newModeration,
+      queryRunner,
+    );
+
+    const { id: moderationId } = moderationResult;
+
+    return moderationId;
+  }
+
+  private publish(moderationId: number): void {
+    this.commandBus.execute(
+      new TelegramAdminBotSendNotificationNewModerationMovieCommand(
+        MovieTypesEnum.CARTOON,
+        moderationId,
+      ),
+    );
   }
 }

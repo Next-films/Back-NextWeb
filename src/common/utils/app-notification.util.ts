@@ -6,6 +6,7 @@ import {
   InternalServerErrorException,
   NotFoundException,
   UnauthorizedException,
+  UnprocessableEntityException,
 } from '@nestjs/common';
 
 export enum AppNotificationResultEnum {
@@ -18,6 +19,11 @@ export enum AppNotificationResultEnum {
   'InternalError' = 'InternalError',
   'UnprocessableEntity' = 'UnprocessableEntity',
 }
+
+type ErrorOnlyResultEnum = Exclude<
+  AppNotificationResultEnum,
+  AppNotificationResultEnum.Success | AppNotificationResultEnum.InternalError
+>;
 
 export class AppNotificationResult<T, D = null> {
   data: NonNullable<T> | null;
@@ -83,34 +89,43 @@ export class ApplicationNotification {
     };
   }
 
-  handleHttpResult<T, D>(result: AppNotificationResult<T, D | null>): void {
-    const errorMap = {
+  handleHttpResult<T, D>(
+    result: AppNotificationResult<T, D | null>,
+    isFullResponse: boolean = false,
+  ): void | AppNotificationResult<T, D> {
+    if (result.appResult === AppNotificationResultEnum.Success) {
+      return isFullResponse ? (result as AppNotificationResult<T, D>) : undefined;
+    }
+
+    const exceptionPayload = isFullResponse ? result : result.errorField;
+
+    const exceptionMap: Record<ErrorOnlyResultEnum, () => never> = {
       [AppNotificationResultEnum.NotFound]: () => {
-        throw new NotFoundException(result.errorField);
+        throw new NotFoundException(exceptionPayload);
       },
       [AppNotificationResultEnum.BadRequest]: () => {
-        throw new BadRequestException(result.errorField);
+        throw new BadRequestException(exceptionPayload);
       },
       [AppNotificationResultEnum.Unauthorized]: () => {
-        throw new UnauthorizedException(result.errorField);
+        throw new UnauthorizedException(exceptionPayload);
       },
       [AppNotificationResultEnum.Forbidden]: () => {
-        throw new ForbiddenException(result.errorField);
+        throw new ForbiddenException(exceptionPayload);
       },
       [AppNotificationResultEnum.Conflict]: () => {
-        throw new ConflictException(result.errorField);
+        throw new ConflictException(exceptionPayload);
+      },
+      [AppNotificationResultEnum.UnprocessableEntity]: () => {
+        throw new UnprocessableEntityException(exceptionPayload);
       },
     };
 
-    if (result.appResult === AppNotificationResultEnum.Success) {
-      return;
-    }
-
-    (
-      errorMap[result.appResult] ||
+    const throwException =
+      exceptionMap[result.appResult] ||
       (() => {
-        throw new InternalServerErrorException(result.errorField || 'An unexpected error occurred');
-      })
-    )();
+        throw new InternalServerErrorException(exceptionPayload || 'An unexpected error occurred');
+      });
+
+    throwException();
   }
 }

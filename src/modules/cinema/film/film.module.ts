@@ -1,12 +1,12 @@
 import { Module } from '@nestjs/common';
-import { FilmController } from '@/films/api/film.controller';
-import { GetFilmByIdQueryHandler } from '@/films/application/query-handlers/get-film-by-id.query-handler';
+import { PublicFilmController } from '@/films/api/public-film.controller';
+import { GetPublicFilmByIdQueryHandler } from '@/films/application/query-handlers/get-public-film-by-id.query-handler';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Film } from '@/films/domain/film.entity';
 import { FilmQueryRepository } from '@/films/infrastructure/film.query-repository';
-import { FilmsOutputDtoMapper } from '@/films/api/dtos/output/films.output.dto';
-import { GetFilmsQueryHandler } from '@/films/application/query-handlers/get-films.query-handler';
-import { GetFilmByKinopoiskIdQueryHandler } from '@/films/application/query-handlers/get-film-by-kinopoisk-id.query-handler';
+import { FilmsPublicOutputDtoMapper } from '@/films/api/dtos/output/films-public.output.dto';
+import { GetPublicFilmsQueryHandler } from '@/films/application/query-handlers/get-public-films.query-handler';
+import { GetPrivateFilmByKinopoiskIdQueryHandler } from '@/films/application/query-handlers/get-private-film-by-kinopoisk-id.query-handler';
 import { FilmPrivateController } from '@/films/api/private-film.controller';
 import { FilmPrivateRpcController } from '@/films/api/private-film-rpc.controller';
 import { FilmRepository } from '@/films/infrastructure/film.repository';
@@ -17,11 +17,14 @@ import { FilmBridgeRmqController } from '@/films/api/bridge-rpc-film.controller'
 import { NewFilmIsHandleNotificationCommandHandler } from '@/films/application/handlers/new-film-is-handle-notification.handler';
 import { FilmsRpcOutputDtoMapper } from '@/films/api/dtos/output/films-rpc.output.dto';
 import { GetRpcFilmByKinopoiskIdQueryHandler } from '@/films/application/query-handlers/get-rpc-film-by-kinopoisk-id.query-handler';
+import { FilmPublicQueryRepository } from '@/films/infrastructure/film-public.query-repository';
+import { FilmsPrivateOutputDtoMapper } from '@/films/api/dtos/output/films-private.output.dto';
+import { ModerationMovieModule } from '@/moderation-movie/moderation-movie.module';
 
 const queryHandlers = [
-  GetFilmByIdQueryHandler,
-  GetFilmsQueryHandler,
-  GetFilmByKinopoiskIdQueryHandler,
+  GetPublicFilmByIdQueryHandler,
+  GetPublicFilmsQueryHandler,
+  GetPrivateFilmByKinopoiskIdQueryHandler,
   GetRpcFilmByKinopoiskIdQueryHandler,
 ];
 
@@ -34,10 +37,17 @@ const providers = [filmProvider];
 
 const handlers = [NewFilmNotificationCommandHandler, NewFilmIsHandleNotificationCommandHandler];
 
+const exportProviders = [FilmRepository, filmProvider, FilmQueryRepository];
+
 @Module({
-  imports: [TypeOrmModule.forFeature([Film]), MoviesModules, KinopoiskModule],
+  imports: [
+    TypeOrmModule.forFeature([Film]),
+    MoviesModules,
+    KinopoiskModule,
+    ModerationMovieModule,
+  ],
   controllers: [
-    FilmController,
+    PublicFilmController,
     FilmPrivateController,
     FilmPrivateRpcController,
     FilmBridgeRmqController,
@@ -45,12 +55,14 @@ const handlers = [NewFilmNotificationCommandHandler, NewFilmIsHandleNotification
   providers: [
     ...queryHandlers,
     FilmQueryRepository,
-    FilmsOutputDtoMapper,
+    FilmsPublicOutputDtoMapper,
     FilmRepository,
     FilmsRpcOutputDtoMapper,
+    FilmPublicQueryRepository,
+    FilmsPrivateOutputDtoMapper,
     ...handlers,
     ...providers,
   ],
-  exports: [],
+  exports: [...exportProviders],
 })
 export class FilmModule {}
