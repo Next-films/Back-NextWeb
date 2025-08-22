@@ -112,6 +112,10 @@ export const ADMIN_AUTH_VALIDATION_RULES /* as ValidationRulesConstantsType */ =
     LENGTH_MAX: 25,
     PATTERN: /^[a-zA-Z0-9_&#\-!@]+$/,
   },
+  TELEGRAM_ID: {
+    LENGTH_MIN: 1,
+    LENGTH_MAX: 30,
+  },
 } as const;
 /*
 *

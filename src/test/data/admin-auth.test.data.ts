@@ -5,6 +5,7 @@ export const TEST_ADMIN_REG_DATA: AdminRegisterInputModel = {
   password: 'Password123456&',
   email: 'test@test.com',
   username: 'adminka',
+  telegramId: '5123374373',
 };
 
 export const TEST_ADMIN_LOGIN_DATA: AdminLoginInputModel = {

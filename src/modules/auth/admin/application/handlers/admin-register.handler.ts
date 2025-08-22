@@ -46,15 +46,19 @@ export class AdminRegisterHandler
     this.logger.debug('Execute: register new admin command', this.execute.name);
 
     const { inputModel } = command;
-    const { password, email, username } = inputModel;
+    const { password, email, username, telegramId } = inputModel;
     try {
-      const admin = await this.adminAuthRepository.getAdminByEmailOrUsername(email, username);
+      const admin = await this.adminAuthRepository.getAdminByEmailOrUsernameOrTgId(
+        email,
+        username,
+        telegramId,
+      );
 
-      if (admin) return this.generateBadRequest(admin, email, username);
+      if (admin) return this.generateBadRequest(admin, email, username, telegramId);
 
       const hashPassword = await this.bcryptService.generateHash(password, this.salt_round);
 
-      const newAdmin = this.adminEntity.create(email, username, hashPassword);
+      const newAdmin = this.adminEntity.create(email, username, hashPassword, telegramId);
 
       await this.adminAuthRepository.save(newAdmin);
 
@@ -69,6 +73,7 @@ export class AdminRegisterHandler
     admin: Admin,
     email: string,
     username: string,
+    telegramId: string,
   ): AppNotificationResult<null, ValidationErrorsDto> {
     const errorsMessages: ErrorFieldExceptionDto[] = [];
 
@@ -84,6 +89,13 @@ export class AdminRegisterHandler
         message: 'Username already exists',
         field: 'username',
         errorKey: EXCEPTION_KEYS_ENUM.USERNAME_IS_EXIST,
+      });
+    }
+    if (admin.adminTelegram.telegramId === telegramId) {
+      errorsMessages.push({
+        message: 'Telegram id already exists',
+        field: 'telegramId',
+        errorKey: EXCEPTION_KEYS_ENUM.TELEGRAM_ID_IS_EXIST,
       });
     }
 

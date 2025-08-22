@@ -47,13 +47,19 @@ export class Admin {
   )
   finishedTorrentModeration: FinishedTorrentModerationEntity[];
 
-  // TODO: создание телеграм сущности при регистрации нового админа
-  static create(email: string, username: string, password: string): Admin {
+  static create(email: string, username: string, password: string, tgId: string): Admin {
     const admin = new this();
+    const date = new Date();
     admin.email = email;
     admin.username = username;
     admin.password = password;
-    admin.createdAt = new Date();
+    admin.createdAt = date;
+
+    const adminTg = new AdminTelegram();
+
+    admin.adminTelegram = adminTg;
+    adminTg.createdAt = date;
+    adminTg.telegramId = tgId;
 
     return admin;
   }
