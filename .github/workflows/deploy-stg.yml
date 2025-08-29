@@ -32,38 +32,27 @@ jobs:
           username: ${{ secrets.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_PASSWORD }}
 
-      - name: Build Docker image
-        run: docker compose -f $COMPOSE_FILE --env-file .env build
-
-      - name: Tag image for Docker Hub
+      - name: Build and Push Docker image
         run: |
+          docker compose -f $COMPOSE_FILE --env-file .env build
           image=$(docker compose -f $COMPOSE_FILE config | grep "image:" | awk '{print $2}')
           docker tag $image nextfilms/cinema-app:latest
+          docker push nextfilms/cinema-app:latest
 
-      - name: Push image to Docker Hub
-        run: docker push nextfilms/cinema-app:latest
-
-      - name: Save image as tar
-        run: |
-          mkdir -p images
-          docker save nextfilms/cinema-app:latest -o images/app.tar
-
-      - name: Transfer image, .env and compose file to remote server
-        run: |
-          ssh -o StrictHostKeyChecking=no -p ${{ secrets.DEV_SSH_PORT }} ${{ secrets.DEV_SSH_USERNAME }}@${{ secrets.DEV_SSH_HOST }} "mkdir -p ${{ secrets.DEV_REMOTE_PATH }}/upload"
-          
-          rsync -avz -e "ssh -p ${{ secrets.DEV_SSH_PORT }} -o StrictHostKeyChecking=no" images/app.tar ${{ secrets.DEV_SSH_USERNAME }}@${{ secrets.DEV_SSH_HOST }}:${{ secrets.DEV_REMOTE_PATH }}/upload/app.tar
-          
-          rsync -avz -e "ssh -p ${{ secrets.DEV_SSH_PORT }} -o StrictHostKeyChecking=no" .env ${{ secrets.DEV_SSH_USERNAME }}@${{ secrets.DEV_SSH_HOST }}:${{ secrets.DEV_REMOTE_PATH }}/.env
-          
-          rsync -avz -e "ssh -p ${{ secrets.DEV_SSH_PORT }} -o StrictHostKeyChecking=no" docker-compose.dev.yml ${{ secrets.DEV_SSH_USERNAME }}@${{ secrets.DEV_SSH_HOST }}:${{ secrets.DEV_REMOTE_PATH }}/docker-compose.dev.yml
-
-      - name: Load image and restart docker compose remotely
+      - name: Deploy on remote server from Docker Hub
         run: |
           ssh -p ${{ secrets.DEV_SSH_PORT }} ${{ secrets.DEV_SSH_USERNAME }}@${{ secrets.DEV_SSH_HOST }} << EOF
           cd ${{ secrets.DEV_REMOTE_PATH }}
-          docker load -i upload/app.tar
+
+          mkdir -p ${{ secrets.DEV_REMOTE_PATH }}
+
+          cp .env.example .env
+          cp docker-compose.dev.yml docker-compose.dev.yml
+
+          echo "${{ secrets.DOCKER_HUB_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_HUB_USERNAME }}" --password-stdin
+
+          docker pull nextfilms/cinema-app:latest
+
           docker compose -f docker-compose.dev.yml --env-file .env down
           docker compose -f docker-compose.dev.yml --env-file .env up -d --remove-orphans
-          rm upload/app.tar
           EOF
