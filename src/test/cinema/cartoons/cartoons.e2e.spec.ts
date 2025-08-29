@@ -62,7 +62,6 @@ describe('Cartoons public', () => {
       .get(ConfigService<ConfigurationType, true>)
       .get('apiSettings', { infer: true });
 
-    // TODO:
     mainAdminLoginData.email = apiSettings.ADMIN_EMAIL;
     mainAdminLoginData.password = apiSettings.ADMIN_PASSWORD;
 
