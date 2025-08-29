@@ -9,6 +9,7 @@ export enum EXCEPTION_KEYS_ENUM {
   GENRE_NAME_IS_EXIST = 'error.genre_name_is_exist',
   GENRE_NOT_FOUND = 'error.genre_not_found',
   EMAIL_IS_EXIST = 'error.email_is_exist',
+  TELEGRAM_ID_IS_EXIST = 'error.telegram_id_is_exist',
   USERNAME_IS_EXIST = 'error.username_is_exist',
   LOGIN_OR_PASSWORD_NOT_CORRECT = 'error.login_or_password_not_correct',
   UNAUTHORIZED = 'error.unauthorized',
@@ -86,4 +87,5 @@ export enum EXCEPTION_KEYS_ENUM {
   backgroundContentUrl = 'error_input.backgroundContentUrl',
   titleUrl = 'error_input.titleUrl',
   isHidden = 'error_input.isHidden',
+  telegramId = 'error_input.telegramId',
 }

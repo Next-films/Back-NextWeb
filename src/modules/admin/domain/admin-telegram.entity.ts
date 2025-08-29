@@ -1,7 +1,6 @@
 import { Column, Entity, JoinColumn, OneToOne } from 'typeorm';
 import { Admin } from '@/admin/domain/admin.entity';
 
-// TODO: создание телеграм сущности при регистрации нового админа
 @Entity()
 export class AdminTelegram {
   @Column({ primary: true, unique: true })
@@ -19,14 +18,4 @@ export class AdminTelegram {
 
   @Column({ nullable: false })
   adminId: number;
-
-  // static create(email: string, username: string, password: string): Admin {
-  //   const admin = new this();
-  //   admin.email = email;
-  //   admin.username = username;
-  //   admin.password = password;
-  //   admin.createdAt = new Date();
-  //
-  //   return admin;
-  // }
 }

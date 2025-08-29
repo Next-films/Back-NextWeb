@@ -37,4 +37,17 @@ export class AdminRegisterInputModel {
   @IsString()
   @Matches(ADMIN_AUTH_VALIDATION_RULES.USERNAME.PATTERN)
   username: string;
+
+  @ApiProperty({
+    minLength: ADMIN_AUTH_VALIDATION_RULES.TELEGRAM_ID.LENGTH_MIN,
+    maxLength: ADMIN_AUTH_VALIDATION_RULES.TELEGRAM_ID.LENGTH_MAX,
+  })
+  @Trim()
+  @IsNotEmpty()
+  @IsString()
+  @Length(
+    ADMIN_AUTH_VALIDATION_RULES.TELEGRAM_ID.LENGTH_MIN,
+    ADMIN_AUTH_VALIDATION_RULES.TELEGRAM_ID.LENGTH_MAX,
+  )
+  telegramId: string;
 }

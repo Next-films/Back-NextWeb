@@ -323,6 +323,11 @@ describe('Admin auth', () => {
             field: 'username',
             errorKey: EXCEPTION_KEYS_ENUM.username,
           },
+          {
+            message: expect.any(String),
+            field: 'telegramId',
+            errorKey: EXCEPTION_KEYS_ENUM.telegramId,
+          },
         ],
       });
 
@@ -376,6 +381,46 @@ describe('Admin auth', () => {
             message: expect.any(String),
             field: 'username',
             errorKey: EXCEPTION_KEYS_ENUM.username,
+          },
+        ],
+      });
+
+      const resultWithTgId1 = await request(app.getHttpServer())
+        .post(`${baseUri}/${ADMIN_AUTH_ROUTES.REGISTRATION}`)
+        .set({ authorization: `Bearer ${accessToken}` })
+        .send({ ...TEST_ADMIN_REG_DATA, telegramId: '    ' })
+        .expect(400);
+
+      expect(resultWithTgId1.body).toEqual({
+        message: expect.any(String),
+        statusCode: 400,
+        errorField: [
+          {
+            message: expect.any(String),
+            field: 'telegramId',
+            errorKey: EXCEPTION_KEYS_ENUM.telegramId,
+          },
+        ],
+      });
+
+      const resultWithTgId2 = await request(app.getHttpServer())
+        .post(`${baseUri}/${ADMIN_AUTH_ROUTES.REGISTRATION}`)
+        .set({ authorization: `Bearer ${accessToken}` })
+        .send({
+          ...TEST_ADMIN_REG_DATA,
+          telegramId:
+            'rjkfrjbhjfrbhjfrbhjfrbhjrfbhjfrhjfrbhjfrbhjfrbhjbfrhjbfrhjhjrfbhjfrbhjfrbhjfrbhjfrbhjfrbhjbhjrf',
+        })
+        .expect(400);
+
+      expect(resultWithTgId2.body).toEqual({
+        message: expect.any(String),
+        statusCode: 400,
+        errorField: [
+          {
+            message: expect.any(String),
+            field: 'telegramId',
+            errorKey: EXCEPTION_KEYS_ENUM.telegramId,
           },
         ],
       });
@@ -480,7 +525,7 @@ describe('Admin auth', () => {
         .expect(201);
     });
 
-    it('Should not register new admin, email and username already exist', async () => {
+    it('Should not register new admin, email and username already exist, telegram id already exist', async () => {
       const { accessToken } = await loginByMainAdmin();
 
       await request(app.getHttpServer())
@@ -509,13 +554,18 @@ describe('Admin auth', () => {
             field: 'username',
             errorKey: EXCEPTION_KEYS_ENUM.USERNAME_IS_EXIST,
           },
+          {
+            message: expect.any(String),
+            field: 'telegramId',
+            errorKey: EXCEPTION_KEYS_ENUM.TELEGRAM_ID_IS_EXIST,
+          },
         ],
       });
 
       const resultWithEmail = await request(app.getHttpServer())
         .post(`${baseUri}/${ADMIN_AUTH_ROUTES.REGISTRATION}`)
         .set({ authorization: `Bearer ${accessToken}` })
-        .send({ ...TEST_ADMIN_REG_DATA, username: 'other_username' })
+        .send({ ...TEST_ADMIN_REG_DATA, username: 'other_username', telegramId: '128343444' })
         .expect(400);
 
       expect(resultWithEmail.body).toEqual({
@@ -533,7 +583,7 @@ describe('Admin auth', () => {
       const resultWithUsername = await request(app.getHttpServer())
         .post(`${baseUri}/${ADMIN_AUTH_ROUTES.REGISTRATION}`)
         .set({ authorization: `Bearer ${accessToken}` })
-        .send({ ...TEST_ADMIN_REG_DATA, email: 'other@mail.ru' })
+        .send({ ...TEST_ADMIN_REG_DATA, email: 'other@mail.ru', telegramId: '128343444' })
         .expect(400);
 
       expect(resultWithUsername.body).toEqual({
@@ -544,6 +594,24 @@ describe('Admin auth', () => {
             message: expect.any(String),
             field: 'username',
             errorKey: EXCEPTION_KEYS_ENUM.USERNAME_IS_EXIST,
+          },
+        ],
+      });
+
+      const resultWithTgId = await request(app.getHttpServer())
+        .post(`${baseUri}/${ADMIN_AUTH_ROUTES.REGISTRATION}`)
+        .set({ authorization: `Bearer ${accessToken}` })
+        .send({ ...TEST_ADMIN_REG_DATA, email: 'other@mail.ru', username: 'other_username284' })
+        .expect(400);
+
+      expect(resultWithTgId.body).toEqual({
+        message: expect.any(String),
+        statusCode: 400,
+        errorField: [
+          {
+            message: expect.any(String),
+            field: 'telegramId',
+            errorKey: EXCEPTION_KEYS_ENUM.TELEGRAM_ID_IS_EXIST,
           },
         ],
       });
@@ -613,13 +681,23 @@ describe('Admin auth', () => {
         registerNewAdmin(
           app,
           regUri,
-          { ...TEST_ADMIN_REG_DATA, email: 'second@mail.ru', username: 'secondname' },
+          {
+            ...TEST_ADMIN_REG_DATA,
+            email: 'second@mail.ru',
+            username: 'secondname',
+            telegramId: '1234567',
+          },
           accessToken,
         ),
         registerNewAdmin(
           app,
           regUri,
-          { ...TEST_ADMIN_REG_DATA, email: 'second2@mail.ru', username: 'secondname2' },
+          {
+            ...TEST_ADMIN_REG_DATA,
+            email: 'second2@mail.ru',
+            username: 'secondname2',
+            telegramId: '13748383',
+          },
           accessToken,
         ),
       ]);
@@ -763,13 +841,23 @@ describe('Admin auth', () => {
         registerNewAdmin(
           app,
           regUri,
-          { ...TEST_ADMIN_REG_DATA, email: 'second@mail.ru', username: 'secondname' },
+          {
+            ...TEST_ADMIN_REG_DATA,
+            email: 'second@mail.ru',
+            username: 'secondname',
+            telegramId: '2744635353',
+          },
           accessToken,
         ),
         registerNewAdmin(
           app,
           regUri,
-          { ...TEST_ADMIN_REG_DATA, email: 'second2@mail.ru', username: 'secondname2' },
+          {
+            ...TEST_ADMIN_REG_DATA,
+            email: 'second2@mail.ru',
+            username: 'secondname2',
+            telegramId: '2922817475',
+          },
           accessToken,
         ),
       ]);
@@ -864,6 +952,7 @@ describe('Admin auth', () => {
 
       const refreshRepoSpy = jest
         .spyOn(adminAuthSessionRepository, 'getSessionByDeviceId')
+        // eslint-disable-next-line @typescript-eslint/require-await
         .mockImplementation(async () => {
           return AdminSession.create(3, 'deviceId-2', new Date(), new Date());
         });
@@ -900,6 +989,7 @@ describe('Admin auth', () => {
 
       const refreshRepoSpy = jest
         .spyOn(adminAuthSessionRepository, 'getSessionByDeviceId')
+        // eslint-disable-next-line @typescript-eslint/require-await
         .mockImplementation(async () => {
           return AdminSession.create(2, 'deviceId-2', new Date(), new Date());
         });

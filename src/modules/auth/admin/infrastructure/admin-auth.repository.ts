@@ -27,6 +27,19 @@ export class AdminAuthRepository {
     return this.adminRepository.findOne({ where: [{ email }, { username }] });
   }
 
+  async getAdminByEmailOrUsernameOrTgId(
+    email: string,
+    username: string,
+    telegramId: string,
+  ): Promise<Admin | null> {
+    return this.adminRepository.findOne({
+      where: [{ email }, { username }, { adminTelegram: { telegramId } }],
+      relations: {
+        adminTelegram: true,
+      },
+    });
+  }
+
   async getAdminById(id: number): Promise<Admin | null> {
     return this.adminRepository.findOne({ where: { id } });
   }
