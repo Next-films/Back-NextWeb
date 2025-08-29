@@ -32,25 +32,36 @@ jobs:
           username: ${{ secrets.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_PASSWORD }}
 
-      - name: Build and Push Docker image
+      - name: Build Docker image
+        run: docker compose -f $COMPOSE_FILE --env-file .env build
+
+      - name: Tag image for Docker Hub
         run: |
-          docker compose -f $COMPOSE_FILE --env-file .env build
           image=$(docker compose -f $COMPOSE_FILE config | grep "image:" | awk '{print $2}')
           docker tag $image nextfilms/cinema-app:latest
-          docker push nextfilms/cinema-app:latest
 
-      - name: Deploy on remote server from Docker Hub
+      - name: Push image to Docker Hub
+        run: docker push nextfilms/cinema-app:latest
+
+      - name: Transfer .env and docker-compose to remote server
+        run: |
+          ssh -p ${{ secrets.DEV_SSH_PORT }} ${{ secrets.DEV_SSH_USERNAME }}@${{ secrets.DEV_SSH_HOST }} "mkdir -p ${{ secrets.DEV_REMOTE_PATH }}"
+          scp -P ${{ secrets.DEV_SSH_PORT }} .env ${{ secrets.DEV_SSH_USERNAME }}@${{ secrets.DEV_SSH_HOST }}:${{ secrets.DEV_REMOTE_PATH }}/.env
+          scp -P ${{ secrets.DEV_SSH_PORT }} docker-compose.dev.yml ${{ secrets.DEV_SSH_USERNAME }}@${{ secrets.DEV_SSH_HOST }}:${{ secrets.DEV_REMOTE_PATH }}/docker-compose.dev.yml
+
+      - name: Pull image from Docker Hub and restart docker compose remotely
         run: |
           ssh -p ${{ secrets.DEV_SSH_PORT }} ${{ secrets.DEV_SSH_USERNAME }}@${{ secrets.DEV_SSH_HOST }} << EOF
           cd ${{ secrets.DEV_REMOTE_PATH }}
 
-          mkdir -p ${{ secrets.DEV_REMOTE_PATH }}
-
-          cp .env.example .env
-          cp docker-compose.dev.yml docker-compose.dev.yml
+          if docker ps -a --format '{{.Names}}' | grep -q 'cinema-app'; then
+            docker rm -f cinema-app
+          fi
+          if docker images --format '{{.Repository}}:{{.Tag}}' | grep -q 'nextfilms/cinema-app:latest'; then
+            docker rmi -f nextfilms/cinema-app:latest
+          fi
 
           echo "${{ secrets.DOCKER_HUB_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_HUB_USERNAME }}" --password-stdin
-
           docker pull nextfilms/cinema-app:latest
 
           docker compose -f docker-compose.dev.yml --env-file .env down
