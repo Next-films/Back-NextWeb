@@ -50,10 +50,13 @@ jobs:
 
       - name: Transfer image, .env and compose file to remote server
         run: |
-          ssh -p ${{ secrets.DEV_SSH_PORT }} ${{ secrets.DEV_SSH_USERNAME }}@${{ secrets.DEV_SSH_HOST }} "mkdir -p ${{ secrets.DEV_REMOTE_PATH }}/upload"
-          scp -P ${{ secrets.DEV_SSH_PORT }} images/app.tar ${{ secrets.DEV_SSH_USERNAME }}@${{ secrets.DEV_SSH_HOST }}:${{ secrets.DEV_REMOTE_PATH }}/upload/app.tar
-          scp -P ${{ secrets.DEV_SSH_PORT }} .env ${{ secrets.DEV_SSH_USERNAME }}@${{ secrets.DEV_SSH_HOST }}:${{ secrets.DEV_REMOTE_PATH }}/.env
-          scp -P ${{ secrets.DEV_SSH_PORT }} docker-compose.dev.yml ${{ secrets.DEV_SSH_USERNAME }}@${{ secrets.DEV_SSH_HOST }}:${{ secrets.DEV_REMOTE_PATH }}/docker-compose.dev.yml
+          ssh -o StrictHostKeyChecking=no -p ${{ secrets.DEV_SSH_PORT }} ${{ secrets.DEV_SSH_USERNAME }}@${{ secrets.DEV_SSH_HOST }} "mkdir -p ${{ secrets.DEV_REMOTE_PATH }}/upload"
+          
+          rsync -avz -e "ssh -p ${{ secrets.DEV_SSH_PORT }} -o StrictHostKeyChecking=no" images/app.tar ${{ secrets.DEV_SSH_USERNAME }}@${{ secrets.DEV_SSH_HOST }}:${{ secrets.DEV_REMOTE_PATH }}/upload/app.tar
+          
+          rsync -avz -e "ssh -p ${{ secrets.DEV_SSH_PORT }} -o StrictHostKeyChecking=no" .env ${{ secrets.DEV_SSH_USERNAME }}@${{ secrets.DEV_SSH_HOST }}:${{ secrets.DEV_REMOTE_PATH }}/.env
+          
+          rsync -avz -e "ssh -p ${{ secrets.DEV_SSH_PORT }} -o StrictHostKeyChecking=no" docker-compose.dev.yml ${{ secrets.DEV_SSH_USERNAME }}@${{ secrets.DEV_SSH_HOST }}:${{ secrets.DEV_REMOTE_PATH }}/docker-compose.dev.yml
 
       - name: Load image and restart docker compose remotely
         run: |
