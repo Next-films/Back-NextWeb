@@ -24,11 +24,12 @@ import {
 import { ApiCinemaAccessTokenGuard } from '@/external-auth/application/guards/jwt/api-cinema-access-token.guard';
 import { ADMIN_PRIVATE_CINEMA_ROUTE } from '@/common/constants/route.constants';
 import { SwaggerDecoratorAdminPrivateCinemaModerationRequest } from '@/admin/api/swagger/admin-private-cinema-moderation.swagger.decorator';
+import { BACKEND_TO_BACKEND_AUTH_JWT_SCHEMA_NAME } from '@/common/constants/auth-jwt-schema-name.constants';
 
-@ApiBearerAuth()
+@ApiBearerAuth(BACKEND_TO_BACKEND_AUTH_JWT_SCHEMA_NAME)
 @ApiUnauthorizedResponse({ description: 'Unauthorized', type: HttpPrivateExceptionDto })
 @UseGuards(ApiCinemaAccessTokenGuard)
-@ApiTags('Private - admin private cinema')
+@ApiTags('Private - admin private cinema. Only for interaction between backends')
 @UseFilters(HttpPrivateExceptionsFilter)
 @Controller(ADMIN_PRIVATE_CINEMA_ROUTE.MAIN)
 export class AdminCinemaPrivateController {

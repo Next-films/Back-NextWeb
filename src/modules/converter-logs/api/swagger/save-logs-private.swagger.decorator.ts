@@ -4,7 +4,10 @@ import { HttpPrivateExceptionDto } from '@/common/exception-filters/http/http-pr
 
 export function SwaggerDecoratorSaveConverterLogs(): MethodDecorator {
   return applyDecorators(
-    ApiOperation({ summary: 'Save converter logs' }),
+    ApiOperation({
+      summary: 'Save converter logs',
+      description: 'Saves metadata logs generated during video processing in the download service.',
+    }),
     ApiCreatedResponse({ description: 'Success', type: HttpPrivateExceptionDto }),
     ApiBadRequestResponse({
       description: 'Bad input data',

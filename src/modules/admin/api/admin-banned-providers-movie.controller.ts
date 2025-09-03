@@ -33,9 +33,12 @@ import { AdminUpdateBannedProviderMovieInputDto } from '@/admin/api/dtos/input/a
 import { SwaggerDecoratorAdminUpdateBannedProviderMovie } from '@/admin/api/swagger/admin-update-banned-provider-movie.swagger.decorator';
 import { AdminAccessTokenGuard } from '@/admin-auth/application/guards/jwt/admin-access-token.guard';
 import { ParseIntPatchPipe } from '@/common/pipes/validation-parse-int.pipe';
+import { ADMIN_AUTH_JWT_SCHEMA_NAME } from '@/common/constants/auth-jwt-schema-name.constants';
 
-@ApiTags('Admin - banned providers movies')
-@ApiBearerAuth()
+@ApiTags(
+  'Admin - banned providers movies. Manages the banning of torrent providers and their content.',
+)
+@ApiBearerAuth(ADMIN_AUTH_JWT_SCHEMA_NAME)
 @ApiUnauthorizedResponse({ description: 'Unauthorized' })
 @UseGuards(AdminAccessTokenGuard)
 @Controller(ADMIN_BANNED_PROVIDERS_MOVIES_ROUTE.MAIN)

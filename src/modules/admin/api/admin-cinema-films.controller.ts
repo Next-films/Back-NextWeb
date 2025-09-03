@@ -39,9 +39,13 @@ import { AdminCinemaFilmsOutputDto } from '@/admin/api/dtos/output/admin-cinema-
 import { AdminUpdateFilmInputDto } from '@/admin/api/dtos/input/admin-update-film.input.dto';
 import { AdminUpdateFilmCommand } from '@/admin/application/handlers/admin-update-film.handler';
 import { AdminRemoveFilmCommand } from '@/admin/application/handlers/admin-remove-film.handler';
+import { ADMIN_AUTH_JWT_SCHEMA_NAME } from '@/common/constants/auth-jwt-schema-name.constants';
+import { ApiDeprecated } from '@/common/decorators/api-deprecated.swagger.decorator';
 
-@ApiTags('Admin cinema - films')
-@ApiBearerAuth()
+@ApiTags(
+  'Admin cinema - films. Handles administrative operations for the movie theater content library.',
+)
+@ApiBearerAuth(ADMIN_AUTH_JWT_SCHEMA_NAME)
 @ApiUnauthorizedResponse({ description: 'Unauthorized' })
 @UseGuards(AdminAccessTokenGuard)
 @Controller(`${ADMIN_CINEMA_ROUTE.MAIN}/${ADMIN_CINEMA_ROUTE.FILMS}`)
@@ -78,6 +82,7 @@ export class AdminCinemaFilmsController {
   }
 
   // TODO:
+  @ApiDeprecated()
   @Post()
   @SwaggerDecoratorAdminCreateFilm()
   addFilm() {

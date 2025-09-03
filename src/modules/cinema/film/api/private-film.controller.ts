@@ -32,12 +32,13 @@ import { SwaggerDecoratorNewFilmIsHandle } from '@/films/api/swagger/new-film-is
 import { NewFilmNotificationPayloadDto } from '@/films/api/dtos/input/new-film-notification.input.dto';
 import { NewFilmNotificationCommand } from '@/films/application/handlers/new-film-notification.handler';
 import { SwaggerDecoratorNewFilm } from '@/films/api/swagger/new-film-private.swagger.decorator';
+import { BACKEND_TO_BACKEND_AUTH_JWT_SCHEMA_NAME } from '@/common/constants/auth-jwt-schema-name.constants';
 
-@ApiBearerAuth()
+@ApiBearerAuth(BACKEND_TO_BACKEND_AUTH_JWT_SCHEMA_NAME)
 @ApiUnauthorizedResponse({ description: 'Unauthorized', type: HttpPrivateExceptionDto })
 @UseGuards(ApiCinemaAccessTokenGuard)
 @UseFilters(HttpPrivateExceptionsFilter)
-@ApiTags('Private - films')
+@ApiTags('Private - films. Only for interaction between backends')
 @Controller(PRIVATE_FILMS_ROUTE.MAIN)
 export class FilmPrivateController {
   constructor(

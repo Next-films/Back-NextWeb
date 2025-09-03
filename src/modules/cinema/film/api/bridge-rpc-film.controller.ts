@@ -6,11 +6,12 @@ import { AdminAccessTokenGuard } from '@/admin-auth/application/guards/jwt/admin
 import { DownloaderServiceAdapter } from '@/common/infrastructure/rmq/downloader-service.adapter';
 import { SwaggerDecoratorBridgeRpcFindFilms } from '@/films/api/swagger/bridge-rpc-find-films.swagger.decorator';
 import { SwaggerDecoratorBridgeRpcDownloadFilms } from '@/films/api/swagger/bridge-rpc-download-films.swagger.decorator';
+import { ADMIN_AUTH_JWT_SCHEMA_NAME } from '@/common/constants/auth-jwt-schema-name.constants';
 
-@ApiBearerAuth()
+@ApiBearerAuth(ADMIN_AUTH_JWT_SCHEMA_NAME)
 @ApiUnauthorizedResponse({ description: 'Unauthorized' })
 @UseGuards(AdminAccessTokenGuard)
-@ApiTags('Bridge rmq - films')
+@ApiTags('Bridge rmq - films. Used to manually trigger process in the download service.')
 @Controller(BRIDGE_RMG_FILMS_ROUTE.MAIN)
 export class FilmBridgeRmqController {
   constructor(

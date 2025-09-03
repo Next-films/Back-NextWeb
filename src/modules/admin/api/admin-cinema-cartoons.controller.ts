@@ -39,9 +39,13 @@ import { AdminGetAllCartoonsQuery } from '@/admin/application/query-handlers/adm
 import { AdminUpdateCartoonCommand } from '@/admin/application/handlers/admin-update-cartoon.handler';
 import { AdminRemoveCartoonCommand } from '@/admin/application/handlers/admin-remove-cartoon.handler';
 import { AdminShowOrHiddeCartoonCommand } from '@/admin/application/handlers/admin-show-or-hide-cartoon.handler';
+import { ADMIN_AUTH_JWT_SCHEMA_NAME } from '@/common/constants/auth-jwt-schema-name.constants';
+import { ApiDeprecated } from '@/common/decorators/api-deprecated.swagger.decorator';
 
-@ApiTags('Admin cinema - cartoons')
-@ApiBearerAuth()
+@ApiTags(
+  'Admin cinema - cartoons. Handles administrative operations for the movie theater content library.',
+)
+@ApiBearerAuth(ADMIN_AUTH_JWT_SCHEMA_NAME)
 @ApiUnauthorizedResponse({ description: 'Unauthorized' })
 @UseGuards(AdminAccessTokenGuard)
 @Controller(`${ADMIN_CINEMA_ROUTE.MAIN}/${ADMIN_CINEMA_ROUTE.CARTOONS}`)
@@ -78,6 +82,7 @@ export class AdminCinemaCartoonsController {
   }
 
   // TODO:
+  @ApiDeprecated()
   @Post()
   @SwaggerDecoratorAdminCreateCartoon()
   addCartoon() {

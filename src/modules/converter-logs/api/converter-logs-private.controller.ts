@@ -23,11 +23,12 @@ import {
   HttpPrivateExceptionsFilter,
 } from '@/common/exception-filters/http/http-private-exception.filter';
 import { SwaggerDecoratorSaveConverterLogs } from '@/converter-logs/api/swagger/save-logs-private.swagger.decorator';
+import { BACKEND_TO_BACKEND_AUTH_JWT_SCHEMA_NAME } from '@/common/constants/auth-jwt-schema-name.constants';
 
-@ApiBearerAuth()
+@ApiBearerAuth(BACKEND_TO_BACKEND_AUTH_JWT_SCHEMA_NAME)
 @ApiUnauthorizedResponse({ description: 'Unauthorized', type: HttpPrivateExceptionDto })
 @UseGuards(ApiCinemaAccessTokenGuard)
-@ApiTags('Private - converter logs')
+@ApiTags('Private - converter logs. Only for interaction between backends')
 @UseFilters(HttpPrivateExceptionsFilter)
 @Controller(PRIVATE_CONVERTER_LOGS_ROUTE.MAIN)
 export class ConverterLogsPrivateController {

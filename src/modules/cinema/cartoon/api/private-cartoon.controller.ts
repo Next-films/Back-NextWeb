@@ -32,12 +32,13 @@ import { NewMovieIsHandleNotificationPayloadDto } from '@/movies/api/dtos/input/
 import { NewCartoonIsHandleNotificationCommand } from '@/cartoons/application/handlers/new-cartoon-is-handle-notification.handler';
 import { SwaggerDecoratorNewCartoon } from '@/cartoons/api/swagger/new-cartoon-private.swagger.decorator';
 import { SwaggerDecoratorNewCartoonIsHandle } from '@/cartoons/api/swagger/new-cartoon-is-handle-private.swagger.decorator';
+import { BACKEND_TO_BACKEND_AUTH_JWT_SCHEMA_NAME } from '@/common/constants/auth-jwt-schema-name.constants';
 
-@ApiBearerAuth()
+@ApiBearerAuth(BACKEND_TO_BACKEND_AUTH_JWT_SCHEMA_NAME)
 @ApiUnauthorizedResponse({ description: 'Unauthorized', type: HttpPrivateExceptionDto })
 @UseGuards(ApiCinemaAccessTokenGuard)
 @UseFilters(HttpPrivateExceptionsFilter)
-@ApiTags('Private - cartoons')
+@ApiTags('Private - cartoons. Only for interaction between backends')
 @Controller(PRIVATE_CARTOONS_ROUTE.MAIN)
 export class CartoonPrivateController {
   constructor(

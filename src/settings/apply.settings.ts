@@ -8,8 +8,12 @@ import * as expressBasicAuth from 'express-basic-auth';
 import { COOKIE_REFRESH_TOKEN_NAME } from '@/common/constants/cookie-options.constants';
 import { validationExceptionFactory } from '@/common/pipes/validation-option.pipe';
 import { HttpExceptionsFilter } from '@/common/exception-filters/http/http-exception.filter';
+import {
+  ADMIN_AUTH_JWT_SCHEMA_NAME,
+  BACKEND_TO_BACKEND_AUTH_JWT_SCHEMA_NAME,
+} from '@/common/constants/auth-jwt-schema-name.constants';
 
-export const applySettings = async (app: INestApplication): Promise<void> => {
+export const applySettings = (app: INestApplication): void => {
   /*
     Prepare
   */
@@ -69,7 +73,27 @@ const setSwagger = (
       scheme: 'bearer',
       bearerFormat: 'JWT',
     })
-    .addBearerAuth({ bearerFormat: 'JWT', scheme: 'bearer', type: 'http' });
+    .addBearerAuth({ bearerFormat: 'JWT', scheme: 'bearer', type: 'http' })
+    .addBearerAuth(
+      {
+        bearerFormat: 'JWT',
+        scheme: 'bearer',
+        type: 'http',
+        description:
+          'Validates and uses an external token for secure backend-to-backend communication.',
+      },
+      BACKEND_TO_BACKEND_AUTH_JWT_SCHEMA_NAME,
+    )
+    .addBearerAuth(
+      {
+        bearerFormat: 'JWT',
+        scheme: 'bearer',
+        type: 'http',
+        description:
+          'Authenticates the request using a dedicated access token granted to administrators.',
+      },
+      ADMIN_AUTH_JWT_SCHEMA_NAME,
+    );
 
   SWAGGER_SERVERS_URLS.forEach((url: string): void => {
     config.addServer(url);
