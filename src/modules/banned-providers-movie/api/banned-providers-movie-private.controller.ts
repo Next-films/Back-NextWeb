@@ -31,11 +31,12 @@ import { TorApiProvidersEnum } from '@/common/types/types';
 import { SwaggerDecoratorBanProvider } from '@/banned-providers-movie/api/swagger/private-ban-provider.swagger.decorator';
 import { SwaggerDecoratorGetBanProvider } from '@/banned-providers-movie/api/swagger/private-get-ban-provider.swagger.decorator';
 import { ParseProviderPipe } from '@/common/pipes/validation-provider-params.pipe';
+import { BACKEND_TO_BACKEND_AUTH_JWT_SCHEMA_NAME } from '@/common/constants/auth-jwt-schema-name.constants';
 
-@ApiBearerAuth()
+@ApiBearerAuth(BACKEND_TO_BACKEND_AUTH_JWT_SCHEMA_NAME)
 @ApiUnauthorizedResponse({ description: 'Unauthorized', type: HttpPrivateExceptionDto })
 @UseGuards(ApiCinemaAccessTokenGuard)
-@ApiTags('Private - banned providers movies')
+@ApiTags('Private - banned providers movies. Only for interaction between backends')
 @UseFilters(HttpPrivateExceptionsFilter)
 @Controller(PRIVATE_BANNED_PROVIDERS_ROUTE.MAIN)
 export class BannedProvidersMoviePrivateController {

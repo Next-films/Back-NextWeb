@@ -4,7 +4,11 @@ import { HttpPrivateExceptionDto } from '@/common/exception-filters/http/http-pr
 
 export function SwaggerDecoratorNewFilmIsHandle(): MethodDecorator {
   return applyDecorators(
-    ApiOperation({ summary: 'Send notification about that film is stated to handle' }),
+    ApiOperation({
+      summary: 'Send notification about that film is stated to handle',
+      description:
+        'Sends a download status update for a film, indicating it is waiting in the queue or is being downloaded.',
+    }),
     ApiCreatedResponse({ type: HttpPrivateExceptionDto, description: 'Success' }),
     ApiBadRequestResponse({
       description: 'Bad input data',

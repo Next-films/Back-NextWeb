@@ -6,11 +6,12 @@ import { AdminAccessTokenGuard } from '@/admin-auth/application/guards/jwt/admin
 import { DownloaderServiceAdapter } from '@/common/infrastructure/rmq/downloader-service.adapter';
 import { SwaggerDecoratorBridgeRpcFindCartoon } from '@/cartoons/api/swagger/bridge-rpc-find-cartoon.swagger.decorator';
 import { SwaggerDecoratorBridgeRpcDownloadCartoons } from '@/cartoons/api/swagger/bridge-rpc-download-cartoon.swagger.decorator';
+import { ADMIN_AUTH_JWT_SCHEMA_NAME } from '@/common/constants/auth-jwt-schema-name.constants';
 
-@ApiBearerAuth()
+@ApiBearerAuth(ADMIN_AUTH_JWT_SCHEMA_NAME)
 @ApiUnauthorizedResponse({ description: 'Unauthorized' })
 @UseGuards(AdminAccessTokenGuard)
-@ApiTags('Bridge rmq - cartoon')
+@ApiTags('Bridge rmq - cartoon. Used to manually trigger process in the download service.')
 @Controller(BRIDGE_RMG_CARTOON_ROUTE.MAIN)
 export class CartoonBridgeRmqController {
   constructor(

@@ -27,7 +27,7 @@ async function bootstrap(): Promise<void> {
 
   const PORT = apiSettings.PORT;
 
-  await applySettings(app);
+  applySettings(app);
   await app.startAllMicroservices();
   await app.listen(PORT || 4000);
 

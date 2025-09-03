@@ -4,7 +4,11 @@ import { HttpPrivateExceptionDto } from '@/common/exception-filters/http/http-pr
 
 export function SwaggerDecoratorNewCartoon(): MethodDecorator {
   return applyDecorators(
-    ApiOperation({ summary: 'Send notification about new downloaded cartoon' }),
+    ApiOperation({
+      summary: 'Send notification about new downloaded cartoon',
+      description:
+        "Accepts a notification that a cartoon's download is complete and it is ready for metadata processing.",
+    }),
     ApiCreatedResponse({ type: HttpPrivateExceptionDto, description: 'Success' }),
     ApiBadRequestResponse({
       description: 'Bad input data',

@@ -1,4 +1,4 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Post, UseGuards } from '@nestjs/common';
 import {
   ApplicationNotification,
   AppNotificationResult,
@@ -14,10 +14,13 @@ import { GetGenreByIdQuery } from '@/movies/application/query-handlers/get-genre
 import { GenreOutputDto } from '@/movies/api/dtos/output/genre.output.dto';
 import { ApiBearerAuth, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger';
 import { AdminGenreCreateCommand } from '@/admin/application/handlers/admin-genre-create.handler';
+import { ADMIN_AUTH_JWT_SCHEMA_NAME } from '@/common/constants/auth-jwt-schema-name.constants';
+import { AdminAccessTokenGuard } from '@/admin-auth/application/guards/jwt/admin-access-token.guard';
 
 @ApiTags('Admin - genres')
-@ApiBearerAuth()
+@ApiBearerAuth(ADMIN_AUTH_JWT_SCHEMA_NAME)
 @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+@UseGuards(AdminAccessTokenGuard)
 @Controller(ADMIN_GENRE_ROUTE.MAIN)
 export class AdminGenreController {
   constructor(

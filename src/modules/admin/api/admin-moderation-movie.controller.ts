@@ -43,9 +43,10 @@ import { AdminCancelModerationMovieTaskCommand } from '@/admin/application/handl
 import { AdminCancelModerationMovieTaskInputDto } from '@/admin/api/dtos/input/admin-cancel-moderation-movie-task.input.dto';
 import { AdminApplyModerationMovieTaskCommand } from '@/admin/application/handlers/admin-apply-moderation-movie-task.handler';
 import { AdminApplyModerationMovieTaskInputDto } from '@/admin/api/dtos/input/admin-apply-moderation-movie-task.input.dto';
+import { ADMIN_AUTH_JWT_SCHEMA_NAME } from '@/common/constants/auth-jwt-schema-name.constants';
 
-@ApiTags('Admin moderation - movie')
-@ApiBearerAuth()
+@ApiTags('Admin moderation - movie. Manages content moderation tasks.')
+@ApiBearerAuth(ADMIN_AUTH_JWT_SCHEMA_NAME)
 @ApiUnauthorizedResponse({ description: 'Unauthorized' })
 @UseGuards(AdminAccessTokenGuard)
 @Controller(ADMIN_MODERATION_MOVIE_ROUTE.MAIN)

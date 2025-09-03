@@ -4,7 +4,11 @@ import { HttpPrivateExceptionDto } from '@/common/exception-filters/http/http-pr
 
 export function SwaggerDecoratorBanProvider(): MethodDecorator {
   return applyDecorators(
-    ApiOperation({ summary: 'Ban provider' }),
+    ApiOperation({
+      summary: 'Ban provider',
+      description:
+        'Adds torrent providers and their content to a blacklist to prevent future processing of their resources by ID.',
+    }),
     ApiCreatedResponse({ description: 'Success', type: HttpPrivateExceptionDto }),
     ApiBadRequestResponse({
       description: 'Bad input data',

@@ -7,17 +7,18 @@ import { LoggerService } from '@/common/utils/logger/logger.service';
 import { SwaggerDecoratorExternalTokenCheck } from '@/external-auth/api/swagger/external-token-check.swagger.decorator';
 import { EXTERNAL_API_ROUTE } from '@/common/constants/route.constants';
 import { ApiBearerAuth, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger';
+import { BACKEND_TO_BACKEND_AUTH_JWT_SCHEMA_NAME } from '@/common/constants/auth-jwt-schema-name.constants';
 
-@ApiBearerAuth()
+@ApiBearerAuth(BACKEND_TO_BACKEND_AUTH_JWT_SCHEMA_NAME)
 @ApiUnauthorizedResponse({ description: 'Unauthorized' })
-@ApiTags('External api')
+@ApiTags('External api. Authentication for backend-to-backend service communication.')
+@UseGuards(ApiCinemaCheckAccessTokenGuard)
 @Controller(EXTERNAL_API_ROUTE.MAIN)
 export class ExternalApiAuthController {
   constructor(private readonly logger: LoggerService) {
     this.logger.setContext(ExternalApiAuthController.name);
   }
 
-  @UseGuards(ApiCinemaCheckAccessTokenGuard)
   @Get(`${EXTERNAL_API_ROUTE.TOKEN}/${EXTERNAL_API_ROUTE.CHECK}`)
   @SwaggerDecoratorExternalTokenCheck()
   checkToken(

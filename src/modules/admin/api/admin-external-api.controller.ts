@@ -37,9 +37,12 @@ import { ExternalApiTokenUpdateInputDto } from '@/admin/api/dtos/input/external-
 import { SwaggerDecoratorExternalTokenUpdate } from '@/admin/api/swagger/external-token-update.swagger.decorator';
 import { AdminRemoveExternalApiTokenCommand } from '@/admin/application/handlers/admin-remove-external-api-token.handler';
 import { SwaggerDecoratorExternalTokenRemove } from '@/admin/api/swagger/external-token-remove.swagger.decorator';
+import { ADMIN_AUTH_JWT_SCHEMA_NAME } from '@/common/constants/auth-jwt-schema-name.constants';
 
-@ApiTags('Admin external api')
-@ApiBearerAuth()
+@ApiTags(
+  'Admin external api. Handles the generation and distribution of access tokens for backend API authorization.',
+)
+@ApiBearerAuth(ADMIN_AUTH_JWT_SCHEMA_NAME)
 @ApiUnauthorizedResponse({ description: 'Unauthorized' })
 @UseGuards(AdminAccessTokenGuard)
 @Controller(ADMIN_EXTERNAL_API_ROUTE.MAIN)
