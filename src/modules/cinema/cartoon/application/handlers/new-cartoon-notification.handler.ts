@@ -117,15 +117,19 @@ export class NewCartoonNotificationCommandHandler
     const tasks: Promise<string | null>[] = [];
 
     if (!cartoon.previewUrl)
-      tasks.push(this.moviesService.getPosterUrl(metadata.posterUrl, kpId, MovieTypesEnum.FILM));
+      tasks.push(this.moviesService.getPosterUrl(metadata.posterUrl, kpId, MovieTypesEnum.CARTOON));
 
     if (!cartoon.backgroundContentUrl)
       tasks.push(
-        this.moviesService.getBackgroundContentUrl(metadata.trailerUrl, kpId, MovieTypesEnum.FILM),
+        this.moviesService.getBackgroundContentUrl(
+          metadata.trailerUrl,
+          kpId,
+          MovieTypesEnum.CARTOON,
+        ),
       );
 
     if (!cartoon.titleUrl)
-      tasks.push(this.moviesService.getLogoUrl(metadata.titleUrl, kpId, MovieTypesEnum.FILM));
+      tasks.push(this.moviesService.getLogoUrl(metadata.titleUrl, kpId, MovieTypesEnum.CARTOON));
 
     const [previewUrl, backgroundContentUrl, titleUrl] = await Promise.all(tasks);
 
@@ -156,9 +160,9 @@ export class NewCartoonNotificationCommandHandler
     kpId: string,
   ): Promise<Cartoon> {
     const [backgroundContentUrl, posterUrl, titleUrl] = await Promise.all([
-      this.moviesService.getBackgroundContentUrl(metadata.trailerUrl, kpId, MovieTypesEnum.FILM),
-      this.moviesService.getPosterUrl(metadata.posterUrl, kpId, MovieTypesEnum.FILM),
-      this.moviesService.getLogoUrl(metadata.titleUrl, kpId, MovieTypesEnum.FILM),
+      this.moviesService.getBackgroundContentUrl(metadata.trailerUrl, kpId, MovieTypesEnum.CARTOON),
+      this.moviesService.getPosterUrl(metadata.posterUrl, kpId, MovieTypesEnum.CARTOON),
+      this.moviesService.getLogoUrl(metadata.titleUrl, kpId, MovieTypesEnum.CARTOON),
     ]);
 
     const cartoonDto: CartonCreateDto = {
@@ -182,8 +186,8 @@ export class NewCartoonNotificationCommandHandler
     return this.cartoonEntity.create(cartoonDto);
   }
 
-  private async movieModeration(film: Cartoon, queryRunner: QueryRunner): Promise<number> {
-    const { id } = film;
+  private async movieModeration(cartoon: Cartoon, queryRunner: QueryRunner): Promise<number> {
+    const { id } = cartoon;
     const createModerationDto: CreateModerationDto = {
       movieId: id,
     };
