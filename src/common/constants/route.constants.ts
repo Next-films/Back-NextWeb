@@ -10,6 +10,7 @@ const ADMIN_PREFIX = 'admin';
 export const ADMIN_ROUTE = {
   MAIN: ADMIN_PREFIX,
   ROLES: 'roles',
+  AVATAR: 'avatar',
 };
 
 export const ADMIN_AUTH_ROUTES = {

@@ -30,3 +30,9 @@ export const DOWNLOADER_SERVICE_REST_DOWNLOADER_METHODS_CONSTANTS = {
   DOWNLOAD: 'download',
   YT_CLIP: 'yt-clip',
 };
+
+export const DOWNLOADER_SERVICE_REST_USERS_ADMIN_METHODS_CONSTANTS = {
+  MAIN: `admin/private`,
+  AVATAR: 'avatar',
+  UPLOAD: 'upload',
+};

@@ -5,6 +5,14 @@ export type FindTorApiTorrentFilmType = Partial<
   Record<keyof TorApiSearchByTitleAllProviders, TorApiMovieById[] | null>
 >;
 
+export enum ImgExtEnum {
+  PNG = 'png',
+  JPG = 'jpg',
+  JPEG = 'jpeg',
+  WEBP = 'webp',
+  AVIF = 'avif',
+}
+
 export enum TorApiProvidersEnum {
   'RUTRACKER' = 'rutracker',
   'KINOZAL' = 'kinozal',
@@ -154,4 +162,11 @@ export class ResizeAndSafeLogoPayloadDto {
   type: MovieTypesEnum;
   url: string;
   kpId: string;
+}
+
+export class AdminUploadAvatarPayloadDto {
+  file: Express.Multer.File;
+  extension: ImgExtEnum;
+  adminId: number;
+  currentAvatarPath: string;
 }

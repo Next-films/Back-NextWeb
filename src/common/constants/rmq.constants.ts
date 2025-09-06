@@ -68,3 +68,9 @@ export const DOWNLOAD_YT_CLIP_CMD = 'download_yt_clip_cmd';
  */
 export const RESIZE_SAVE_POSTER_CMD = 'resize_save_poster_cmd';
 export const RESIZE_SAVE_LOGO_CMD = 'resize_save_logo_cmd';
+/*
+ *
+ * Users - admin cmd
+ *
+ */
+export const ADMIN_UPLOAD_AVATAR_CMD = 'admin_upload_avatar_cmd';

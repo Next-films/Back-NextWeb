@@ -2,6 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import {
   ADD_MOVIE_TO_DOWNLOAD_QUEUE_CMD,
+  ADMIN_UPLOAD_AVATAR_CMD,
   BRIDGE_DOWNLOAD_CARTOONS_CMD,
   BRIDGE_DOWNLOAD_FILMS_CMD,
   BRIDGE_DOWNLOAD_SERIALS_CMD,
@@ -28,8 +29,10 @@ import { RmqAuthPayload } from '@/common/infrastructure/rmq/types';
 import { ClearConverterLogsPayloadDto } from '@/converter-logs/domain/types';
 import { AddMovieToDownloadQueuePayloadDto, RemoveMoviePayloadDto } from '@/admin/domain/types';
 import {
+  AdminUploadAvatarPayloadDto,
   DownloadPreviewYtClipPayloadDto,
   IDownloaderServiceAdapter,
+  ImgExtEnum,
   MovieTypesEnum,
   ResizeAndSafeLogoPayloadDto,
   ResizeAndSafePosterPayloadDto,
@@ -252,6 +255,39 @@ export class DownloaderServiceAdapter implements IDownloaderServiceAdapter {
       return this.appNotification.internalServerError();
     }
   }
+
+  /*
+   *
+   *  Upload avatars
+   *
+   */
+  async adminUploadAvatar(
+    file: Express.Multer.File,
+    extension: ImgExtEnum,
+    adminId: number,
+    currentAvatarPath: string,
+  ): Promise<AppNotificationResult<string, ErrorFieldExceptionDto | null>> {
+    try {
+      const payload: RmqAuthPayload<AdminUploadAvatarPayloadDto> = {
+        payload: {
+          file,
+          extension,
+          adminId,
+          currentAvatarPath,
+        },
+        token: this.auth_token,
+      };
+
+      const response: Observable<AppNotificationResult<string, ErrorFieldExceptionDto | null>> =
+        this.client.send({ cmd: ADMIN_UPLOAD_AVATAR_CMD }, payload).pipe(timeout(60_000));
+
+      return await firstValueFrom(response);
+    } catch (error) {
+      this.logger.error(error, this.adminUploadAvatar.name);
+
+      return this.appNotification.internalServerError();
+    }
+  }
 }
 
 @Injectable()
@@ -391,5 +427,25 @@ export class DownloaderServiceAdapterMock implements IDownloaderServiceAdapter {
     );
     await new Promise(resolve => resolve(null));
     return this.appNotification.success('mock');
+  }
+  /*
+   *
+   *  Upload avatars
+   *
+   */
+  async adminUploadAvatar(
+    file: Express.Multer.File,
+    extension: ImgExtEnum,
+    adminId: number,
+    currentAvatarPath: string,
+  ): Promise<AppNotificationResult<string, ErrorFieldExceptionDto | null>> {
+    this.logger.log(
+      `Execute: upload avatar (mock). Ext: ${extension}, admin id: ${adminId}, current avatar: ${currentAvatarPath}`,
+      this.adminUploadAvatar.name,
+    );
+    await new Promise(resolve => resolve(null));
+    return this.appNotification.success(
+      'https://www.shutterstock.com/image-vector/young-smiling-man-avatar-3d-600nw-2124054758.jpg',
+    );
   }
 }

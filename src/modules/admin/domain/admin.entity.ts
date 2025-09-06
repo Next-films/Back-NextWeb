@@ -100,4 +100,15 @@ export class Admin {
   updateRoles(roles: AdminRole[]): void {
     this.roles = roles;
   }
+
+  updateAdmin(username: string, email: string, tgId: string): void {
+    this.username = username;
+    this.email = email;
+    this.adminTelegram.telegramId = tgId;
+    this.adminTelegram.username = null;
+  }
+
+  updateAvatar(url: string): void {
+    this.avatarUrl = url;
+  }
 }

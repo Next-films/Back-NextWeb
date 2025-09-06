@@ -60,6 +60,9 @@ import { AdminDeactivateAdminCommandHandler } from '@/admin/application/handlers
 import { AdminActivateAdminCommandHandler } from '@/admin/application/handlers/admin-activate-admin.handler';
 import { AdminChangeAdminRoleCommandHandler } from '@/admin/application/handlers/admin-change-admin-role.handler';
 import { AdminRoleRepository } from '@/admin/infrastructure/admin-role.repository';
+import { AdminUpdateCommandHandler } from '@/admin/application/handlers/admin-update.handler';
+import { AdminGetAdminByIdQueryHandler } from '@/admin/application/query-handlers/admin-get-admin-by-id.query-handler';
+import { AdminUpdateAvatarCommandHandler } from '@/admin/application/handlers/admin-update-avatar.handler';
 
 export const AdminProvider = {
   provide: 'Admin',
@@ -88,6 +91,8 @@ const handlers = [
   AdminDeactivateAdminCommandHandler,
   AdminActivateAdminCommandHandler,
   AdminChangeAdminRoleCommandHandler,
+  AdminUpdateCommandHandler,
+  AdminUpdateAvatarCommandHandler,
 ];
 
 const queryHandlers = [
@@ -99,6 +104,7 @@ const queryHandlers = [
   AdminGetAllCartoonsQueryHandler,
   AdminGetAllAdminRolesQueryHandler,
   AdminGetAllAdminsQueryHandler,
+  AdminGetAdminByIdQueryHandler,
 ];
 
 const exportProviders = [TypeOrmModule.forFeature([Admin]), AdminProvider, AdminRepository];

@@ -12,6 +12,7 @@ import { AddMovieToDownloadQueuePayloadDto, RemoveMoviePayloadDto } from '@/admi
 import {
   DownloadPreviewYtClipPayloadDto,
   IDownloaderServiceAdapter,
+  ImgExtEnum,
   MovieTypesEnum,
   ResizeAndSafeLogoPayloadDto,
   ResizeAndSafePosterPayloadDto,
@@ -25,8 +26,10 @@ import {
   DOWNLOADER_SERVICE_REST_CONVERTER_METHODS_CONSTANTS,
   DOWNLOADER_SERVICE_REST_DOWNLOADER_METHODS_CONSTANTS,
   DOWNLOADER_SERVICE_REST_MOVIES_METHODS_CONSTANTS,
+  DOWNLOADER_SERVICE_REST_USERS_ADMIN_METHODS_CONSTANTS,
 } from '@/common/constants/downloader-service.rest.constants';
 import { AxiosRequestConfig } from 'axios';
+import * as FormData from 'form-data';
 
 @Injectable()
 export class DownloaderServiceRestAdapter implements IDownloaderServiceAdapter {
@@ -314,6 +317,47 @@ export class DownloaderServiceRestAdapter implements IDownloaderServiceAdapter {
       return result.data;
     } catch (error) {
       return this.handleError(error, this.resizeAndSaveLogo.name);
+    }
+  }
+
+  /*
+   *
+   *  Upload avatars
+   *
+   */
+  async adminUploadAvatar(
+    file: Express.Multer.File,
+    extension: ImgExtEnum,
+    adminId: number,
+    currentAvatarPath: string,
+  ): Promise<AppNotificationResult<string, ErrorFieldExceptionDto | null>> {
+    try {
+      const form = new FormData();
+
+      form.append('file', file.buffer, { filename: `avatar.${extension}` });
+      form.append('adminId', adminId.toString());
+      form.append('extension', extension);
+      form.append('currentAvatarPath', currentAvatarPath);
+
+      const result = await this.httpService.axiosRef.post<
+        AppNotificationResult<string, ErrorFieldExceptionDto | null>
+      >(
+        `${DOWNLOADER_SERVICE_REST_USERS_ADMIN_METHODS_CONSTANTS.MAIN}/${DOWNLOADER_SERVICE_REST_USERS_ADMIN_METHODS_CONSTANTS.AVATAR}/${DOWNLOADER_SERVICE_REST_USERS_ADMIN_METHODS_CONSTANTS.UPLOAD}`,
+        form,
+        {
+          headers: {
+            ...form.getHeaders(),
+            Authorization: this.baseAuthHeaders.headers?.Authorization,
+          },
+          maxBodyLength: Infinity,
+        },
+      );
+
+      if (!result.data.appResult) return this.appNotification.internalServerError();
+
+      return result.data;
+    } catch (error) {
+      return this.handleError(error, this.adminUploadAvatar.name);
     }
   }
 }

@@ -41,6 +41,11 @@ export enum EXCEPTION_KEYS_ENUM {
   NO_ACCESS = 'error_no_access',
   USER_NOT_FOUND = 'error_user_not_found',
   ROLE_NOT_FOUND = 'error_role_not_found',
+  INVALID_FILE_TYPE = 'error.invalid_file_type',
+  EXCEEDED_SIZE = 'error.exceeded_size',
+  FILE_REQUIRED = 'error.file_required',
+  INCORRECT_QUANTITY = 'error.incorrect_quantity',
+  UNKNOWN = 'error.unknown',
   /*
    *
    * Input validation error

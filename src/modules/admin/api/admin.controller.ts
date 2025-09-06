@@ -9,7 +9,9 @@ import {
   Patch,
   Put,
   Query,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import { ADMIN_ROUTE } from '@/common/constants/route.constants';
 import {
@@ -44,6 +46,19 @@ import { AdminChangeAdminRolesInputDto } from '@/admin/api/dtos/input/admin-chan
 import { SwaggerDecoratorAdminActivateAdmin } from '@/admin/api/swagger/admin-activate-admin.swagger.decorator';
 import { SwaggerDecoratorAdminDeactivateAdmin } from '@/admin/api/swagger/admin-deactivate-admin.swagger.decorator';
 import { SwaggerDecoratorAdminChangeAdminRole } from '@/admin/api/swagger/admin-chnage-admin-role.swagger.decorator';
+import { AdminUpdateCommand } from '@/admin/application/handlers/admin-update.handler';
+import { AdminUpdateInputDto } from '@/admin/api/dtos/input/admin-update.input.dto';
+import { AdminGetAdminByIdQuery } from '@/admin/application/query-handlers/admin-get-admin-by-id.query-handler';
+import { FileInterceptor } from '@nestjs/platform-express';
+import {
+  ADMIN_UPDATE_AVATAR_INPUT_MAX_SIZE,
+  ADMIN_UPDATE_AVATAR_INPUT_MIME_TYPES,
+  AdminUpdateAvatarInputDto,
+} from '@/admin/api/dtos/input/admin-update-avatar.config';
+import { fileValidationPipe } from '@/common/pipes/validation-file.pipe';
+import { AdminUpdateAvatarCommand } from '@/admin/application/handlers/admin-update-avatar.handler';
+import { SwaggerDecoratorAdminUpdate } from '@/admin/api/swagger/admin-update.swagger.decorator';
+import { SwaggerDecoratorAdminUpdateAvatar } from '@/admin/api/swagger/admin-update-avatar.swagger.decorator';
 
 @UseGuards(AdminAccessTokenGuard)
 @ApiBearerAuth(ADMIN_AUTH_JWT_SCHEMA_NAME)
@@ -64,7 +79,7 @@ export class AdminController {
   async getAdmins(
     @Query() query: GetAllAdminInputQueryDto,
     @CurrentUser() user: AdminAccessTokenPayload,
-  ) {
+  ): Promise<PaginationUtil<AdminGetAllAdminOutputDto[]> | void> {
     this.logger.log('Get all admins', this.getAdmins.name);
 
     const result = await this.queryBus.execute<
@@ -99,6 +114,73 @@ export class AdminController {
     this.appNotification.handleHttpResult(result);
   }
 
+  @HttpCode(HttpStatus.CREATED)
+  @Put(`:id`)
+  @SwaggerDecoratorAdminUpdate()
+  async updateAdmin(
+    @Param('id', ParseIntPatchPipe) id: number,
+    @CurrentUser() user: AdminAccessTokenPayload,
+    @Body() body: AdminUpdateInputDto,
+  ): Promise<AdminGetAllAdminOutputDto | void> {
+    this.logger.log('Update admin', this.updateAdmin.name);
+
+    const result = await this.commandBus.execute<
+      AdminUpdateCommand,
+      AppNotificationResult<null, ErrorFieldExceptionDto | null>
+    >(new AdminUpdateCommand(body, id, user.id));
+
+    this.logger.log(result.appResult, this.updateAdmin.name);
+
+    if (result.appResult === AppNotificationResultEnum.Success) {
+      const result = await this.queryBus.execute<
+        AdminGetAdminByIdQuery,
+        AppNotificationResult<AdminGetAllAdminOutputDto>
+      >(new AdminGetAdminByIdQuery(id, user.id));
+
+      return result.data!;
+    }
+
+    this.appNotification.handleHttpResult(result);
+  }
+
+  @HttpCode(HttpStatus.CREATED)
+  @Put(`${ADMIN_ROUTE.AVATAR}/:id`)
+  @SwaggerDecoratorAdminUpdateAvatar()
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadAdminAvatar(
+    @Param('id', ParseIntPatchPipe) id: number,
+    @CurrentUser() user: AdminAccessTokenPayload,
+    @Body() body: AdminUpdateAvatarInputDto,
+    @UploadedFile(
+      fileValidationPipe(
+        ADMIN_UPDATE_AVATAR_INPUT_MIME_TYPES,
+        ADMIN_UPDATE_AVATAR_INPUT_MAX_SIZE,
+        'file',
+      ),
+    )
+    file: Express.Multer.File,
+  ): Promise<AdminGetAllAdminOutputDto | void> {
+    this.logger.log('Upload admin avatar', this.uploadAdminAvatar.name);
+
+    const result = await this.commandBus.execute<
+      AdminUpdateAvatarCommand,
+      AppNotificationResult<null, ErrorFieldExceptionDto | null>
+    >(new AdminUpdateAvatarCommand(file, id, user.id));
+
+    this.logger.log(result.appResult, this.uploadAdminAvatar.name);
+
+    if (result.appResult === AppNotificationResultEnum.Success) {
+      const result = await this.queryBus.execute<
+        AdminGetAdminByIdQuery,
+        AppNotificationResult<AdminGetAllAdminOutputDto>
+      >(new AdminGetAdminByIdQuery(id, user.id));
+
+      return result.data!;
+    }
+
+    this.appNotification.handleHttpResult(result);
+  }
+
   @HttpCode(HttpStatus.NO_CONTENT)
   @Put(`${ADMIN_ROUTE.ROLES}/:id`)
   @SwaggerDecoratorAdminChangeAdminRole()
@@ -106,7 +188,7 @@ export class AdminController {
     @Param('id', ParseIntPatchPipe) id: number,
     @CurrentUser() user: AdminAccessTokenPayload,
     @Body() body: AdminChangeAdminRolesInputDto,
-  ) {
+  ): Promise<void> {
     this.logger.log('Change admin role', this.changeAdminRole.name);
 
     const result = await this.commandBus.execute<
@@ -125,7 +207,7 @@ export class AdminController {
   async deactivateAdmin(
     @Param('id', ParseIntPatchPipe) id: number,
     @CurrentUser() user: AdminAccessTokenPayload,
-  ) {
+  ): Promise<void> {
     this.logger.log('Deactivate admin', this.deactivateAdmin.name);
 
     const result = await this.commandBus.execute<
@@ -144,7 +226,7 @@ export class AdminController {
   async activateAdmin(
     @Param('id', ParseIntPatchPipe) id: number,
     @CurrentUser() user: AdminAccessTokenPayload,
-  ) {
+  ): Promise<void> {
     this.logger.log('Activate admin', this.activateAdmin.name);
 
     const result = await this.commandBus.execute<

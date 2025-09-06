@@ -16,13 +16,13 @@ export class AdminMeOutputModel {
   @ApiProperty()
   tgId: string;
 
-  @ApiProperty({ nullable: true })
+  @ApiProperty({ type: String, nullable: true })
   tgUsername: string | null;
 
   @ApiProperty({ isArray: true })
   roles: string[];
 
-  @ApiProperty({ nullable: true })
+  @ApiProperty({ type: String, nullable: true })
   avatar: string | null;
 }
 

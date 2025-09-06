@@ -77,4 +77,11 @@ export class AdminQueryRepository {
 
     return result && result.length > 0 ? result : null;
   }
+
+  async getAdminById(id: number): Promise<Admin | null> {
+    return this.adminRepository.findOne({
+      where: { id },
+      relations: { adminTelegram: true, roles: true },
+    });
+  }
 }
