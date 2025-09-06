@@ -88,4 +88,16 @@ export class Admin {
   updateTelegramInfo(username: string): void {
     this.adminTelegram.username = username;
   }
+
+  deactivate(): void {
+    this.isActive = false;
+  }
+
+  activate(): void {
+    this.isActive = true;
+  }
+
+  updateRoles(roles: AdminRole[]): void {
+    this.roles = roles;
+  }
 }

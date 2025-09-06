@@ -56,6 +56,10 @@ import { AdminRoleQueryRepository } from '@/admin/infrastructure/admin-role.quer
 import { AdminQueryRepository } from '@/admin/infrastructure/admin.query.repository';
 import { AdminGetAllAdminsQueryHandler } from '@/admin/application/query-handlers/admin-get-all-admins.query-handler';
 import { AdminGetAllAdminOutputDtoMapper } from '@/admin/api/dtos/output/admin-get-all-admins.output.dto';
+import { AdminDeactivateAdminCommandHandler } from '@/admin/application/handlers/admin-deactivate-admin.handler';
+import { AdminActivateAdminCommandHandler } from '@/admin/application/handlers/admin-activate-admin.handler';
+import { AdminChangeAdminRoleCommandHandler } from '@/admin/application/handlers/admin-change-admin-role.handler';
+import { AdminRoleRepository } from '@/admin/infrastructure/admin-role.repository';
 
 export const AdminProvider = {
   provide: 'Admin',
@@ -81,6 +85,9 @@ const handlers = [
   AdminUpdateCartoonCommandHandler,
   AdminRemoveCartoonCommandHandler,
   AdminShowOrHiddeCartoonCommandHandler,
+  AdminDeactivateAdminCommandHandler,
+  AdminActivateAdminCommandHandler,
+  AdminChangeAdminRoleCommandHandler,
 ];
 
 const queryHandlers = [
@@ -135,6 +142,7 @@ const exportProviders = [TypeOrmModule.forFeature([Admin]), AdminProvider, Admin
     AdminRoleQueryRepository,
     AdminQueryRepository,
     AdminGetAllAdminOutputDtoMapper,
+    AdminRoleRepository,
   ],
   exports: [...exportProviders],
 })

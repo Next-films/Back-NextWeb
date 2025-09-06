@@ -7,7 +7,12 @@ import { Injectable } from '@nestjs/common';
 export class AdminRepository {
   constructor(@InjectRepository(Admin) private readonly adminRepository: Repository<Admin>) {}
 
-  async save(admin: Admin): Promise<void> {
+  async save(admin: Admin, queryRunner?: QueryRunner): Promise<void> {
+    if (queryRunner) {
+      await queryRunner.manager.save(admin);
+      return;
+    }
+
     await this.adminRepository.save(admin);
   }
 
@@ -18,7 +23,14 @@ export class AdminRepository {
     });
   }
 
-  async getAdminByIdWithRoleInfo(id: number): Promise<Admin | null> {
+  async getAdminByIdWithRoleInfo(id: number, queryRunner?: QueryRunner): Promise<Admin | null> {
+    if (queryRunner) {
+      return queryRunner.manager.findOne(this.adminRepository.target, {
+        where: { id },
+        relations: { roles: true },
+      });
+    }
+
     return this.adminRepository.findOne({
       where: { id },
       relations: { roles: true },

@@ -60,7 +60,11 @@ export class AdminGetAllAdminsQueryHandler
     try {
       const currentAdmin = await this.adminRepository.getAdminByIdWithRoleInfo(currentUserId);
 
-      if (!currentAdmin || !currentAdmin.roles.some(role => role.name === AdminRoleEnum.ADMIN)) {
+      if (
+        !currentAdmin ||
+        !currentAdmin.isActive ||
+        !currentAdmin.roles.some(role => role.name === AdminRoleEnum.ADMIN)
+      ) {
         return this.appNotification.forbidden({
           field: 'id',
           message: 'No access',
