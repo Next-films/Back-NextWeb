@@ -38,6 +38,7 @@ export enum EXCEPTION_KEYS_ENUM {
   PROVIDER_MOVIE_NOT_FOUND = 'error_provider_movie_not_found',
   MOVIE_NOT_MODERATED = 'error_movie_not_moderated', // When user try to apply moderation but film have not moderate keys
   PROVIDER_NOT_PASSED = 'error_provider_not_passed', // When user try to apply moderation but film have not moderate keys
+  NO_ACCESS = 'error_no_access',
   /*
    *
    * Input validation error

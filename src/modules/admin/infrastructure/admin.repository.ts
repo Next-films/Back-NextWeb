@@ -18,6 +18,13 @@ export class AdminRepository {
     });
   }
 
+  async getAdminByIdWithRoleInfo(id: number): Promise<Admin | null> {
+    return this.adminRepository.findOne({
+      where: { id },
+      relations: { roles: true },
+    });
+  }
+
   async getAdminById(id: number, queryRunner?: QueryRunner): Promise<Admin | null> {
     if (queryRunner) {
       return queryRunner.manager.findOne(this.adminRepository.target, { where: { id: id } });

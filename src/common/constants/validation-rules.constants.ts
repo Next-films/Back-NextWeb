@@ -106,6 +106,8 @@ export const ADMIN_AUTH_VALIDATION_RULES /* as ValidationRulesConstantsType */ =
   },
   EMAIL: {
     PATTERN: /^[\w%+.-]+@[\d.A-Za-z-]+\.[A-Za-z]{2,4}$/,
+    LENGTH_MIN: 5,
+    LENGTH_MAX: 30,
   },
   USERNAME: {
     LENGTH_MIN: 4,

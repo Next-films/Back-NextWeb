@@ -53,6 +53,9 @@ import { AdminRole } from '@/admin/domain/admin-role.entity';
 import { AdminGetAllAdminRolesQueryHandler } from '@/admin/application/query-handlers/admin-get-all-admin-roles.query-handler';
 import { AdminRolesOutputDtoMapper } from '@/admin/api/dtos/output/admin-roles.output.dto';
 import { AdminRoleQueryRepository } from '@/admin/infrastructure/admin-role.query.repository';
+import { AdminQueryRepository } from '@/admin/infrastructure/admin.query.repository';
+import { AdminGetAllAdminsQueryHandler } from '@/admin/application/query-handlers/admin-get-all-admins.query-handler';
+import { AdminGetAllAdminOutputDtoMapper } from '@/admin/api/dtos/output/admin-get-all-admins.output.dto';
 
 export const AdminProvider = {
   provide: 'Admin',
@@ -88,6 +91,7 @@ const queryHandlers = [
   AdminGetAllFilmsQueryHandler,
   AdminGetAllCartoonsQueryHandler,
   AdminGetAllAdminRolesQueryHandler,
+  AdminGetAllAdminsQueryHandler,
 ];
 
 const exportProviders = [TypeOrmModule.forFeature([Admin]), AdminProvider, AdminRepository];
@@ -129,6 +133,8 @@ const exportProviders = [TypeOrmModule.forFeature([Admin]), AdminProvider, Admin
     AdminModerationMovieTaskOutputDtoMapper,
     AdminRolesOutputDtoMapper,
     AdminRoleQueryRepository,
+    AdminQueryRepository,
+    AdminGetAllAdminOutputDtoMapper,
   ],
   exports: [...exportProviders],
 })

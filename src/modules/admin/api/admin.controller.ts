@@ -1,4 +1,4 @@
-import { Controller, Get, Put } from '@nestjs/common';
+import { Controller, Get, Put, Query, UseGuards } from '@nestjs/common';
 import { ADMIN_ROUTE } from '@/common/constants/route.constants';
 import {
   ApplicationNotification,
@@ -16,8 +16,17 @@ import { LoggerService } from '@/common/utils/logger/logger.service';
 import { ApiBearerAuth, ApiUnauthorizedResponse } from '@nestjs/swagger';
 import { ADMIN_AUTH_JWT_SCHEMA_NAME } from '@/common/constants/auth-jwt-schema-name.constants';
 import { SwaggerDecoratorAdminGetAllAdminRoles } from '@/admin/api/swagger/admin-get-all-admin-roles.swagger.decorator';
+import { AdminGetAllAdminsQuery } from '@/admin/application/query-handlers/admin-get-all-admins.query-handler';
+import { PaginationUtil } from '@/common/utils/pagination.util';
+import { AdminGetAllAdminOutputDto } from '@/admin/api/dtos/output/admin-get-all-admins.output.dto';
+import { GetAllAdminInputQueryDto } from '@/admin/api/dtos/input/admin-get-all-admins.input-query.dto';
+import { CurrentUser } from '@/common/decorators/current-user.decorator';
+import { AdminAccessTokenPayload } from '@/admin-auth/domain/types';
+import { AdminAccessTokenGuard } from '@/admin-auth/application/guards/jwt/admin-access-token.guard';
+import { SwaggerDecoratorAdminGetAllAdmins } from '@/admin/api/swagger/admin-get-all-admins.swagger.decorator';
 
 // TODO: Guard
+@UseGuards(AdminAccessTokenGuard)
 @ApiBearerAuth(ADMIN_AUTH_JWT_SCHEMA_NAME)
 @ApiUnauthorizedResponse({ description: 'Unauthorized', type: RequestExceptionDto })
 @Controller(ADMIN_ROUTE.MAIN)
@@ -32,7 +41,27 @@ export class AdminController {
   }
 
   @Get()
-  async getAdmins() {}
+  @SwaggerDecoratorAdminGetAllAdmins()
+  async getAdmins(
+    @Query() query: GetAllAdminInputQueryDto,
+    @CurrentUser() user: AdminAccessTokenPayload,
+  ) {
+    this.logger.log('Get all admins', this.getAdmins.name);
+
+    const result = await this.queryBus.execute<
+      AdminGetAllAdminsQuery,
+      AppNotificationResult<
+        PaginationUtil<AdminGetAllAdminOutputDto[]>,
+        ErrorFieldExceptionDto | null
+      >
+    >(new AdminGetAllAdminsQuery(query, user.id));
+
+    this.logger.log(result.appResult, this.getAdmins.name);
+
+    if (result.appResult === AppNotificationResultEnum.Success) return result.data!;
+
+    this.appNotification.handleHttpResult(result);
+  }
 
   @Get(ADMIN_ROUTE.ROLES)
   @SwaggerDecoratorAdminGetAllAdminRoles()
