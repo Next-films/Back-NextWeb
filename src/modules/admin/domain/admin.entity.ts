@@ -28,6 +28,9 @@ export class Admin {
   @Column()
   password: string;
 
+  @Column({ nullable: true })
+  avatarUrl: string;
+
   // TODO: Проверки если админ не активен, он ничего не может делать
   @Column({ default: true })
   isActive: boolean;

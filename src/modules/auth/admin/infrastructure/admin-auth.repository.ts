@@ -41,6 +41,9 @@ export class AdminAuthRepository {
   }
 
   async getAdminById(id: number): Promise<Admin | null> {
-    return this.adminRepository.findOne({ where: { id } });
+    return this.adminRepository.findOne({
+      where: { id },
+      relations: { adminTelegram: true, roles: true },
+    });
   }
 }

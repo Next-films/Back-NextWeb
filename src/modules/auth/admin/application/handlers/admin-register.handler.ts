@@ -48,6 +48,7 @@ export class AdminRegisterHandler
     const { inputModel } = command;
     const { password, email, username, telegramId } = inputModel;
     try {
+      // TODO: check tg username by tg id + handle role
       const admin = await this.adminAuthRepository.getAdminByEmailOrUsernameOrTgId(
         email,
         username,
