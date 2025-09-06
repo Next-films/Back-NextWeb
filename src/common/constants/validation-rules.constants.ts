@@ -198,3 +198,21 @@ export const MOVIES_VALIDATION_RULES /* as ValidationRulesConstantsType */ = {
     LENGTH_MAX: MOVIE_NAME_LENGTH_MAX,
   },
 } as const;
+/*
+*
+*
+        Get all admins
+*
+*
+*/
+export const GET_ADMINS_VALIDATION_RULES /* as ValidationRulesConstantsType */ = {
+  EMAIL: {
+    LENGTH_MIN: 1,
+    LENGTH_MAX: 30,
+  },
+  USERNAME: {
+    LENGTH_MIN: 1,
+    LENGTH_MAX: 25,
+    PATTERN: /^[a-zA-Z0-9_&#\-!@]+$/,
+  },
+} as const;
