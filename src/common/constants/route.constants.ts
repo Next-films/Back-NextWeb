@@ -7,6 +7,11 @@
 */
 const ADMIN_PREFIX = 'admin';
 
+export const ADMIN_ROUTE = {
+  MAIN: ADMIN_PREFIX,
+  ROLES: 'roles',
+};
+
 export const ADMIN_AUTH_ROUTES = {
   MAIN: `${ADMIN_PREFIX}/auth`,
   REGISTRATION: 'registration',

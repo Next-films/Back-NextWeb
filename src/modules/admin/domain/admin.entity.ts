@@ -1,9 +1,18 @@
-import { Column, Entity, OneToMany, OneToOne, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Column,
+  Entity,
+  JoinTable,
+  ManyToMany,
+  OneToMany,
+  OneToOne,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
 import { AdminSession } from '@/admin-auth/domain/admin-session.entity';
 import { ModerationFilmEntity } from '@/moderation-movie/domain/moderation-film.entity';
 import { ModerationCartoonEntity } from '@/moderation-movie/domain/moderation-cartoon.entity';
 import { AdminTelegram } from '@/admin/domain/admin-telegram.entity';
 import { FinishedTorrentModerationEntity } from '@/moderation-movie/domain/finished-torrent-moderation.entity';
+import { AdminRole } from '@/admin/domain/admin-role.entity';
 
 @Entity()
 export class Admin {
@@ -19,8 +28,17 @@ export class Admin {
   @Column()
   password: string;
 
+  // TODO: Проверки если админ не активен, он ничего не может делать
+  @Column({ default: true })
+  isActive: boolean;
+
   @Column({ type: 'timestamp with time zone', default: () => 'CURRENT_TIMESTAMP' })
   createdAt: Date;
+
+  // TODO: Провекрка в некоторых операциях может ли админ это делать. Регистрация нового админа, управлением другими админами.
+  @ManyToMany(() => AdminRole, (role: AdminRole) => role.admins, { cascade: true })
+  @JoinTable()
+  roles: AdminRole[];
 
   @OneToOne(() => AdminTelegram, (telegram: AdminTelegram) => telegram.admin, { cascade: true })
   adminTelegram: AdminTelegram;

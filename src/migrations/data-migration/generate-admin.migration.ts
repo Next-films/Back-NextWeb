@@ -7,6 +7,8 @@ import { ConfigService } from '@nestjs/config';
 import { ApiSettingsType, ConfigurationType } from '@/settings/configuration';
 import { BcryptService } from '@/bcrypt-module/application/bcrypt.service';
 import { AdminTelegram } from '@/admin/domain/admin-telegram.entity';
+import { AdminRole } from '@/admin/domain/admin-role.entity';
+import { AdminRoleEnum } from '@/common/enums/admin-role.enum';
 
 @Injectable()
 export class GenerateAdminMigration implements OnModuleInit {
@@ -17,6 +19,8 @@ export class GenerateAdminMigration implements OnModuleInit {
     private readonly adminRepository: Repository<Admin>,
     @InjectRepository(AdminTelegram)
     private readonly adminTgRepository: Repository<AdminTelegram>,
+    @InjectRepository(AdminRole)
+    private readonly adminRoleRepository: Repository<AdminRole>,
     @InjectDataSource() private readonly dataSource: DataSource,
     private readonly logger: LoggerService,
     private readonly configService: ConfigService<ConfigurationType, true>,
@@ -36,6 +40,7 @@ export class GenerateAdminMigration implements OnModuleInit {
     try {
       await queryRunner.startTransaction();
 
+      await this.generateRole(queryRunner);
       await this.generate(queryRunner);
 
       await queryRunner.commitTransaction();
@@ -45,6 +50,39 @@ export class GenerateAdminMigration implements OnModuleInit {
       await queryRunner.rollbackTransaction();
     } finally {
       await queryRunner.release();
+    }
+  }
+
+  private async generateRole(queryRunner: QueryRunner): Promise<void> {
+    const ROLE_NAME = Object.values(AdminRoleEnum);
+
+    const roles = await queryRunner.manager.find(this.adminRoleRepository.target);
+    const existingRoles: string[] = [];
+    const dtos: AdminRole[] = [];
+    for (const role of ROLE_NAME) {
+      const roleExist = roles.find(r => r.name === role);
+
+      if (roleExist) {
+        existingRoles.push(role);
+        continue;
+      }
+
+      const newRole = queryRunner.manager.create(this.adminRoleRepository.target, {
+        name: role,
+      });
+
+      dtos.push(newRole);
+    }
+
+    if (dtos.length > 0) {
+      await queryRunner.manager.save(dtos);
+    }
+
+    if (existingRoles.length > 0) {
+      this.logger.warn(
+        `Role already exists: ${JSON.stringify(existingRoles)}`,
+        this.generateRole.name,
+      );
     }
   }
 
@@ -70,11 +108,23 @@ export class GenerateAdminMigration implements OnModuleInit {
 
     const hash = await this.bcryptService.generateHash(ADMIN_PASSWORD, this.admin_salt_round);
 
+    const role = await queryRunner.manager.findOne(this.adminRoleRepository.target, {
+      where: {
+        name: AdminRoleEnum.ADMIN,
+      },
+    });
+
+    if (!role) {
+      this.logger.error('The ADMIN role was not found, the administrator could not be created');
+      throw new Error('The ADMIN role was not found, the administrator could not be created');
+    }
+
     const result = await queryRunner.manager.save(this.adminRepository.target, {
       email: ADMIN_EMAIL,
       username: ADMIN_USERNAME,
       password: hash,
       createdAt: new Date(),
+      roles: [role],
     });
 
     await queryRunner.manager.save(this.adminTgRepository.target, {

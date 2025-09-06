@@ -48,6 +48,11 @@ import { AdminGetAllCartoonsQueryHandler } from '@/admin/application/query-handl
 import { AdminUpdateCartoonCommandHandler } from '@/admin/application/handlers/admin-update-cartoon.handler';
 import { AdminRemoveCartoonCommandHandler } from '@/admin/application/handlers/admin-remove-cartoon.handler';
 import { AdminShowOrHiddeCartoonCommandHandler } from '@/admin/application/handlers/admin-show-or-hide-cartoon.handler';
+import { AdminController } from '@/admin/api/admin.controller';
+import { AdminRole } from '@/admin/domain/admin-role.entity';
+import { AdminGetAllAdminRolesQueryHandler } from '@/admin/application/query-handlers/admin-get-all-admin-roles.query-handler';
+import { AdminRolesOutputDtoMapper } from '@/admin/api/dtos/output/admin-roles.output.dto';
+import { AdminRoleQueryRepository } from '@/admin/infrastructure/admin-role.query.repository';
 
 export const AdminProvider = {
   provide: 'Admin',
@@ -82,6 +87,7 @@ const queryHandlers = [
   AdminGetModerationMovieTaskByIdQueryHandler,
   AdminGetAllFilmsQueryHandler,
   AdminGetAllCartoonsQueryHandler,
+  AdminGetAllAdminRolesQueryHandler,
 ];
 
 const exportProviders = [TypeOrmModule.forFeature([Admin]), AdminProvider, AdminRepository];
@@ -89,7 +95,7 @@ const exportProviders = [TypeOrmModule.forFeature([Admin]), AdminProvider, Admin
 @Module({
   imports: [
     MoviesModules,
-    TypeOrmModule.forFeature([Admin, AdminTelegram]),
+    TypeOrmModule.forFeature([Admin, AdminTelegram, AdminRole]),
     BcryptModule,
     JwtModule,
     ExternalApiAuthModule,
@@ -107,6 +113,7 @@ const exportProviders = [TypeOrmModule.forFeature([Admin]), AdminProvider, Admin
     AdminModerationMovieController,
     AdminCinemaPrivateController,
     AdminCinemaCartoonsController,
+    AdminController,
   ],
   providers: [
     ...handlers,
@@ -120,6 +127,8 @@ const exportProviders = [TypeOrmModule.forFeature([Admin]), AdminProvider, Admin
     AdminCinemaCartoonsOutputDtoMapper,
     AdminRepository,
     AdminModerationMovieTaskOutputDtoMapper,
+    AdminRolesOutputDtoMapper,
+    AdminRoleQueryRepository,
   ],
   exports: [...exportProviders],
 })
