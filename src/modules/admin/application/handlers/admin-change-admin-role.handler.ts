@@ -58,7 +58,8 @@ export class AdminChangeAdminRoleCommandHandler
       if (
         !currentAdmin ||
         !currentAdmin.isActive ||
-        !currentAdmin.roles.some(role => role.name === AdminRoleEnum.ADMIN)
+        !currentAdmin.roles.some(role => role.name === AdminRoleEnum.ADMIN) ||
+        currentUserId === userId
       ) {
         await queryRunner.rollbackTransaction();
         return this.appNotification.forbidden({
