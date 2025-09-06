@@ -125,7 +125,14 @@ const getSettingsForCors = (apiSettings: ApiSettingsType): string[] => {
 const getCorsOptions = (origin: string[]): CorsOptions => ({
   origin,
   credentials: true,
-  allowedHeaders: ['Content-Type', 'Origin', 'X-Requested-With', 'Accept', 'Authorization'],
+  allowedHeaders: [
+    'Content-Type',
+    'Origin',
+    'X-Requested-With',
+    'Accept',
+    'Authorization',
+    'X-Lang',
+  ],
   exposedHeaders: ['Authorization'],
   methods: 'GET, HEAD, PUT, PATCH, POST, DELETE, OPTIONS',
 });
