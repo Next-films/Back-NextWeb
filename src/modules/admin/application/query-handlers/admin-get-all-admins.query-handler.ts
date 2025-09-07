@@ -13,14 +13,9 @@ import {
 } from '@/admin/api/dtos/output/admin-get-all-admins.output.dto';
 import { AdminQueryRepository } from '@/admin/infrastructure/admin.query.repository';
 import { GetAllAdminInputQueryDto } from '@/admin/api/dtos/input/admin-get-all-admins.input-query.dto';
-import { AdminRepository } from '@/admin/infrastructure/admin.repository';
-import { AdminRoleEnum } from '@/common/enums/admin-role.enum';
 
 export class AdminGetAllAdminsQuery implements IQuery {
-  constructor(
-    public query: GetAllAdminInputQueryDto,
-    public currentUserId: number,
-  ) {}
+  constructor(public query: GetAllAdminInputQueryDto) {}
 }
 
 @QueryHandler(AdminGetAllAdminsQuery)
@@ -40,7 +35,6 @@ export class AdminGetAllAdminsQueryHandler
     private readonly paginationUtil: PaginationUtil,
     private readonly adminGetAllAdminOutputDtoMapper: AdminGetAllAdminOutputDtoMapper,
     private readonly adminQueryRepository: AdminQueryRepository,
-    private readonly adminRepository: AdminRepository,
   ) {
     this.logger.setContext(AdminGetAllAdminsQueryHandler.name);
   }
@@ -54,24 +48,9 @@ export class AdminGetAllAdminsQueryHandler
     >
   > {
     this.logger.log(`Get all admins command`, this.execute.name);
-    const { currentUserId } = query;
     const { page, size, searchUsername, searchEmail, sortField, sortDirection, searchRole } =
       query.query;
     try {
-      const currentAdmin = await this.adminRepository.getAdminByIdWithRoleInfo(currentUserId);
-
-      if (
-        !currentAdmin ||
-        !currentAdmin.isActive ||
-        !currentAdmin.roles.some(role => role.name === AdminRoleEnum.ADMIN)
-      ) {
-        return this.appNotification.forbidden({
-          field: 'id',
-          message: 'No access',
-          errorKey: EXCEPTION_KEYS_ENUM.NO_ACCESS,
-        });
-      }
-
       const totalCount = await this.adminQueryRepository.getAdminsCount(
         searchUsername || null,
         searchEmail || null,

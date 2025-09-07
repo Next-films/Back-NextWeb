@@ -15,6 +15,7 @@ import { AdminMeAccessTokenStrategy } from '@/admin-auth/application/guards/jwt/
 import { AdminJwtRefreshTokenStrategy } from '@/admin-auth/application/guards/jwt/admin-refresh-token.strategy';
 import { AdminRegisterHandler } from '@/admin-auth/application/handlers/admin-register.handler';
 import { AdminUpdateTokensHandler } from '@/admin-auth/application/handlers/admin-update-tokens.handler';
+import { AdminAccessTokenByRoleOnlyAdminStrategy } from '@/admin-auth/application/guards/jwt/admin-access-token-by-role-only-admin.strategy';
 
 export const AdminSessionProvider = {
   provide: 'AdminSession',
@@ -30,7 +31,12 @@ const handlers = [
   AdminUpdateTokensHandler,
 ];
 
-const guards = [AdminAccessTokenStrategy, AdminMeAccessTokenStrategy, AdminJwtRefreshTokenStrategy];
+const guards = [
+  AdminAccessTokenStrategy,
+  AdminMeAccessTokenStrategy,
+  AdminJwtRefreshTokenStrategy,
+  AdminAccessTokenByRoleOnlyAdminStrategy,
+];
 
 @Module({
   imports: [TypeOrmModule.forFeature([AdminSession]), JwtModule, AdminModule, BcryptModule],

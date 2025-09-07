@@ -19,7 +19,12 @@ import {
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import { LoggerService } from '@/common/utils/logger/logger.service';
 import { ADMIN_EXTERNAL_API_ROUTE } from '@/common/constants/route.constants';
-import { ApiBearerAuth, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiForbiddenResponse,
+  ApiTags,
+  ApiUnauthorizedResponse,
+} from '@nestjs/swagger';
 import { AdminCreateExternalApiTokenCommand } from '@/admin/application/handlers/admin-create-external-api-token.handler';
 import { ExternalApiTokenCreateInputDto } from '@/admin/api/dtos/input/external-api-token-create.input.dto';
 import { ErrorFieldExceptionDto } from '@/common/exception-filters/http/http-exception.filter';
@@ -38,13 +43,15 @@ import { SwaggerDecoratorExternalTokenUpdate } from '@/admin/api/swagger/externa
 import { AdminRemoveExternalApiTokenCommand } from '@/admin/application/handlers/admin-remove-external-api-token.handler';
 import { SwaggerDecoratorExternalTokenRemove } from '@/admin/api/swagger/external-token-remove.swagger.decorator';
 import { ADMIN_AUTH_JWT_SCHEMA_NAME } from '@/common/constants/auth-jwt-schema-name.constants';
+import { AdminAccessTokenByRoleOnlyAdminGuard } from '@/admin-auth/application/guards/jwt/admin-access-token-by-role-only-admin.guard';
 
 @ApiTags(
   'Admin external api. Handles the generation and distribution of access tokens for backend API authorization.',
 )
 @ApiBearerAuth(ADMIN_AUTH_JWT_SCHEMA_NAME)
 @ApiUnauthorizedResponse({ description: 'Unauthorized' })
-@UseGuards(AdminAccessTokenGuard)
+@ApiForbiddenResponse({ description: 'No access' })
+@UseGuards(AdminAccessTokenGuard, AdminAccessTokenByRoleOnlyAdminGuard)
 @Controller(ADMIN_EXTERNAL_API_ROUTE.MAIN)
 export class AdminExternalApiController {
   constructor(

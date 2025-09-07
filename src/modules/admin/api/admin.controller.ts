@@ -59,6 +59,7 @@ import { fileValidationPipe } from '@/common/pipes/validation-file.pipe';
 import { AdminUpdateAvatarCommand } from '@/admin/application/handlers/admin-update-avatar.handler';
 import { SwaggerDecoratorAdminUpdate } from '@/admin/api/swagger/admin-update.swagger.decorator';
 import { SwaggerDecoratorAdminUpdateAvatar } from '@/admin/api/swagger/admin-update-avatar.swagger.decorator';
+import { AdminAccessTokenByRoleOnlyAdminGuard } from '@/admin-auth/application/guards/jwt/admin-access-token-by-role-only-admin.guard';
 
 @UseGuards(AdminAccessTokenGuard)
 @ApiBearerAuth(ADMIN_AUTH_JWT_SCHEMA_NAME)
@@ -75,10 +76,10 @@ export class AdminController {
   }
 
   @Get()
+  @UseGuards(AdminAccessTokenByRoleOnlyAdminGuard)
   @SwaggerDecoratorAdminGetAllAdmins()
   async getAdmins(
     @Query() query: GetAllAdminInputQueryDto,
-    @CurrentUser() user: AdminAccessTokenPayload,
   ): Promise<PaginationUtil<AdminGetAllAdminOutputDto[]> | void> {
     this.logger.log('Get all admins', this.getAdmins.name);
 
@@ -88,7 +89,7 @@ export class AdminController {
         PaginationUtil<AdminGetAllAdminOutputDto[]>,
         ErrorFieldExceptionDto | null
       >
-    >(new AdminGetAllAdminsQuery(query, user.id));
+    >(new AdminGetAllAdminsQuery(query));
 
     this.logger.log(result.appResult, this.getAdmins.name);
 
