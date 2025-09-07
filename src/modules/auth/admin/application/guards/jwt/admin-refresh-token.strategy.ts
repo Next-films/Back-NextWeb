@@ -44,6 +44,7 @@ export class AdminJwtRefreshTokenStrategy extends PassportStrategy(
     ]);
 
     if (!admin || !authSession) return null;
+    if (!admin.isActive) return null;
     if (authSession.adminId !== id) return null;
     if (authSession.issueAt.toISOString() !== new Date(iat * 1000).toISOString()) return null;
 

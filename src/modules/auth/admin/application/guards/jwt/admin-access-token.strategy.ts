@@ -26,9 +26,10 @@ export class AdminAccessTokenStrategy extends PassportStrategy(
 
   async validate(payload: AdminAccessTokenPayload): Promise<AdminAccessTokenPayload | null> {
     const { id } = payload;
-    const isExist = await this.adminAuthRepository.isExistAdmin(id);
+    const admin = await this.adminAuthRepository.getAdminById(id);
 
-    if (!isExist) return null;
+    if (!admin) return null;
+    if (!admin.isActive) return null;
 
     return payload;
   }

@@ -1,7 +1,8 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsNotEmpty, IsString, Length, Matches } from 'class-validator';
+import { IsEmail, IsEnum, IsNotEmpty, IsString, Length, Matches } from 'class-validator';
 import { ADMIN_AUTH_VALIDATION_RULES } from '@/common/constants/validation-rules.constants';
 import { Trim } from '@/common/decorators/transform/trim.decorator';
+import { AdminRoleEnum } from '@/common/enums/admin-role.enum';
 
 export class AdminRegisterInputModel {
   @ApiProperty({
@@ -50,4 +51,8 @@ export class AdminRegisterInputModel {
     ADMIN_AUTH_VALIDATION_RULES.TELEGRAM_ID.LENGTH_MAX,
   )
   telegramId: string;
+
+  @ApiProperty({ enum: AdminRoleEnum, isArray: true })
+  @IsEnum(AdminRoleEnum, { each: true })
+  roles: AdminRoleEnum[];
 }

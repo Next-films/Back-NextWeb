@@ -3,12 +3,14 @@ import {
   ApiBadRequestResponse,
   ApiBearerAuth,
   ApiCreatedResponse,
+  ApiForbiddenResponse,
+  ApiNotFoundResponse,
   ApiOperation,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
-import { ErrorFieldExceptionDto } from '@/common/exception-filters/http/http-exception.filter';
-import { AdminLoginOutputModel } from '@/admin-auth/api/dtos/output/admin-login.output.model';
+import { RequestExceptionDto } from '@/common/exception-filters/http/http-exception.filter';
 import { ADMIN_AUTH_JWT_SCHEMA_NAME } from '@/common/constants/auth-jwt-schema-name.constants';
+import { AdminGetAllAdminOutputDto } from '@/admin/api/dtos/output/admin-get-all-admins.output.dto';
 
 export function SwaggerDecoratorAdminRegister(): MethodDecorator {
   return applyDecorators(
@@ -16,14 +18,23 @@ export function SwaggerDecoratorAdminRegister(): MethodDecorator {
     ApiBearerAuth(ADMIN_AUTH_JWT_SCHEMA_NAME),
     ApiCreatedResponse({
       description: 'Success',
-      type: AdminLoginOutputModel,
+      type: AdminGetAllAdminOutputDto,
     }),
     ApiBadRequestResponse({
       description: 'Incorrect input data or email or username already exists',
-      type: ErrorFieldExceptionDto,
+      type: RequestExceptionDto,
     }),
     ApiUnauthorizedResponse({
       description: 'Unauthorized',
+      type: RequestExceptionDto,
+    }),
+    ApiNotFoundResponse({
+      description: 'Role not Found',
+      type: RequestExceptionDto,
+    }),
+    ApiForbiddenResponse({
+      description: 'No access',
+      type: RequestExceptionDto,
     }),
   );
 }

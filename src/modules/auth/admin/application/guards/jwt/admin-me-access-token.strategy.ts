@@ -33,6 +33,7 @@ export class AdminMeAccessTokenStrategy extends PassportStrategy(
     const admin = await this.adminRepository.getAdminById(id);
 
     if (!admin) return null;
+    if (!admin.isActive) return null;
 
     return this.adminMeOutputModelMapper.mapAdmin(admin);
   }

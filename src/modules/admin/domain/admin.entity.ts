@@ -68,7 +68,13 @@ export class Admin {
   )
   finishedTorrentModeration: FinishedTorrentModerationEntity[];
 
-  static create(email: string, username: string, password: string, tgId: string): Admin {
+  static create(
+    email: string,
+    username: string,
+    password: string,
+    tgId: string,
+    roles: AdminRole[],
+  ): Admin {
     const admin = new this();
     const date = new Date();
     admin.email = email;
@@ -81,6 +87,7 @@ export class Admin {
     admin.adminTelegram = adminTg;
     adminTg.createdAt = date;
     adminTg.telegramId = tgId;
+    admin.roles = roles;
 
     return admin;
   }

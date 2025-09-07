@@ -4,10 +4,14 @@ import {
   AppNotificationResult,
   AppNotificationResultEnum,
 } from '@/common/utils/app-notification.util';
-import { CommandBus } from '@nestjs/cqrs';
+import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import { LoggerService } from '@/common/utils/logger/logger.service';
 import { AdminLoginCommand } from '@/admin-auth/application/handlers/admin-login.handler';
-import { AdminLoginOutputDto, AdminRefreshTokenPayload } from '@/admin-auth/domain/types';
+import {
+  AdminAccessTokenPayload,
+  AdminLoginOutputDto,
+  AdminRefreshTokenPayload,
+} from '@/admin-auth/domain/types';
 import {
   COOKIE_REFRESH_TOKEN_ADMIN_OPTIONS,
   COOKIE_REFRESH_TOKEN_NAME,
@@ -35,6 +39,8 @@ import { SwaggerDecoratorAdminRegister } from '@/admin-auth/api/swagger/admin-au
 import { SwaggerDecoratorAdminUpdateTokens } from '@/admin-auth/api/swagger/admin-auth-update-tokens.swagger.decorator';
 import { SwaggerDecoratorAdminMe } from '@/admin-auth/api/swagger/admin-auth-me.swagger.decorator';
 import { ApiTags } from '@nestjs/swagger';
+import { AdminGetAdminByIdQuery } from '@/admin/application/query-handlers/admin-get-admin-by-id.query-handler';
+import { AdminGetAllAdminOutputDto } from '@/admin/api/dtos/output/admin-get-all-admins.output.dto';
 
 @ApiTags('Admin - auth')
 @Controller(ADMIN_AUTH_ROUTES.MAIN)
@@ -42,6 +48,7 @@ export class AdminAuthController {
   constructor(
     private readonly appNotification: ApplicationNotification,
     private readonly commandBus: CommandBus,
+    private readonly queryBus: QueryBus,
     private readonly logger: LoggerService,
   ) {
     this.logger.setContext(AdminAuthController.name);
@@ -98,15 +105,27 @@ export class AdminAuthController {
   @UseGuards(AdminAccessTokenGuard)
   @Post(ADMIN_AUTH_ROUTES.REGISTRATION)
   @SwaggerDecoratorAdminRegister()
-  async register(@Body() body: AdminRegisterInputModel): Promise<void> {
+  async register(
+    @Body() body: AdminRegisterInputModel,
+    @CurrentUser() user: AdminAccessTokenPayload,
+  ): Promise<AdminGetAllAdminOutputDto | void> {
     this.logger.log('Execute: register admin', this.register.name);
 
     const result = await this.commandBus.execute<
       AdminRegisterCommand,
-      AppNotificationResult<null, ValidationErrorsDto | null>
-    >(new AdminRegisterCommand(body));
+      AppNotificationResult<number, ValidationErrorsDto | null>
+    >(new AdminRegisterCommand(body, user.id));
 
     this.logger.log(result.appResult, this.register.name);
+
+    if (result.appResult === AppNotificationResultEnum.Success) {
+      const newAdinResult = await this.queryBus.execute<
+        AdminGetAdminByIdQuery,
+        AppNotificationResult<AdminGetAllAdminOutputDto>
+      >(new AdminGetAdminByIdQuery(result.data!, user.id));
+
+      return newAdinResult.data!;
+    }
 
     this.appNotification.handleHttpResult(result);
   }
@@ -140,7 +159,7 @@ export class AdminAuthController {
   @UseGuards(AdminMeAccessTokenGuard)
   @Get(ADMIN_AUTH_ROUTES.ME)
   @SwaggerDecoratorAdminMe()
-  async me(@CurrentUser() user: AdminMeOutputModel): Promise<AdminMeOutputModel> {
+  me(@CurrentUser() user: AdminMeOutputModel): AdminMeOutputModel {
     this.logger.debug('Execute: get info about current user', this.me.name);
     return user;
   }

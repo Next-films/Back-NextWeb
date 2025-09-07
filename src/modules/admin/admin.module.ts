@@ -107,7 +107,12 @@ const queryHandlers = [
   AdminGetAdminByIdQueryHandler,
 ];
 
-const exportProviders = [TypeOrmModule.forFeature([Admin]), AdminProvider, AdminRepository];
+const exportProviders = [
+  TypeOrmModule.forFeature([Admin]),
+  AdminProvider,
+  AdminRepository,
+  AdminRoleRepository,
+];
 
 @Module({
   imports: [
