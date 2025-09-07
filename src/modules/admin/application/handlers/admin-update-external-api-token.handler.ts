@@ -18,6 +18,7 @@ import { ConfigurationType } from '@/settings/configuration';
 import { JwtExpirationUtil } from '@/common/utils/jwt-expiration.util';
 import { ExternalApiTokenCreateOutputDto } from '@/admin/api/dtos/output/external-api-token-create.output.dto';
 import { ExternalApiTokenUpdateInputDto } from '@/admin/api/dtos/input/external-api-token-update.input.dto';
+import { ExternalApiTokenOutputModelMapper } from '@/admin/api/dtos/output/external-api-tokens.output.dto';
 
 export class AdminUpdateExternalApiTokenCommand implements ICommand {
   constructor(
@@ -43,6 +44,7 @@ export class AdminUpdateExternalApiTokenCommandHandler
     private readonly jwtService: JwtMService,
     private readonly configService: ConfigService<ConfigurationType, true>,
     private readonly jwtExpirationUtil: JwtExpirationUtil,
+    private readonly externalApiTokenOutputModelMapper: ExternalApiTokenOutputModelMapper,
   ) {
     this.logger.setContext(AdminUpdateExternalApiTokenCommandHandler.name);
 
@@ -80,7 +82,16 @@ export class AdminUpdateExternalApiTokenCommandHandler
 
       await this.externalApiAuthRepository.save(token);
 
-      return this.appNotification.success({ token: accessToken });
+      const dateExpAt = this.externalApiTokenOutputModelMapper.getExpirationDate(
+        token.updatedAt,
+        token.exp,
+      );
+      return this.appNotification.success({
+        id: tokenId,
+        name: token.name,
+        token: accessToken,
+        expAt: dateExpAt,
+      });
     } catch (e) {
       this.logger.error(e, this.execute.name);
       return this.appNotification.internalServerError();

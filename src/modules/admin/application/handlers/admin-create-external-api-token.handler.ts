@@ -20,6 +20,7 @@ import { ConfigService } from '@nestjs/config';
 import { ConfigurationType } from '@/settings/configuration';
 import { JwtExpirationUtil } from '@/common/utils/jwt-expiration.util';
 import { ExternalApiTokenCreateOutputDto } from '@/admin/api/dtos/output/external-api-token-create.output.dto';
+import { ExternalApiTokenOutputModelMapper } from '@/admin/api/dtos/output/external-api-tokens.output.dto';
 
 export class AdminCreateExternalApiTokenCommand implements ICommand {
   constructor(public inputDto: ExternalApiTokenCreateInputDto) {}
@@ -43,6 +44,7 @@ export class AdminCreateExternalApiTokenCommandHandler
     private readonly jwtService: JwtMService,
     private readonly configService: ConfigService<ConfigurationType, true>,
     private readonly jwtExpirationUtil: JwtExpirationUtil,
+    private readonly externalApiTokenOutputModelMapper: ExternalApiTokenOutputModelMapper,
   ) {
     this.logger.setContext(AdminCreateExternalApiTokenCommandHandler.name);
 
@@ -80,9 +82,17 @@ export class AdminCreateExternalApiTokenCommandHandler
 
       newToken.update(`${header}.${payload}`);
 
-      await this.externalApiAuthRepository.save(newToken);
+      const savedTokenId = await this.externalApiAuthRepository.save(newToken);
 
-      return this.appNotification.success({ token: accessToken });
+      return this.appNotification.success({
+        id: savedTokenId,
+        name,
+        token: accessToken,
+        expAt: this.externalApiTokenOutputModelMapper.getExpirationDate(
+          newToken.updatedAt,
+          newToken.exp,
+        ),
+      });
     } catch (e) {
       this.logger.error(e, this.execute.name);
       return this.appNotification.internalServerError();

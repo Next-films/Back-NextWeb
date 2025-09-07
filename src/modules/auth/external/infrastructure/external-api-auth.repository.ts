@@ -10,8 +10,10 @@ export class ExternalApiAuthRepository {
     private readonly externalApiAuthRepository: Repository<ExternalApiAuth>,
   ) {}
 
-  async save(token: ExternalApiAuth): Promise<void> {
-    await this.externalApiAuthRepository.save(token);
+  async save(token: ExternalApiAuth): Promise<number> {
+    const newToken = await this.externalApiAuthRepository.save(token);
+
+    return newToken.id;
   }
 
   async removeById(tokenId: number): Promise<void> {

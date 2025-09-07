@@ -18,11 +18,11 @@ export class ExternalApiTokenOutputDto {
 @Injectable()
 export class ExternalApiTokenOutputModelMapper {
   mapToken(token: ExternalApiAuth): ExternalApiTokenOutputDto {
-    const { id, name, createdAt, exp } = token;
+    const { id, name, exp, updatedAt } = token;
     return {
       id,
       name,
-      expAt: this.getExpirationDate(createdAt, exp)?.toISOString() || null,
+      expAt: this.getExpirationDate(updatedAt, exp)?.toISOString() || null,
     };
   }
 
@@ -30,14 +30,14 @@ export class ExternalApiTokenOutputModelMapper {
     return tokens.map(t => this.mapToken(t));
   }
 
-  private getExpirationDate(createdAt: Date, exp: ExternalApiTokenExpAtEnum): Date | null {
+  getExpirationDate(date: Date, exp: ExternalApiTokenExpAtEnum): Date | null {
     if (exp === ExternalApiTokenExpAtEnum.F) return null;
 
     const amount = parseInt(exp);
-    if (exp.endsWith('d')) return add(createdAt, { days: amount });
-    if (exp.endsWith('w')) return add(createdAt, { weeks: amount });
-    if (exp.endsWith('mo')) return add(createdAt, { months: amount });
-    if (exp.endsWith('y')) return add(createdAt, { years: amount });
+    if (exp.endsWith('d')) return add(date, { days: amount });
+    if (exp.endsWith('w')) return add(date, { weeks: amount });
+    if (exp.endsWith('mo')) return add(date, { months: amount });
+    if (exp.endsWith('y')) return add(date, { years: amount });
 
     return null;
   }
