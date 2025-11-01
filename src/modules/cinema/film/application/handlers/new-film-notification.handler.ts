@@ -82,11 +82,28 @@ export class NewFilmNotificationCommandHandler
 
       const film = existingFilm
         ? await this.updateExistingFilm(existingFilm, metadata, key, duration || 0, kpId)
-        : await this.createNewFilm(metadata, key, duration || 0, kpId);
+        : this.createNewFilm(metadata, key, duration || 0, kpId);
 
       this.moviesService.setHandleProductionStatus(film);
 
-      await this.filmRepository.save(film, queryRunner);
+      const savedFilm = await this.filmRepository.save(film, queryRunner);
+
+      if (!existingFilm) {
+        const { titleUrl, posterUrl, backgroundContentUrl } = await this.getContentUrlForNewFilm(
+          savedFilm.id,
+          metadata.trailerUrl,
+          metadata.titleUrl,
+          metadata.posterUrl,
+        );
+
+        film.updateBackgroundUrl(backgroundContentUrl);
+        film.updatePosterUrl(posterUrl);
+        film.updateTitleUrl(titleUrl);
+
+        this.moviesService.setHandleProductionStatus(film);
+
+        await this.filmRepository.save(film, queryRunner);
+      }
 
       if (film.handleStatus === MovieHandleStatus.MODERATE) {
         this.logger.log('Film sent to moderation', this.execute.name);
@@ -113,20 +130,20 @@ export class NewFilmNotificationCommandHandler
     duration: number,
     kpId: string,
   ): Promise<Film> {
-    const tasks: Promise<string | null>[] = [];
+    const { id } = film;
+    const [previewUrl, backgroundContentUrl, titleUrl] = await Promise.all([
+      !film.previewUrl
+        ? this.moviesService.getPosterUrl(metadata.posterUrl, id, MovieTypesEnum.FILM)
+        : Promise.resolve(null),
 
-    if (!film.previewUrl)
-      tasks.push(this.moviesService.getPosterUrl(metadata.posterUrl, kpId, MovieTypesEnum.FILM));
+      !film.backgroundContentUrl
+        ? this.moviesService.getBackgroundContentUrl(metadata.trailerUrl, id, MovieTypesEnum.FILM)
+        : Promise.resolve(null),
 
-    if (!film.backgroundContentUrl)
-      tasks.push(
-        this.moviesService.getBackgroundContentUrl(metadata.trailerUrl, kpId, MovieTypesEnum.FILM),
-      );
-
-    if (!film.titleUrl)
-      tasks.push(this.moviesService.getLogoUrl(metadata.titleUrl, kpId, MovieTypesEnum.FILM));
-
-    const [previewUrl, backgroundContentUrl, titleUrl] = await Promise.all(tasks);
+      !film.titleUrl
+        ? this.moviesService.getLogoUrl(metadata.titleUrl, id, MovieTypesEnum.FILM)
+        : Promise.resolve(null),
+    ]);
 
     const filmDto: FilmUpdateDto = {
       videUrl: key,
@@ -148,18 +165,12 @@ export class NewFilmNotificationCommandHandler
     return film;
   }
 
-  private async createNewFilm(
+  private createNewFilm(
     metadata: MovieKpMetadata,
     key: string,
     duration: number,
     kpId: string,
-  ): Promise<Film> {
-    const [backgroundContentUrl, posterUrl, titleUrl] = await Promise.all([
-      this.moviesService.getBackgroundContentUrl(metadata.trailerUrl, kpId, MovieTypesEnum.FILM),
-      this.moviesService.getPosterUrl(metadata.posterUrl, kpId, MovieTypesEnum.FILM),
-      this.moviesService.getLogoUrl(metadata.titleUrl, kpId, MovieTypesEnum.FILM),
-    ]);
-
+  ): Film {
     const filmDto: FilmCreateDto = {
       key,
       kpId,
@@ -173,10 +184,10 @@ export class NewFilmNotificationCommandHandler
       description: metadata.description,
       releaseDate: metadata.releaseDate,
       handleStatus: MovieHandleStatus.PROCESSING,
-      previewUrl: posterUrl,
-      backgroundContentUrl,
+      previewUrl: null,
+      backgroundContentUrl: null,
       trailerUrl: metadata.trailerUrl,
-      titleUrl,
+      titleUrl: null,
     };
     return this.filmEntity.create(filmDto);
   }
@@ -195,6 +206,25 @@ export class NewFilmNotificationCommandHandler
     const { id: moderationId } = moderationResult;
 
     return moderationId;
+  }
+
+  private async getContentUrlForNewFilm(
+    filmId: number,
+    trailerUrl: string | null,
+    logoUrl: string | null,
+    previewUrl: string | null,
+  ) {
+    const [backgroundContentUrl, posterUrl, titleUrl] = await Promise.all([
+      this.moviesService.getBackgroundContentUrl(trailerUrl, filmId, MovieTypesEnum.CARTOON),
+      this.moviesService.getPosterUrl(previewUrl, filmId, MovieTypesEnum.CARTOON),
+      this.moviesService.getLogoUrl(logoUrl, filmId, MovieTypesEnum.CARTOON),
+    ]);
+
+    return {
+      backgroundContentUrl,
+      posterUrl,
+      titleUrl,
+    };
   }
 
   private publish(moderationId: number): void {

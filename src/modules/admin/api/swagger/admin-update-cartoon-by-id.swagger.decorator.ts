@@ -1,17 +1,19 @@
 import { applyDecorators } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
-  ApiNoContentResponse,
+  ApiCreatedResponse,
   ApiNotFoundResponse,
   ApiOperation,
 } from '@nestjs/swagger';
 import { RequestExceptionDto } from '@/common/exception-filters/http/http-exception.filter';
+import { AdminCinemaCartoonsOutputDto } from '@/admin/api/dtos/output/admin-cinema-cartoons.output.dto';
 
 export function SwaggerDecoratorAdminUpdateCartoonById(): MethodDecorator {
   return applyDecorators(
     ApiOperation({ summary: 'Update cartoon by admin by id' }),
-    ApiNoContentResponse({
+    ApiCreatedResponse({
       description: 'Success',
+      type: AdminCinemaCartoonsOutputDto,
     }),
     ApiNotFoundResponse({ description: 'Cartoon not found' }),
     ApiBadRequestResponse({

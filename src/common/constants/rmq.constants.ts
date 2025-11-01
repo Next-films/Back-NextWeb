@@ -29,6 +29,7 @@ export const BRIDGE_DOWNLOAD_SERIALS_CMD = 'bridge_download_serials_cmd';
 export const NEW_FILM_IS_HANDLE_CMD = 'new_film_is_handle_cmd';
 export const NEW_CARTOON_IS_HANDLE_CMD = 'new_cartoon_is_handle_cmd';
 export const NEW_SERIAL_IS_HANDLE_CMD = 'new_serial_is_handle_cmd';
+export const NEW_BACKGROUND_CONTENT_FOR_FILM_CMD = 'new_background_content_for_film_cmd';
 
 /*
  *
@@ -60,6 +61,7 @@ export const ADD_MOVIE_TO_DOWNLOAD_QUEUE_CMD = 'add_movie_to_download_queue_cmd'
  *
  */
 export const DOWNLOAD_YT_CLIP_CMD = 'download_yt_clip_cmd';
+export const UPLOAD_FILM_CMD = 'upload_film_cmd';
 
 /*
  *

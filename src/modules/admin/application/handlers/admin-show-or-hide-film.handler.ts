@@ -17,6 +17,8 @@ import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource, QueryRunner } from 'typeorm';
 import { TelegramAdminBotSendNotificationNewModerationMovieCommand } from '@/telegram/admin-bot/application/handlers/bot-send-notification-new-moderation-movie.handler';
 import { MovieTypesEnum } from '@/common/types/types';
+import { MoviesService } from '@/movies/application/movies.service';
+import { Film } from '@/films/domain/film.entity';
 
 export class AdminShowOrHiddeFilmCommand implements ICommand {
   constructor(
@@ -38,6 +40,7 @@ export class AdminShowOrHiddeFilmCommandHandler
     private readonly appNotification: ApplicationNotification,
     private readonly filmRepository: FilmRepository,
     private readonly commandBus: CommandBus,
+    private readonly moviesService: MoviesService,
     private readonly moderationFilmRepository: ModerationFilmRepository,
     @Inject(ModerationFilmEntity.name)
     private readonly moderationFilmEntity: typeof ModerationFilmEntity,
@@ -67,30 +70,61 @@ export class AdminShowOrHiddeFilmCommandHandler
         });
       }
 
-      const { id } = film;
+      let newModerationId: number | null = null;
 
-      let moderationId: number | null = null;
+      const moderationTask = await this.moderationFilmRepository.getModerationByMovieId(
+        filmId,
+        queryRunner,
+      );
+
       if (isModerate) {
-        film.showOrHiddeMovie(isHidden, MovieHandleStatus.MODERATE);
+        if (!moderationTask) {
+          film.showOrHiddeMovie(true, MovieHandleStatus.MODERATE);
 
-        moderationId = await this.handleModerationStatus(id, queryRunner);
-
-        if (!moderationId) {
+          newModerationId = await this.createModeration(film, queryRunner);
+        }
+      } else {
+        if (
+          (moderationTask && moderationTask.adminId && !isHidden) ||
+          (moderationTask && moderationTask.torrentData)
+        ) {
           await queryRunner.rollbackTransaction();
 
           return this.appNotification.badRequest({
-            message: 'Film already under moderation',
-            errorKey: EXCEPTION_KEYS_ENUM.MOVIE_ALREADY_UNDER_MODERATION,
+            message: 'The film cannot be removed from moderation',
+            errorKey: EXCEPTION_KEYS_ENUM.MOVIE_CANNOT_BE_REMOVED_FROM_MODERATION,
             field: 'isModerate',
           });
         }
-      } else {
-        film.showOrHiddeMovie(isHidden);
+
+        if (!isHidden) {
+          if (moderationTask) {
+            this.moviesService.setHandleProductionStatus(film);
+
+            if (film.handleStatus === MovieHandleStatus.PRODUCTION) {
+              await this.moderationFilmRepository.removeTask(moderationTask, queryRunner);
+            }
+          }
+        } else {
+          this.moviesService.setHandleProductionStatus(film);
+
+          film.showOrHiddeMovie(isHidden);
+
+          if (film.handleStatus === MovieHandleStatus.MODERATE && !moderationTask) {
+            newModerationId = await this.createModeration(film, queryRunner);
+          }
+
+          if (film.handleStatus === MovieHandleStatus.PRODUCTION) {
+            if (moderationTask) {
+              await this.moderationFilmRepository.removeTask(moderationTask, queryRunner);
+            }
+          }
+        }
       }
 
       await this.filmRepository.save(film, queryRunner);
 
-      if (moderationId) this.publishNewModeration(moderationId);
+      if (newModerationId) this.publishNewModeration(newModerationId);
 
       await queryRunner.commitTransaction();
       return this.appNotification.success(null);
@@ -103,21 +137,10 @@ export class AdminShowOrHiddeFilmCommandHandler
     }
   }
 
-  private async handleModerationStatus(
-    filmId: number,
-    queryRunner: QueryRunner,
-  ): Promise<number | null> {
-    const moderationTask = await this.moderationFilmRepository.getModerationByMovieId(
-      filmId,
-      queryRunner,
-    );
-
-    if (moderationTask) {
-      return null;
-    }
-
+  private async createModeration(film: Film, queryRunner: QueryRunner) {
+    const { id } = film;
     const moderationCreateDto: CreateModerationDto = {
-      movieId: filmId,
+      movieId: id,
       torrentMetaData: null,
     };
 

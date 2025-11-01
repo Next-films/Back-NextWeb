@@ -17,6 +17,8 @@ import { AdminShowOrHiddeCartoonInputDto } from '@/admin/api/dtos/input/admin-sh
 import { ModerationCartoonRepository } from '@/moderation-movie/infrastructure/moderation-cartoon.repository';
 import { CartoonRepository } from '@/cartoons/infrastructure/cartoon.repository';
 import { ModerationCartoonEntity } from '@/moderation-movie/domain/moderation-cartoon.entity';
+import { MoviesService } from '@/movies/application/movies.service';
+import { Cartoon } from '@/cartoons/domain/cartoon.entity';
 
 export class AdminShowOrHiddeCartoonCommand implements ICommand {
   constructor(
@@ -38,6 +40,7 @@ export class AdminShowOrHiddeCartoonCommandHandler
     private readonly appNotification: ApplicationNotification,
     private readonly cartoonRepository: CartoonRepository,
     private readonly commandBus: CommandBus,
+    private readonly moviesService: MoviesService,
     private readonly moderationCartoonRepository: ModerationCartoonRepository,
     @Inject(ModerationCartoonEntity.name)
     private readonly moderationCartoonEntity: typeof ModerationCartoonEntity,
@@ -67,30 +70,61 @@ export class AdminShowOrHiddeCartoonCommandHandler
         });
       }
 
-      const { id } = cartoon;
+      let newModerationId: number | null = null;
 
-      let moderationId: number | null = null;
+      const moderationTask = await this.moderationCartoonRepository.getModerationByMovieId(
+        cartoonId,
+        queryRunner,
+      );
+
       if (isModerate) {
-        cartoon.showOrHiddeMovie(isHidden, MovieHandleStatus.MODERATE);
+        if (!moderationTask) {
+          cartoon.showOrHiddeMovie(true, MovieHandleStatus.MODERATE);
 
-        moderationId = await this.handleModerationStatus(id, queryRunner);
-
-        if (!moderationId) {
+          newModerationId = await this.createModeration(cartoon, queryRunner);
+        }
+      } else {
+        if (
+          (moderationTask && moderationTask.adminId && !isHidden) ||
+          (moderationTask && moderationTask.torrentData)
+        ) {
           await queryRunner.rollbackTransaction();
 
           return this.appNotification.badRequest({
-            message: 'Cartoon already under moderation',
-            errorKey: EXCEPTION_KEYS_ENUM.MOVIE_ALREADY_UNDER_MODERATION,
+            message: 'The cartoon cannot be removed from moderation',
+            errorKey: EXCEPTION_KEYS_ENUM.MOVIE_CANNOT_BE_REMOVED_FROM_MODERATION,
             field: 'isModerate',
           });
         }
-      } else {
-        cartoon.showOrHiddeMovie(isHidden);
+
+        if (!isHidden) {
+          if (moderationTask) {
+            this.moviesService.setHandleProductionStatus(cartoon);
+
+            if (cartoon.handleStatus === MovieHandleStatus.PRODUCTION) {
+              await this.moderationCartoonRepository.removeTask(moderationTask, queryRunner);
+            }
+          }
+        } else {
+          this.moviesService.setHandleProductionStatus(cartoon);
+
+          cartoon.showOrHiddeMovie(isHidden);
+
+          if (cartoon.handleStatus === MovieHandleStatus.MODERATE && !moderationTask) {
+            newModerationId = await this.createModeration(cartoon, queryRunner);
+          }
+
+          if (cartoon.handleStatus === MovieHandleStatus.PRODUCTION) {
+            if (moderationTask) {
+              await this.moderationCartoonRepository.removeTask(moderationTask, queryRunner);
+            }
+          }
+        }
       }
 
       await this.cartoonRepository.save(cartoon, queryRunner);
 
-      if (moderationId) this.publishNewModeration(moderationId);
+      if (newModerationId) this.publishNewModeration(newModerationId);
 
       await queryRunner.commitTransaction();
       return this.appNotification.success(null);
@@ -103,21 +137,10 @@ export class AdminShowOrHiddeCartoonCommandHandler
     }
   }
 
-  private async handleModerationStatus(
-    cartoonId: number,
-    queryRunner: QueryRunner,
-  ): Promise<number | null> {
-    const moderationTask = await this.moderationCartoonRepository.getModerationByMovieId(
-      cartoonId,
-      queryRunner,
-    );
-
-    if (moderationTask) {
-      return null;
-    }
-
+  private async createModeration(cartoon: Cartoon, queryRunner: QueryRunner) {
+    const { id } = cartoon;
     const moderationCreateDto: CreateModerationDto = {
-      movieId: cartoonId,
+      movieId: id,
       torrentMetaData: null,
     };
 

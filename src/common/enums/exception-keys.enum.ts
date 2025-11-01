@@ -26,6 +26,7 @@ export enum EXCEPTION_KEYS_ENUM {
   MOVIE_NOT_BANNED_CANNOT_UNBAN = 'error.movie_not_banned_cannot_unban',
   BANNED_PROVIDER_MOVIE_NOT_FOUND = 'error.banned_provider_movie_not_found',
   MOVIE_ALREADY_UNDER_MODERATION = 'error.movie_already_under_moderation',
+  MOVIE_CANNOT_BE_REMOVED_FROM_MODERATION = 'error.movie_cannot_be_removed_from_moderation', // When a user tries to remove a movie from moderation that has already been accepted for moderation
   INCORRECT_MOVIE_TYPE = 'error.incorrect_movie_type',
   MOVIE_ALREADY_EXIST = 'error.movie_already_exist', // Base error for all movie
   MODERATION_MOVIE_TASK_NOT_FOUND = 'error.moderation_movie_task_not_found',
@@ -46,6 +47,7 @@ export enum EXCEPTION_KEYS_ENUM {
   FILE_REQUIRED = 'error.file_required',
   INCORRECT_QUANTITY = 'error.incorrect_quantity',
   UNKNOWN = 'error.unknown',
+  FILE_OR_URL_REQUIRE = 'error.file_or_url_require',
   /*
    *
    * Input validation error

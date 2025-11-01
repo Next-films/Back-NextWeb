@@ -3,7 +3,7 @@ import { Genre } from '@/movies/domain/genre.entity';
 import { CartonCreateDto } from '@/cartoons/domain/types';
 import { FilmCreateDto } from '@/films/domain/types';
 import { RU_PG_COLLATION } from '@/common/constants/collation.constant';
-import { MovieHandleStatus, MovieUpdateDto } from '@/movies/domain/types';
+import { MovieHandleStatus, MovieUpdateDto, UploadedFilesUrlResult } from '@/movies/domain/types';
 
 export class MovieEntity {
   @PrimaryGeneratedColumn()
@@ -114,7 +114,7 @@ export class MovieEntity {
     return instance;
   }
 
-  update<T extends MovieUpdateDto>(inputDto: T): void {
+  update<T extends MovieUpdateDto>(inputDto: T, uploadFileResult?: UploadedFilesUrlResult): void {
     const {
       kpId,
       backgroundContentUrl,
@@ -133,7 +133,6 @@ export class MovieEntity {
     } = inputDto;
 
     this.kpId = kpId;
-    this.videoUrl = videUrl;
     this.title = name;
     this.originalTitle = originalName;
     this.description = description;
@@ -142,11 +141,21 @@ export class MovieEntity {
     this.alternativeTitles = alternativeName;
     this.releaseDate = releaseDate;
     this.updatedAt = new Date();
-
     this.trailerUrl = trailerUrl;
-    this.backgroundContentUrl = backgroundContentUrl;
-    this.previewUrl = previewUrl;
-    this.titleUrl = titleUrl;
+
+    if (uploadFileResult) {
+      const { videoUploadedUrl, titleUploadedUrl, previewUploadedUrl, backgroundUploadedUrl } =
+        uploadFileResult;
+      this.videoUrl = videoUploadedUrl || videUrl;
+      this.backgroundContentUrl = backgroundUploadedUrl || backgroundContentUrl;
+      this.previewUrl = previewUploadedUrl || previewUrl;
+      this.titleUrl = titleUploadedUrl || titleUrl;
+    } else {
+      this.videoUrl = videUrl;
+      this.backgroundContentUrl = backgroundContentUrl;
+      this.previewUrl = previewUrl;
+      this.titleUrl = titleUrl;
+    }
 
     if (genres && genres.length > 0) {
       this.genres = genres;
@@ -172,5 +181,17 @@ export class MovieEntity {
       }
       this.handleStatus = status;
     }
+  }
+
+  updateBackgroundUrl(url: string | null): void {
+    if (url) this.backgroundContentUrl = url;
+  }
+
+  updatePosterUrl(url: string | null): void {
+    if (url) this.previewUrl = url;
+  }
+
+  updateTitleUrl(url: string | null): void {
+    if (url) this.titleUrl = url;
   }
 }

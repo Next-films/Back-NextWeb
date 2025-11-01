@@ -11,7 +11,9 @@ import {
   Post,
   Put,
   Query,
+  UploadedFiles,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import { LoggerService } from '@/common/utils/logger/logger.service';
 import { ApiBearerAuth, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger';
@@ -24,7 +26,10 @@ import {
   AppNotificationResult,
   AppNotificationResultEnum,
 } from '@/common/utils/app-notification.util';
-import { ErrorFieldExceptionDto } from '@/common/exception-filters/http/http-exception.filter';
+import {
+  ErrorFieldExceptionDto,
+  ValidationErrorsDto,
+} from '@/common/exception-filters/http/http-exception.filter';
 import { PaginationUtil } from '@/common/utils/pagination.util';
 import { SwaggerDecoratorAdminGetAllCartoons } from '@/admin/api/swagger/admin-get-all-cartoons.swagger.decorator';
 import { SwaggerDecoratorAdminCreateCartoon } from '@/admin/api/swagger/admin-add-cartoon.swagger.decorator';
@@ -41,6 +46,10 @@ import { AdminRemoveCartoonCommand } from '@/admin/application/handlers/admin-re
 import { AdminShowOrHiddeCartoonCommand } from '@/admin/application/handlers/admin-show-or-hide-cartoon.handler';
 import { ADMIN_AUTH_JWT_SCHEMA_NAME } from '@/common/constants/auth-jwt-schema-name.constants';
 import { ApiDeprecated } from '@/common/decorators/api-deprecated.swagger.decorator';
+import { AdminGetCartoonByIdQuery } from '@/admin/application/query-handlers/admin-get-cartoon-by-id.query-handler';
+import { unlink } from 'fs/promises';
+import { FileFieldsInterceptor } from '@nestjs/platform-express';
+import { storageUtil } from '@/common/utils/storage-big-files.util';
 
 @ApiTags(
   'Admin cinema - cartoons. Handles administrative operations for the movie theater content library.',
@@ -89,23 +98,74 @@ export class AdminCinemaCartoonsController {
     throw new InternalServerErrorException('Method not implemented');
   }
 
-  @HttpCode(HttpStatus.NO_CONTENT)
+  @HttpCode(HttpStatus.CREATED)
   @Put(`:cartoonId`)
+  @UseInterceptors(
+    FileFieldsInterceptor(
+      [
+        { name: 'videoFile', maxCount: 1 },
+        { name: 'previewFile', maxCount: 1 },
+        { name: 'titleFile', maxCount: 1 },
+        { name: 'backgroundFile', maxCount: 1 },
+      ],
+      { storage: storageUtil },
+    ),
+  )
   @SwaggerDecoratorAdminUpdateCartoonById()
   async updateCartoon(
     @Param('cartoonId', ParseIntPatchPipe) cartoonId: number,
     @Body() body: AdminUpdateCartoonInputDto,
-  ): Promise<void> {
+    @UploadedFiles()
+    files: {
+      videoFile?: Express.Multer.File[];
+      previewFile?: Express.Multer.File[];
+      titleFile?: Express.Multer.File[];
+      backgroundFile?: Express.Multer.File[];
+    },
+  ): Promise<AdminCinemaCartoonsOutputDto | void> {
     this.logger.log('Execute: update cartoon by admin', this.updateCartoon.name);
 
-    const result = await this.commandBus.execute<
-      AdminUpdateCartoonCommand,
-      AppNotificationResult<null, ErrorFieldExceptionDto | null>
-    >(new AdminUpdateCartoonCommand(cartoonId, body));
+    const videoFile = files?.videoFile?.[0];
+    const previewFile = files?.previewFile?.[0];
+    const titleFile = files?.titleFile?.[0];
+    const backgroundFile = files?.backgroundFile?.[0];
 
-    this.logger.log(result.appResult, this.updateCartoon.name);
+    try {
+      const result = await this.commandBus.execute<
+        AdminUpdateCartoonCommand,
+        AppNotificationResult<null, ValidationErrorsDto | ErrorFieldExceptionDto | null>
+      >(
+        new AdminUpdateCartoonCommand(cartoonId, {
+          ...body,
+          videoFile,
+          previewFile,
+          titleFile,
+          backgroundFile,
+        }),
+      );
 
-    this.appNotification.handleHttpResult(result);
+      this.logger.log(result.appResult, this.updateCartoon.name);
+
+      this.appNotification.handleHttpResult(result);
+
+      if (result.appResult === AppNotificationResultEnum.Success) {
+        const cartoonResult = await this.queryBus.execute<
+          AdminGetCartoonByIdQuery,
+          AppNotificationResult<AdminCinemaCartoonsOutputDto, ErrorFieldExceptionDto | null>
+        >(new AdminGetCartoonByIdQuery(cartoonId));
+
+        return cartoonResult.data!;
+      }
+    } finally {
+      if (videoFile?.path) {
+        try {
+          await unlink(videoFile.path);
+          this.logger.log(`Temp video file removed: ${videoFile.path}`);
+        } catch (err) {
+          this.logger.error(`Failed to delete temp file: ${videoFile.path}`, err);
+        }
+      }
+    }
   }
 
   @HttpCode(HttpStatus.NO_CONTENT)
@@ -124,13 +184,13 @@ export class AdminCinemaCartoonsController {
     this.appNotification.handleHttpResult(result);
   }
 
-  @HttpCode(HttpStatus.NO_CONTENT)
+  @HttpCode(HttpStatus.CREATED)
   @Patch(`:cartoonId`)
   @SwaggerDecoratorAdminShowOrHideCartoonById()
   async showOrHideCartoon(
     @Param('cartoonId', ParseIntPatchPipe) cartoonId: number,
     @Body() body: AdminShowOrHiddeCartoonInputDto,
-  ): Promise<void> {
+  ): Promise<AdminCinemaCartoonsOutputDto | void> {
     this.logger.log('Execute: show or hide cartoon by admin', this.showOrHideCartoon.name);
 
     const result = await this.commandBus.execute<
@@ -139,6 +199,15 @@ export class AdminCinemaCartoonsController {
     >(new AdminShowOrHiddeCartoonCommand(cartoonId, body));
 
     this.logger.log(result.appResult, this.showOrHideCartoon.name);
+
+    if (result.appResult === AppNotificationResultEnum.Success) {
+      const cartoonResult = await this.queryBus.execute<
+        AdminGetCartoonByIdQuery,
+        AppNotificationResult<AdminCinemaCartoonsOutputDto, ErrorFieldExceptionDto | null>
+      >(new AdminGetCartoonByIdQuery(cartoonId));
+
+      return cartoonResult.data!;
+    }
 
     this.appNotification.handleHttpResult(result);
   }

@@ -27,9 +27,12 @@ export class CartoonRepository {
 
   async getCartoonById(id: number, queryRunner?: QueryRunner): Promise<Cartoon | null> {
     if (queryRunner) {
-      return queryRunner.manager.findOne(this.cartoonRepository.target, { where: { id } });
+      return queryRunner.manager.findOne(this.cartoonRepository.target, {
+        where: { id },
+        relations: { genres: true },
+      });
     }
 
-    return this.cartoonRepository.findOne({ where: { id } });
+    return this.cartoonRepository.findOne({ where: { id }, relations: { genres: true } });
   }
 }

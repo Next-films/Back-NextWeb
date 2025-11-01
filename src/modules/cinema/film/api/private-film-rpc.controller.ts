@@ -8,6 +8,7 @@ import { MessagePattern } from '@nestjs/microservices';
 import { ApiCinemaRmqAccessTokenGuard } from '@/external-auth/application/guards/jwt/api-cinema-rmq-access-token.guard';
 import {
   GET_FILM_BY_KP_ID_CMD,
+  NEW_BACKGROUND_CONTENT_FOR_FILM_CMD,
   NEW_FILM_CMD,
   NEW_FILM_IS_HANDLE_CMD,
 } from '@/common/constants/rmq.constants';
@@ -19,6 +20,8 @@ import { GetRpcFilmByKinopoiskIdQuery } from '@/films/application/query-handlers
 import { FilmsRpcOutputDto } from '@/films/api/dtos/output/films-rpc.output.dto';
 import { NewMovieIsHandleNotificationPayloadDto } from '@/movies/api/dtos/input/new-movie-is-handle-notification.input.dto';
 import { NewFilmNotificationPayloadDto } from '@/films/api/dtos/input/new-film-notification.input.dto';
+import { NewBackGroundContentFilmCommand } from '@/films/application/handlers/new-background-content-film.handler';
+import { NewFilmBackGroundContentPayloadDto } from '@/films/api/dtos/input/new-film-background-content.input.dto';
 
 @ApiExcludeController()
 @UseFilters(RpcExceptionsFilter)
@@ -73,5 +76,19 @@ export class FilmPrivateRpcController {
     >(new NewFilmIsHandleNotificationCommand(payload));
 
     this.logger.log(result.appResult, this.newFilmIsHandle.name);
+  }
+
+  @MessagePattern({ cmd: NEW_BACKGROUND_CONTENT_FOR_FILM_CMD })
+  async newBackgroundContent(
+    @RpcPayload() payload: NewFilmBackGroundContentPayloadDto,
+  ): Promise<void> {
+    this.logger.log(`Execute: new background content for film`, this.newBackgroundContent.name);
+
+    const result = await this.commandBus.execute<
+      NewBackGroundContentFilmCommand,
+      AppNotificationResult<null, ErrorFieldExceptionDto | null>
+    >(new NewBackGroundContentFilmCommand(payload.url, payload.movieId));
+
+    this.logger.log(result.appResult, this.newBackgroundContent.name);
   }
 }

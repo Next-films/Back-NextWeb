@@ -15,7 +15,6 @@ import {
   ImgExtEnum,
   MovieTypesEnum,
   ResizeAndSafeLogoPayloadDto,
-  ResizeAndSafePosterPayloadDto,
   TorApiMovieById,
   TorApiProvidersEnum,
 } from '@/common/types/types';
@@ -28,8 +27,9 @@ import {
   DOWNLOADER_SERVICE_REST_MOVIES_METHODS_CONSTANTS,
   DOWNLOADER_SERVICE_REST_USERS_ADMIN_METHODS_CONSTANTS,
 } from '@/common/constants/downloader-service.rest.constants';
-import { AxiosRequestConfig } from 'axios';
+import { AxiosRequestConfig, AxiosResponse } from 'axios';
 import * as FormData from 'form-data';
+import * as path from 'path';
 
 @Injectable()
 export class DownloaderServiceRestAdapter implements IDownloaderServiceAdapter {
@@ -232,30 +232,106 @@ export class DownloaderServiceRestAdapter implements IDownloaderServiceAdapter {
    *
    */
   async downloadPreviewClip(
-    kpId: string,
-    url: string,
+    movieId: number,
+    file: string | Express.Multer.File,
     type: MovieTypesEnum,
   ): Promise<AppNotificationResult<string, ErrorFieldExceptionDto | null>> {
     try {
-      const payload: DownloadPreviewYtClipPayloadDto = {
-        kpId,
-        url,
-        type,
-      };
-
-      const result = await this.httpService.axiosRef.post<
+      let result: AxiosResponse<
         AppNotificationResult<string, ErrorFieldExceptionDto | null>
-      >(
-        `${DOWNLOADER_SERVICE_REST_DOWNLOADER_METHODS_CONSTANTS.MAIN}/${DOWNLOADER_SERVICE_REST_DOWNLOADER_METHODS_CONSTANTS.YT_CLIP}/${DOWNLOADER_SERVICE_REST_DOWNLOADER_METHODS_CONSTANTS.DOWNLOAD}`,
-        payload,
-        this.baseAuthHeaders,
-      );
+      > | null = null;
 
-      if (!result.data.appResult) return this.appNotification.internalServerError();
+      if (typeof file === 'string') {
+        const payload: DownloadPreviewYtClipPayloadDto = {
+          movieId,
+          url: file,
+          type,
+        };
+
+        result = await this.httpService.axiosRef.post<
+          AppNotificationResult<string, ErrorFieldExceptionDto | null>
+        >(
+          `${DOWNLOADER_SERVICE_REST_DOWNLOADER_METHODS_CONSTANTS.MAIN}/${DOWNLOADER_SERVICE_REST_DOWNLOADER_METHODS_CONSTANTS.YT_CLIP}/${DOWNLOADER_SERVICE_REST_DOWNLOADER_METHODS_CONSTANTS.DOWNLOAD}`,
+          payload,
+          this.baseAuthHeaders,
+        );
+      } else {
+        const ext = path.extname(file.originalname);
+
+        const form = new FormData();
+
+        form.append('file', file.buffer, { filename: `background.${ext}` });
+        form.append('movieId', movieId.toString());
+        form.append('type', type);
+
+        const mime = file.mimetype as 'image/' | 'video/';
+
+        if (mime.startsWith('image/')) {
+          result = await this.httpService.axiosRef.post(
+            `${DOWNLOADER_SERVICE_REST_DOWNLOADER_METHODS_CONSTANTS.MAIN}/${DOWNLOADER_SERVICE_REST_DOWNLOADER_METHODS_CONSTANTS.YT_CLIP}/${DOWNLOADER_SERVICE_REST_DOWNLOADER_METHODS_CONSTANTS.DOWNLOAD}`,
+            form,
+            {
+              headers: {
+                ...form.getHeaders(),
+                Authorization: this.baseAuthHeaders.headers?.Authorization,
+              },
+              maxBodyLength: Infinity,
+            },
+          );
+        } else {
+          void this.httpService.axiosRef.post(
+            `${DOWNLOADER_SERVICE_REST_DOWNLOADER_METHODS_CONSTANTS.MAIN}/${DOWNLOADER_SERVICE_REST_DOWNLOADER_METHODS_CONSTANTS.YT_CLIP}/${DOWNLOADER_SERVICE_REST_DOWNLOADER_METHODS_CONSTANTS.DOWNLOAD}`,
+            form,
+            {
+              headers: {
+                ...form.getHeaders(),
+                Authorization: this.baseAuthHeaders.headers?.Authorization,
+              },
+              maxBodyLength: Infinity,
+            },
+          );
+          result = {
+            data: this.appNotification.success(null),
+          } as AxiosResponse;
+        }
+      }
+
+      if (!result?.data?.appResult) return this.appNotification.internalServerError();
 
       return result.data;
     } catch (error) {
       return this.handleError(error, this.downloadPreviewClip.name);
+    }
+  }
+
+  uploadFilm(
+    movieId: number,
+    file: Express.Multer.File,
+    type: MovieTypesEnum,
+  ): AppNotificationResult<null, ErrorFieldExceptionDto | null> {
+    try {
+      const form = new FormData();
+      const ext = path.extname(file.originalname);
+
+      form.append('file', file.buffer, { filename: `background.${ext}` });
+      form.append('movieId', movieId.toString());
+      form.append('type', type);
+
+      void this.httpService.axiosRef.post(
+        `${DOWNLOADER_SERVICE_REST_DOWNLOADER_METHODS_CONSTANTS.MAIN}/${DOWNLOADER_SERVICE_REST_DOWNLOADER_METHODS_CONSTANTS.MOVIE}/${DOWNLOADER_SERVICE_REST_DOWNLOADER_METHODS_CONSTANTS.UPLOAD}`,
+        form,
+        {
+          headers: {
+            ...form.getHeaders(),
+            Authorization: this.baseAuthHeaders.headers?.Authorization,
+          },
+          maxBodyLength: Infinity,
+        },
+      );
+
+      return this.appNotification.success(null);
+    } catch (error) {
+      return this.handleError(error, this.uploadFilm.name);
     }
   }
 
@@ -265,26 +341,51 @@ export class DownloaderServiceRestAdapter implements IDownloaderServiceAdapter {
    *
    */
   async resizeAndSavePoster(
-    kpId: string,
-    url: string,
+    movieId: number,
+    file: string | Express.Multer.File,
     type: MovieTypesEnum,
   ): Promise<AppNotificationResult<string, ErrorFieldExceptionDto | null>> {
     try {
-      const payload: ResizeAndSafePosterPayloadDto = {
-        kpId,
-        url,
-        type,
-      };
-
-      const result = await this.httpService.axiosRef.post<
+      let result: AxiosResponse<
         AppNotificationResult<string, ErrorFieldExceptionDto | null>
-      >(
-        `${DOWNLOADER_SERVICE_REST_CONVERTER_METHODS_CONSTANTS.MAIN}/${DOWNLOADER_SERVICE_REST_CONVERTER_METHODS_CONSTANTS.POSTER}/${DOWNLOADER_SERVICE_REST_CONVERTER_METHODS_CONSTANTS.RESIZE}`,
-        payload,
-        this.baseAuthHeaders,
-      );
+      > | null = null;
+      if (typeof file === 'string') {
+        const payload: ResizeAndSafeLogoPayloadDto = {
+          movieId,
+          url: file,
+          type,
+        };
 
-      if (!result.data.appResult) return this.appNotification.internalServerError();
+        result = await this.httpService.axiosRef.post<
+          AppNotificationResult<string, ErrorFieldExceptionDto | null>
+        >(
+          `${DOWNLOADER_SERVICE_REST_CONVERTER_METHODS_CONSTANTS.MAIN}/${DOWNLOADER_SERVICE_REST_CONVERTER_METHODS_CONSTANTS.POSTER}/${DOWNLOADER_SERVICE_REST_CONVERTER_METHODS_CONSTANTS.RESIZE}`,
+          payload,
+          this.baseAuthHeaders,
+        );
+      } else {
+        const ext = path.extname(file.originalname);
+
+        const form = new FormData();
+
+        form.append('file', file.buffer, { filename: `poster.${ext}` });
+        form.append('movieId', movieId.toString());
+        form.append('type', type);
+
+        result = await this.httpService.axiosRef.post(
+          `${DOWNLOADER_SERVICE_REST_CONVERTER_METHODS_CONSTANTS.MAIN}/${DOWNLOADER_SERVICE_REST_CONVERTER_METHODS_CONSTANTS.POSTER}/${DOWNLOADER_SERVICE_REST_CONVERTER_METHODS_CONSTANTS.RESIZE}`,
+          form,
+          {
+            headers: {
+              ...form.getHeaders(),
+              Authorization: this.baseAuthHeaders.headers?.Authorization,
+            },
+            maxBodyLength: Infinity,
+          },
+        );
+      }
+
+      if (!result?.data?.appResult) return this.appNotification.internalServerError();
 
       return result.data;
     } catch (error) {
@@ -293,26 +394,47 @@ export class DownloaderServiceRestAdapter implements IDownloaderServiceAdapter {
   }
 
   async resizeAndSaveLogo(
-    kpId: string,
-    url: string,
+    movieId: number,
+    file: string | Express.Multer.File,
     type: MovieTypesEnum,
   ): Promise<AppNotificationResult<string, ErrorFieldExceptionDto | null>> {
     try {
-      const payload: ResizeAndSafeLogoPayloadDto = {
-        kpId,
-        url,
-        type,
-      };
+      let result: AxiosResponse<AppNotificationResult<string, ErrorFieldExceptionDto | null>>;
+      if (typeof file === 'string') {
+        const payload: ResizeAndSafeLogoPayloadDto = {
+          movieId,
+          url: file,
+          type,
+        };
 
-      const result = await this.httpService.axiosRef.post<
-        AppNotificationResult<string, ErrorFieldExceptionDto | null>
-      >(
-        `${DOWNLOADER_SERVICE_REST_CONVERTER_METHODS_CONSTANTS.MAIN}/${DOWNLOADER_SERVICE_REST_CONVERTER_METHODS_CONSTANTS.LOGO}/${DOWNLOADER_SERVICE_REST_CONVERTER_METHODS_CONSTANTS.RESIZE}`,
-        payload,
-        this.baseAuthHeaders,
-      );
+        result = await this.httpService.axiosRef.post(
+          `${DOWNLOADER_SERVICE_REST_CONVERTER_METHODS_CONSTANTS.MAIN}/${DOWNLOADER_SERVICE_REST_CONVERTER_METHODS_CONSTANTS.LOGO}/${DOWNLOADER_SERVICE_REST_CONVERTER_METHODS_CONSTANTS.RESIZE}`,
+          payload,
+          this.baseAuthHeaders,
+        );
+      } else {
+        const ext = path.extname(file.originalname);
 
-      if (!result.data.appResult) return this.appNotification.internalServerError();
+        const form = new FormData();
+
+        form.append('file', file.buffer, { filename: `logo.${ext}` });
+        form.append('movieId', movieId.toString());
+        form.append('type', type);
+
+        result = await this.httpService.axiosRef.post(
+          `${DOWNLOADER_SERVICE_REST_CONVERTER_METHODS_CONSTANTS.MAIN}/${DOWNLOADER_SERVICE_REST_CONVERTER_METHODS_CONSTANTS.LOGO}/${DOWNLOADER_SERVICE_REST_CONVERTER_METHODS_CONSTANTS.RESIZE}`,
+          form,
+          {
+            headers: {
+              ...form.getHeaders(),
+              Authorization: this.baseAuthHeaders.headers?.Authorization,
+            },
+            maxBodyLength: Infinity,
+          },
+        );
+      }
+
+      if (!result?.data?.appResult) return this.appNotification.internalServerError();
 
       return result.data;
     } catch (error) {

@@ -15,6 +15,7 @@ import {
   REMOVE_MOVIE_CMD,
   RESIZE_SAVE_LOGO_CMD,
   RESIZE_SAVE_POSTER_CMD,
+  UPLOAD_FILM_CMD,
 } from '@/common/constants/rmq.constants';
 import { LoggerService } from '@/common/utils/logger/logger.service';
 import {
@@ -38,6 +39,7 @@ import {
   ResizeAndSafePosterPayloadDto,
   TorApiMovieById,
   TorApiProvidersEnum,
+  UploadFilmPayloadDto,
 } from '@/common/types/types';
 
 @Injectable()
@@ -174,24 +176,40 @@ export class DownloaderServiceAdapter implements IDownloaderServiceAdapter {
    *
    */
   async downloadPreviewClip(
-    kpId: string,
-    url: string,
+    movieId: number,
+    file: string | Express.Multer.File,
     type: MovieTypesEnum,
-  ): Promise<AppNotificationResult<string, ErrorFieldExceptionDto | null>> {
+  ): Promise<AppNotificationResult<string | null, ErrorFieldExceptionDto | null>> {
     try {
+      let fileBody: Express.Multer.File | null = null;
+      let url: string | null = null;
+
+      if (typeof file === 'string') {
+        url = file;
+      } else {
+        fileBody = file;
+      }
+
       const payload: RmqAuthPayload<DownloadPreviewYtClipPayloadDto> = {
         payload: {
-          kpId,
-          url,
+          movieId,
           type,
+          ...(url ? { url } : {}),
+          ...(fileBody ? { file: fileBody } : {}),
         },
         token: this.auth_token,
       };
 
-      const response: Observable<AppNotificationResult<string, ErrorFieldExceptionDto | null>> =
-        this.client.send({ cmd: DOWNLOAD_YT_CLIP_CMD }, payload).pipe(timeout(60_000));
+      if (url) {
+        const response: Observable<AppNotificationResult<string, ErrorFieldExceptionDto | null>> =
+          this.client.send({ cmd: DOWNLOAD_YT_CLIP_CMD }, payload).pipe(timeout(60_000));
 
-      return await firstValueFrom(response);
+        return await firstValueFrom(response);
+      } else {
+        this.client.emit({ cmd: DOWNLOAD_YT_CLIP_CMD }, payload);
+
+        return this.appNotification.success(null);
+      }
     } catch (error) {
       this.logger.error(error, this.downloadPreviewClip.name);
 
@@ -199,21 +217,55 @@ export class DownloaderServiceAdapter implements IDownloaderServiceAdapter {
     }
   }
 
+  uploadFilm(
+    movieId: number,
+    file: Express.Multer.File,
+    type: MovieTypesEnum,
+  ): AppNotificationResult<null, ErrorFieldExceptionDto | null> {
+    try {
+      const payload: RmqAuthPayload<UploadFilmPayloadDto> = {
+        payload: {
+          movieId,
+          type,
+          file,
+        },
+        token: this.auth_token,
+      };
+
+      this.client.emit({ cmd: UPLOAD_FILM_CMD }, payload);
+
+      return this.appNotification.success(null);
+    } catch (error) {
+      this.logger.error(error, this.uploadFilm.name);
+
+      return this.appNotification.internalServerError();
+    }
+  }
   /*
    *
    *  Resize poster, logo and save
    *
    */
   async resizeAndSavePoster(
-    kpId: string,
-    url: string,
+    movieId: number,
+    file: string | Express.Multer.File,
     type: MovieTypesEnum,
   ): Promise<AppNotificationResult<string, ErrorFieldExceptionDto | null>> {
     try {
+      let fileBody: Express.Multer.File | null = null;
+      let url: string | null = null;
+
+      if (typeof file === 'string') {
+        url = file;
+      } else {
+        fileBody = file;
+      }
+
       const payload: RmqAuthPayload<ResizeAndSafePosterPayloadDto> = {
         payload: {
-          kpId,
-          url,
+          movieId,
+          ...(url ? { url } : {}),
+          ...(fileBody ? { file: fileBody } : {}),
           type,
         },
         token: this.auth_token,
@@ -231,15 +283,25 @@ export class DownloaderServiceAdapter implements IDownloaderServiceAdapter {
   }
 
   async resizeAndSaveLogo(
-    kpId: string,
-    url: string,
+    movieId: number,
+    file: string | Express.Multer.File,
     type: MovieTypesEnum,
   ): Promise<AppNotificationResult<string, ErrorFieldExceptionDto | null>> {
     try {
+      let fileBody: Express.Multer.File | null = null;
+      let url: string | null = null;
+
+      if (typeof file === 'string') {
+        url = file;
+      } else {
+        fileBody = file;
+      }
+
       const payload: RmqAuthPayload<ResizeAndSafeLogoPayloadDto> = {
         payload: {
-          kpId,
-          url,
+          movieId,
+          ...(url ? { url } : {}),
+          ...(fileBody ? { file: fileBody } : {}),
           type,
         },
         token: this.auth_token,
@@ -250,12 +312,11 @@ export class DownloaderServiceAdapter implements IDownloaderServiceAdapter {
 
       return await firstValueFrom(response);
     } catch (error) {
-      this.logger.error(error, this.resizeAndSavePoster.name);
+      this.logger.error(error, this.resizeAndSaveLogo.name);
 
       return this.appNotification.internalServerError();
     }
   }
-
   /*
    *
    *  Upload avatars
@@ -398,18 +459,31 @@ export class DownloaderServiceAdapterMock implements IDownloaderServiceAdapter {
     return this.appNotification.success('mock');
   }
 
+  async uploadFilm(
+    movieId: number,
+    file: Express.Multer.File,
+    type: MovieTypesEnum,
+  ): Promise<AppNotificationResult<string, ErrorFieldExceptionDto | null>> {
+    this.logger.log(
+      `Execute: upload film (mock). Movie id: ${movieId}, type: ${type}`,
+      this.uploadFilm.name,
+    );
+    await new Promise(resolve => resolve(null));
+    return this.appNotification.success('mock');
+  }
+
   /*
    *
    *  Resize poster, logo and save
    *
    */
   async resizeAndSavePoster(
-    kpId: string,
+    movieId: number,
     url: string,
     type: MovieTypesEnum,
   ): Promise<AppNotificationResult<string, ErrorFieldExceptionDto | null>> {
     this.logger.log(
-      `Execute: resize and save poster (mock). Kp id: ${kpId}, type: ${type}, url: ${url}`,
+      `Execute: resize and save poster (mock). Movie id: ${movieId}, type: ${type}, url: ${url}`,
       this.resizeAndSavePoster.name,
     );
     await new Promise(resolve => resolve(null));
@@ -417,12 +491,12 @@ export class DownloaderServiceAdapterMock implements IDownloaderServiceAdapter {
   }
 
   async resizeAndSaveLogo(
-    kpId: string,
+    movieId: number,
     url: string,
     type: MovieTypesEnum,
   ): Promise<AppNotificationResult<string, ErrorFieldExceptionDto | null>> {
     this.logger.log(
-      `Execute: resize and save logo (mock). Kp id: ${kpId}, type: ${type}, url: ${url}`,
+      `Execute: resize and save logo (mock). Movie id: ${movieId}, type: ${type}, url: ${url}`,
       this.resizeAndSaveLogo.name,
     );
     await new Promise(resolve => resolve(null));

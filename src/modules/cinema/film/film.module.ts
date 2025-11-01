@@ -20,6 +20,7 @@ import { GetRpcFilmByKinopoiskIdQueryHandler } from '@/films/application/query-h
 import { FilmPublicQueryRepository } from '@/films/infrastructure/film-public.query-repository';
 import { FilmsPrivateOutputDtoMapper } from '@/films/api/dtos/output/films-private.output.dto';
 import { ModerationMovieModule } from '@/moderation-movie/moderation-movie.module';
+import { NewBackGroundContentFilmCommandHandler } from '@/films/application/handlers/new-background-content-film.handler';
 
 const queryHandlers = [
   GetPublicFilmByIdQueryHandler,
@@ -35,7 +36,11 @@ const filmProvider = {
 
 const providers = [filmProvider];
 
-const handlers = [NewFilmNotificationCommandHandler, NewFilmIsHandleNotificationCommandHandler];
+const handlers = [
+  NewFilmNotificationCommandHandler,
+  NewFilmIsHandleNotificationCommandHandler,
+  NewBackGroundContentFilmCommandHandler,
+];
 
 const exportProviders = [FilmRepository, filmProvider, FilmQueryRepository];
 

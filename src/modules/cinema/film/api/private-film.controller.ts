@@ -6,6 +6,7 @@ import {
   HttpStatus,
   Param,
   Post,
+  Put,
   UseFilters,
   UseGuards,
 } from '@nestjs/common';
@@ -33,6 +34,9 @@ import { NewFilmNotificationPayloadDto } from '@/films/api/dtos/input/new-film-n
 import { NewFilmNotificationCommand } from '@/films/application/handlers/new-film-notification.handler';
 import { SwaggerDecoratorNewFilm } from '@/films/api/swagger/new-film-private.swagger.decorator';
 import { BACKEND_TO_BACKEND_AUTH_JWT_SCHEMA_NAME } from '@/common/constants/auth-jwt-schema-name.constants';
+import { NewFilmBackGroundContentPayloadDto } from '@/films/api/dtos/input/new-film-background-content.input.dto';
+import { NewBackGroundContentFilmCommand } from '@/films/application/handlers/new-background-content-film.handler';
+import { SwaggerDecoratorNewBackgroundContentForFilm } from '@/films/api/swagger/new-background-content-private.swagger.decorator';
 
 @ApiBearerAuth(BACKEND_TO_BACKEND_AUTH_JWT_SCHEMA_NAME)
 @ApiUnauthorizedResponse({ description: 'Unauthorized', type: HttpPrivateExceptionDto })
@@ -99,6 +103,24 @@ export class FilmPrivateController {
     >(new NewFilmNotificationCommand(body));
 
     this.logger.log(result.appResult, this.newFilm.name);
+
+    return this.appNotification.handleHttpResult(result, true);
+  }
+
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Put(`${PRIVATE_FILMS_ROUTE.NEW_BACKGROUND_CONTENT}`)
+  @SwaggerDecoratorNewBackgroundContentForFilm()
+  async newBackgroundContent(
+    @Body() body: NewFilmBackGroundContentPayloadDto,
+  ): Promise<AppNotificationResult<null, ErrorFieldExceptionDto | null> | void> {
+    this.logger.log(`Execute: new background content for film`, this.newBackgroundContent.name);
+
+    const result = await this.commandBus.execute<
+      NewBackGroundContentFilmCommand,
+      AppNotificationResult<null, ErrorFieldExceptionDto | null>
+    >(new NewBackGroundContentFilmCommand(body.url, body.movieId));
+
+    this.logger.log(result.appResult, this.newBackgroundContent.name);
 
     return this.appNotification.handleHttpResult(result, true);
   }

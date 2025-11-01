@@ -29,6 +29,8 @@ export const DOWNLOADER_SERVICE_REST_DOWNLOADER_METHODS_CONSTANTS = {
   MAIN: 'downloader/private',
   DOWNLOAD: 'download',
   YT_CLIP: 'yt-clip',
+  MOVIE: 'movie',
+  UPLOAD: 'upload',
 };
 
 export const DOWNLOADER_SERVICE_REST_USERS_ADMIN_METHODS_CONSTANTS = {

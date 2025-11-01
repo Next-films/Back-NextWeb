@@ -63,6 +63,8 @@ import { AdminRoleRepository } from '@/admin/infrastructure/admin-role.repositor
 import { AdminUpdateCommandHandler } from '@/admin/application/handlers/admin-update.handler';
 import { AdminGetAdminByIdQueryHandler } from '@/admin/application/query-handlers/admin-get-admin-by-id.query-handler';
 import { AdminUpdateAvatarCommandHandler } from '@/admin/application/handlers/admin-update-avatar.handler';
+import { AdminGetFilmByIdQueryHandler } from '@/admin/application/query-handlers/admin-get-film-by-id.query-handler';
+import { AdminGetCartoonByIdQueryHandler } from '@/admin/application/query-handlers/admin-get-cartoon-by-id.query-handler';
 
 export const AdminProvider = {
   provide: 'Admin',
@@ -105,6 +107,8 @@ const queryHandlers = [
   AdminGetAllAdminRolesQueryHandler,
   AdminGetAllAdminsQueryHandler,
   AdminGetAdminByIdQueryHandler,
+  AdminGetFilmByIdQueryHandler,
+  AdminGetCartoonByIdQueryHandler,
 ];
 
 const exportProviders = [

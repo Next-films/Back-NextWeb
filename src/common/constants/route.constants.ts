@@ -78,6 +78,7 @@ export const PRIVATE_FILMS_ROUTE = {
   NEW_FILM: 'new-film',
   NEW_FILM_IS_HANDLE: 'new-film/is-handle',
   KP: `kp`,
+  NEW_BACKGROUND_CONTENT: 'new-background-content',
 };
 
 export const BRIDGE_RMG_FILMS_ROUTE = {
@@ -105,6 +106,7 @@ export const PRIVATE_CARTOONS_ROUTE = {
   KP: `kp`,
   NEW_CARTOON: 'new-cartoon',
   NEW_CARTOON_IS_HANDLE: 'new-cartoon/is-handle',
+  NEW_BACKGROUND_CONTENT: 'new-background-content',
 };
 
 export const BRIDGE_RMG_CARTOON_ROUTE = {

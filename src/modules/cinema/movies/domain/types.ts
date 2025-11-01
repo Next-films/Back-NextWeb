@@ -57,3 +57,10 @@ export class MovieKpMetadata {
   posterUrl: string | null;
   titleUrl: string | null;
 }
+
+export class UploadedFilesUrlResult {
+  videoUploadedUrl: string | null;
+  backgroundUploadedUrl: string | null;
+  previewUploadedUrl: string | null;
+  titleUploadedUrl: string | null;
+}

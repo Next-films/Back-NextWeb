@@ -82,11 +82,28 @@ export class NewCartoonNotificationCommandHandler
 
       const cartoon = existingCartoon
         ? await this.updateExistingCartoon(existingCartoon, metadata, key, duration || 0, kpId)
-        : await this.createNewCartoon(metadata, key, duration || 0, kpId);
+        : this.createNewCartoon(metadata, key, duration || 0, kpId);
 
       this.moviesService.setHandleProductionStatus(cartoon);
 
-      await this.cartoonRepository.save(cartoon, queryRunner);
+      const savedCartoon = await this.cartoonRepository.save(cartoon, queryRunner);
+
+      if (!existingCartoon) {
+        const { titleUrl, posterUrl, backgroundContentUrl } = await this.getContentUrlForNewCartoon(
+          savedCartoon.id,
+          metadata.trailerUrl,
+          metadata.titleUrl,
+          metadata.posterUrl,
+        );
+
+        cartoon.updateBackgroundUrl(backgroundContentUrl);
+        cartoon.updatePosterUrl(posterUrl);
+        cartoon.updateTitleUrl(titleUrl);
+
+        this.moviesService.setHandleProductionStatus(cartoon);
+
+        await this.cartoonRepository.save(cartoon, queryRunner);
+      }
 
       if (cartoon.handleStatus === MovieHandleStatus.MODERATE) {
         this.logger.log('Cartoon sent to moderation', this.execute.name);
@@ -114,24 +131,24 @@ export class NewCartoonNotificationCommandHandler
     duration: number,
     kpId: string,
   ): Promise<Cartoon> {
-    const tasks: Promise<string | null>[] = [];
+    const { id } = cartoon;
+    const [previewUrl, backgroundContentUrl, titleUrl] = await Promise.all([
+      !cartoon.previewUrl
+        ? this.moviesService.getPosterUrl(metadata.posterUrl, id, MovieTypesEnum.CARTOON)
+        : Promise.resolve(null),
 
-    if (!cartoon.previewUrl)
-      tasks.push(this.moviesService.getPosterUrl(metadata.posterUrl, kpId, MovieTypesEnum.CARTOON));
+      !cartoon.backgroundContentUrl
+        ? this.moviesService.getBackgroundContentUrl(
+            metadata.trailerUrl,
+            id,
+            MovieTypesEnum.CARTOON,
+          )
+        : Promise.resolve(null),
 
-    if (!cartoon.backgroundContentUrl)
-      tasks.push(
-        this.moviesService.getBackgroundContentUrl(
-          metadata.trailerUrl,
-          kpId,
-          MovieTypesEnum.CARTOON,
-        ),
-      );
-
-    if (!cartoon.titleUrl)
-      tasks.push(this.moviesService.getLogoUrl(metadata.titleUrl, kpId, MovieTypesEnum.CARTOON));
-
-    const [previewUrl, backgroundContentUrl, titleUrl] = await Promise.all(tasks);
+      !cartoon.titleUrl
+        ? this.moviesService.getLogoUrl(metadata.titleUrl, id, MovieTypesEnum.CARTOON)
+        : Promise.resolve(null),
+    ]);
 
     const cartoonDto: CartonUpdateDto = {
       videUrl: key,
@@ -153,18 +170,12 @@ export class NewCartoonNotificationCommandHandler
     return cartoon;
   }
 
-  private async createNewCartoon(
+  private createNewCartoon(
     metadata: MovieKpMetadata,
     key: string,
     duration: number,
     kpId: string,
-  ): Promise<Cartoon> {
-    const [backgroundContentUrl, posterUrl, titleUrl] = await Promise.all([
-      this.moviesService.getBackgroundContentUrl(metadata.trailerUrl, kpId, MovieTypesEnum.CARTOON),
-      this.moviesService.getPosterUrl(metadata.posterUrl, kpId, MovieTypesEnum.CARTOON),
-      this.moviesService.getLogoUrl(metadata.titleUrl, kpId, MovieTypesEnum.CARTOON),
-    ]);
-
+  ): Cartoon {
     const cartoonDto: CartonCreateDto = {
       key,
       kpId,
@@ -178,10 +189,10 @@ export class NewCartoonNotificationCommandHandler
       description: metadata.description,
       releaseDate: metadata.releaseDate,
       handleStatus: MovieHandleStatus.PROCESSING,
-      titleUrl,
-      previewUrl: posterUrl,
+      titleUrl: null,
+      previewUrl: null,
       trailerUrl: metadata.trailerUrl,
-      backgroundContentUrl,
+      backgroundContentUrl: null,
     };
     return this.cartoonEntity.create(cartoonDto);
   }
@@ -203,6 +214,25 @@ export class NewCartoonNotificationCommandHandler
     const { id: moderationId } = moderationResult;
 
     return moderationId;
+  }
+
+  private async getContentUrlForNewCartoon(
+    cartoonId: number,
+    trailerUrl: string | null,
+    logoUrl: string | null,
+    previewUrl: string | null,
+  ) {
+    const [backgroundContentUrl, posterUrl, titleUrl] = await Promise.all([
+      this.moviesService.getBackgroundContentUrl(trailerUrl, cartoonId, MovieTypesEnum.CARTOON),
+      this.moviesService.getPosterUrl(previewUrl, cartoonId, MovieTypesEnum.CARTOON),
+      this.moviesService.getLogoUrl(logoUrl, cartoonId, MovieTypesEnum.CARTOON),
+    ]);
+
+    return {
+      backgroundContentUrl,
+      posterUrl,
+      titleUrl,
+    };
   }
 
   private publish(moderationId: number): void {

@@ -183,15 +183,32 @@ export class MoviesService {
     );
   }
 
-  async getBackgroundContentUrl(
-    trailerUrl: string | null,
-    kpId: string,
+  async getVideoContentUrl(
+    file: Express.Multer.File | null,
+    movieId: number,
     movieType: MovieTypesEnum,
   ): Promise<string | null> {
-    if (!trailerUrl) return null;
+    if (!file) return null;
 
     const result = await this.rmqResultHandlerUtil.getRmqData(
-      () => this.downloaderServiceAdapter.downloadPreviewClip(kpId, trailerUrl, movieType),
+      () => Promise.resolve(this.downloaderServiceAdapter.uploadFilm(movieId, file, movieType)),
+      this.getVideoContentUrl.name,
+    );
+
+    if (result.appResult !== AppNotificationResultEnum.Success) return null;
+
+    return result.data;
+  }
+
+  async getBackgroundContentUrl(
+    file: string | Express.Multer.File | null,
+    movieId: number,
+    movieType: MovieTypesEnum,
+  ): Promise<string | null> {
+    if (!file) return null;
+
+    const result = await this.rmqResultHandlerUtil.getRmqData(
+      () => this.downloaderServiceAdapter.downloadPreviewClip(movieId, file, movieType),
       this.getBackgroundContentUrl.name,
     );
 
@@ -201,14 +218,14 @@ export class MoviesService {
   }
 
   async getPosterUrl(
-    posterUrl: string | null,
-    kpId: string,
+    posterUrl: string | Express.Multer.File | null,
+    movieId: number,
     movieType: MovieTypesEnum,
   ): Promise<string | null> {
     if (!posterUrl) return null;
 
     const result = await this.rmqResultHandlerUtil.getRmqData(
-      () => this.downloaderServiceAdapter.resizeAndSavePoster(kpId, posterUrl, movieType),
+      () => this.downloaderServiceAdapter.resizeAndSavePoster(movieId, posterUrl, movieType),
       this.getPosterUrl.name,
     );
 
@@ -218,14 +235,14 @@ export class MoviesService {
   }
 
   async getLogoUrl(
-    logoUrl: string | null,
-    kpId: string,
+    logo: string | Express.Multer.File | null,
+    movieId: number,
     movieType: MovieTypesEnum,
   ): Promise<string | null> {
-    if (!logoUrl) return null;
+    if (!logo) return null;
 
     const result = await this.rmqResultHandlerUtil.getRmqData(
-      () => this.downloaderServiceAdapter.resizeAndSaveLogo(kpId, logoUrl, movieType),
+      () => this.downloaderServiceAdapter.resizeAndSaveLogo(movieId, logo, movieType),
       this.getLogoUrl.name,
     );
 

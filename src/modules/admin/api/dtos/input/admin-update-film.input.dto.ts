@@ -124,33 +124,70 @@ export class AdminUpdateFilmInputDto {
   @Matches(/\S/, { each: true, message: 'country must not be blank' })
   country: string[];
 
-  @ApiProperty()
+  @ApiPropertyOptional()
+  @IsOptional()
   @Trim()
   @IsNotEmpty()
   @IsUrl()
   videUrl: string;
 
-  @ApiProperty()
+  @ApiPropertyOptional()
+  @IsOptional()
   @Trim()
   @IsNotEmpty()
   @IsUrl()
   trailerUrl: string;
 
-  @ApiProperty()
+  @ApiPropertyOptional()
+  @IsOptional()
   @Trim()
   @IsNotEmpty()
   @IsUrl()
   backgroundContentUrl: string;
 
-  @ApiProperty()
+  @ApiPropertyOptional()
+  @IsOptional()
   @Trim()
   @IsNotEmpty()
   @IsUrl()
   previewUrl: string;
 
-  @ApiProperty()
+  @ApiPropertyOptional()
+  @IsOptional()
   @Trim()
   @IsNotEmpty()
   @IsUrl()
   titleUrl: string;
+
+  @ApiPropertyOptional({
+    type: 'string',
+    format: 'binary',
+    required: false,
+  })
+  @IsOptional()
+  videoFile?: Express.Multer.File;
+
+  @ApiPropertyOptional({
+    type: 'string',
+    format: 'binary',
+    required: false,
+  })
+  @IsOptional()
+  previewFile?: Express.Multer.File;
+
+  @ApiPropertyOptional({
+    type: 'string',
+    format: 'binary',
+    required: false,
+  })
+  @IsOptional()
+  titleFile?: Express.Multer.File;
+
+  @ApiPropertyOptional({
+    type: 'string',
+    format: 'binary',
+    required: false,
+  })
+  @IsOptional()
+  backgroundFile?: Express.Multer.File;
 }

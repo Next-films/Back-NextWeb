@@ -146,22 +146,31 @@ export interface IDownloaderServiceAdapter {
   ): Promise<AppNotificationResult<null, ErrorFieldExceptionDto | null>>;
 }
 
+export class UploadFilmPayloadDto {
+  type: MovieTypesEnum;
+  movieId: number;
+  file: Express.Multer.File;
+}
+
 export class DownloadPreviewYtClipPayloadDto {
   type: MovieTypesEnum;
-  kpId: string;
-  url: string;
+  movieId: number;
+  url?: string;
+  file?: Express.Multer.File;
 }
 
 export class ResizeAndSafePosterPayloadDto {
   type: MovieTypesEnum;
-  url: string;
-  kpId: string;
+  url?: string;
+  movieId: number;
+  file?: Express.Multer.File;
 }
 
 export class ResizeAndSafeLogoPayloadDto {
   type: MovieTypesEnum;
-  url: string;
-  kpId: string;
+  url?: string;
+  movieId: number;
+  file?: Express.Multer.File;
 }
 
 export class AdminUploadAvatarPayloadDto {
