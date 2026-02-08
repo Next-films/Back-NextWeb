@@ -21,6 +21,7 @@ import { TelegramAdminBotSendNotificationAdminCancelModerationCommandHandler } f
 import { FilmModule } from '@/films/film.module';
 import { CartoonModule } from '@/cartoons/cartoon.module';
 import { TelegramAdminBotSendNotificationAdminFinishedModerationCommandHandler } from '@/telegram/admin-bot/application/handlers/bot-send-notification-admin-finished-moderation.handler';
+import { SerialModule } from '@/serials/serial.module';
 
 const telegramProvider = {
   provide: TELEGRAM_ADMIN_BOT,
@@ -87,7 +88,7 @@ const handlers = [
 ];
 
 @Module({
-  imports: [AdminModule, ModerationMovieModule, FilmModule, CartoonModule],
+  imports: [AdminModule, ModerationMovieModule, FilmModule, CartoonModule, SerialModule],
   controllers: [],
   providers: [
     telegramAdminBotServiceProvider,

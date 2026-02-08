@@ -13,6 +13,7 @@ import {
 import { ModerationFilmQueryRepository } from '@/moderation-movie/infrastructure/moderation-film.query-repository';
 import { MovieTypesEnum } from '@/common/types/types';
 import { ModerationCartoonQueryRepository } from '@/moderation-movie/infrastructure/moderation-cartoon.query-repository';
+import { ModerationSerialQueryRepository } from '@/moderation-movie/infrastructure/moderation-serial.query-repository';
 import { IGetModerationMovieTaskByIdStrategy } from '@/admin/domain/types';
 
 export class AdminGetModerationMovieTaskByIdQuery implements IQuery {
@@ -35,6 +36,7 @@ export class AdminGetModerationMovieTaskByIdQueryHandler
     private readonly logger: LoggerService,
     private readonly moderationFilmQueryRepository: ModerationFilmQueryRepository,
     private readonly moderationCartoonQueryRepository: ModerationCartoonQueryRepository,
+    private readonly moderationSerialQueryRepository: ModerationSerialQueryRepository,
     private readonly adminModerationMovieTaskOutputDtoMapper: AdminModerationMovieTaskOutputDtoMapper,
   ) {
     this.logger.setContext(AdminGetModerationMovieTaskByIdQueryHandler.name);
@@ -90,7 +92,10 @@ export class AdminGetModerationMovieTaskByIdQueryHandler
         };
 
       case MovieTypesEnum.SERIAL:
-        return null; // TODO: реализовать
+        return {
+          getTask: (...args) =>
+            this.moderationSerialQueryRepository.getSerialTaskByIdWithMovieInfo(...args),
+        };
       default:
         return null;
     }

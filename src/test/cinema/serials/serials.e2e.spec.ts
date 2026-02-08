@@ -249,6 +249,7 @@ describe('Serials public', () => {
         previewUrl: episode.previewUrl,
         releaseDate: expect.any(String),
         duration: expect.any(Number),
+        seasonNumber: expect.any(Number),
       });
     });
 
@@ -293,6 +294,7 @@ describe('Serials public', () => {
         previewUrl: episode.previewUrl,
         releaseDate: expect.any(String),
         duration: expect.any(Number),
+        seasonNumber: expect.any(Number),
       });
 
       const resultNotFound1 = await request(app.getHttpServer())

@@ -18,6 +18,7 @@ export enum EXCEPTION_KEYS_ENUM {
   CARTOON_NOT_FOUND = 'error.cartoon_not_found',
   CARTOON_ALREADY_EXIST = 'error.cartoon_already_exist',
   SERIAL_NOT_FOUND = 'error.serial_not_found',
+  SERIAL_ALREADY_EXIST = 'error.serial_already_exist',
   EPISODE_NOT_FOUND = 'error.episode_not_found',
   EXTERNAL_API_TOKEN_ALREADY_EXIST = 'error.external_api_token_already_exist',
   EXTERNAL_API_TOKEN_NOT_FOUND = 'error.external_api_token_not_found',

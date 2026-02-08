@@ -16,6 +16,8 @@ import { ModerationCartoonRepository } from '@/moderation-movie/infrastructure/m
 import { IAcceptModerationMovieTaskByIdStrategy } from '@/admin/domain/types';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource, QueryRunner } from 'typeorm';
+import { ModerationSerialRepository } from '@/moderation-movie/infrastructure/moderation-serial.repository';
+import { ModerationSerialEntity } from '@/moderation-movie/domain/moderation-serial.entity';
 
 export class AdminAcceptModerationMovieTaskCommand implements ICommand {
   constructor(
@@ -39,6 +41,7 @@ export class AdminAcceptModerationMovieTaskCommandHandler
     private readonly commandBus: CommandBus,
     private readonly moderationFilmRepository: ModerationFilmRepository,
     private readonly moderationCartoonRepository: ModerationCartoonRepository,
+    private readonly moderationSerialRepository: ModerationSerialRepository,
     private readonly adminRepository: AdminRepository,
     @InjectDataSource() private readonly dataSource: DataSource,
   ) {
@@ -152,7 +155,15 @@ export class AdminAcceptModerationMovieTaskCommandHandler
         };
 
       case MovieTypesEnum.SERIAL:
-        return null; // TODO: реализовать
+        return {
+          getTask: (...args) =>
+            this.moderationSerialRepository.getModerationByIdWithMovieAndAdminInfo(
+              ...args,
+              queryRunner,
+            ),
+          saveTask: (task: ModerationSerialEntity) =>
+            this.moderationSerialRepository.save(task, queryRunner),
+        };
       default:
         return null;
     }

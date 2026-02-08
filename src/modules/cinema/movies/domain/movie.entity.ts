@@ -9,7 +9,7 @@ export class MovieEntity {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column()
+  @Column({ nullable: true })
   kpId: string;
 
   @Column({ type: 'varchar', nullable: true })

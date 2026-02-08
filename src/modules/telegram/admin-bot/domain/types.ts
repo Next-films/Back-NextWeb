@@ -4,6 +4,7 @@ import { MovieEntity } from '@/movies/domain/movie.entity';
 import { ModerationMovieEntity } from '@/moderation-movie/domain/moderation-movie.entity';
 import { ModerationFilmEntity } from '@/moderation-movie/domain/moderation-film.entity';
 import { ModerationCartoonEntity } from '@/moderation-movie/domain/moderation-cartoon.entity';
+import { ModerationSerialEntity } from '@/moderation-movie/domain/moderation-serial.entity';
 
 export class BotCommandsDto {
   tgMessage: TelegramBot.Message;
@@ -62,5 +63,7 @@ export interface IAdminBotNotificationAcceptModerationStrategy {
 }
 
 export interface IAdminBotNotificationNewModerationStrategy {
-  getTask: (taskId: number) => Promise<ModerationFilmEntity | ModerationCartoonEntity | null>;
+  getTask: (
+    taskId: number,
+  ) => Promise<ModerationFilmEntity | ModerationCartoonEntity | ModerationSerialEntity | null>;
 }

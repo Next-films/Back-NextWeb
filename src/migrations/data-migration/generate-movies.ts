@@ -8,6 +8,8 @@ import { Film } from '@/films/domain/film.entity';
 import { MovieDurationUtil } from '@/common/utils/movie-duration.util';
 import { Cartoon } from '@/cartoons/domain/cartoon.entity';
 import { Serial } from '@/serials/domain/serial.entity';
+import { SerialSeason } from '@/serials/domain/serial-season.entity';
+import { SerialEpisode } from '@/serials/domain/serial-episode.entity';
 import { randomUUID } from 'node:crypto';
 import { MovieHandleStatus } from '@/movies/domain/types';
 
@@ -235,31 +237,48 @@ async function importSerials(queryRunner: QueryRunner): Promise<void> {
     const genres = await getGenres(queryRunner, filtr);
 
     const serial = queryRunner.manager.create(Serial, {
+      kpId: randomUUID(),
       country: ['Неизвестно'],
-      titleImg,
+      titleUrl: titleImg,
       title,
       originalTitle: id,
-      cardImg,
-      releaseDate: parseDate(date),
-      backgroundImg,
+      previewUrl: cardImg,
+      releaseDate: parseDate(date).toISOString(),
+      backgroundContentUrl: backgroundImg,
       alternativeTitles: name,
       trailerUrl: trailer,
       description,
       genres,
-      episodes: films.map((e, i) => {
-        return {
-          title: `Эпизод ${i + 1}`,
-          originalTitle: id,
-          description,
-          previewUrl: e.previewUrl,
-          releaseDate: parseDate(date),
-          videoUrl: e.videoUrl,
-          duration: 0,
-        };
-      }),
+      isHidden: false,
+      handleStatus: MovieHandleStatus.PRODUCTION,
+      videoUrl: null,
+      duration: 0,
     });
 
-    await queryRunner.manager.save(Serial, serial);
+    const savedSerial = await queryRunner.manager.save(Serial, serial);
+
+    const season = queryRunner.manager.create(SerialSeason, {
+      seasonNumber: 1,
+      serialId: savedSerial.id,
+    });
+
+    const savedSeason = await queryRunner.manager.save(SerialSeason, season);
+
+    const episodes = films.map((e, i) =>
+      queryRunner.manager.create(SerialEpisode, {
+        title: `Эпизод ${i + 1}`,
+        originalTitle: id,
+        description,
+        previewUrl: e.previewUrl || cardImg || backgroundImg,
+        releaseDate: parseDate(date),
+        videoUrl: e.videoUrl,
+        duration: 0,
+        serialId: savedSerial.id,
+        seasonId: savedSeason.id,
+      }),
+    );
+
+    await queryRunner.manager.save(SerialEpisode, episodes);
   }
 
   console.log('=>All serials have been saved!');

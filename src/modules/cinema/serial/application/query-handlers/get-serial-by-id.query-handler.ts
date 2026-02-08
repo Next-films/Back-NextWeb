@@ -6,7 +6,7 @@ import {
 import { ErrorFieldExceptionDto } from '@/common/exception-filters/http/http-exception.filter';
 import { LoggerService } from '@/common/utils/logger/logger.service';
 import { EXCEPTION_KEYS_ENUM } from '@/common/enums/exception-keys.enum';
-import { SerialQueryRepository } from '@/serials/infrastructure/serial.query-repository';
+import { SerialPublicQueryRepository } from '@/serials/infrastructure/serial-public.query-repository';
 import {
   SerialsOutputDto,
   SerialsOutputDtoMapper,
@@ -27,7 +27,7 @@ export class GetSerialByIdQueryHandler
   constructor(
     private readonly appNotification: ApplicationNotification,
     private readonly logger: LoggerService,
-    private readonly serialQueryRepository: SerialQueryRepository,
+    private readonly serialQueryRepository: SerialPublicQueryRepository,
     private readonly serialsOutputDtoMapper: SerialsOutputDtoMapper,
   ) {
     this.logger.setContext(GetSerialByIdQueryHandler.name);

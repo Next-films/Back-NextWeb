@@ -8,6 +8,9 @@ import { ModerationFilmQueryRepository } from '@/moderation-movie/infrastructure
 import { ModerationCartoonQueryRepository } from '@/moderation-movie/infrastructure/moderation-cartoon.query-repository';
 import { FinishedTorrentModerationEntity } from '@/moderation-movie/domain/finished-torrent-moderation.entity';
 import { FinishedTorrentModerationRepository } from '@/moderation-movie/infrastructure/finished-torrent-moderation.repository';
+import { ModerationSerialEntity } from '@/moderation-movie/domain/moderation-serial.entity';
+import { ModerationSerialRepository } from '@/moderation-movie/infrastructure/moderation-serial.repository';
+import { ModerationSerialQueryRepository } from '@/moderation-movie/infrastructure/moderation-serial.query-repository';
 
 export const moderationFilmEntityProvider = {
   provide: 'ModerationFilmEntity',
@@ -19,6 +22,11 @@ export const moderationCartoonEntityProvider = {
   useValue: ModerationCartoonEntity,
 };
 
+export const moderationSerialEntityProvider = {
+  provide: 'ModerationSerialEntity',
+  useValue: ModerationSerialEntity,
+};
+
 export const finishedTorrentModerationEntityProvider = {
   provide: 'FinishedTorrentModerationEntity',
   useValue: FinishedTorrentModerationEntity,
@@ -27,16 +35,20 @@ export const finishedTorrentModerationEntityProvider = {
 const providers = [
   moderationFilmEntityProvider,
   moderationCartoonEntityProvider,
+  moderationSerialEntityProvider,
   finishedTorrentModerationEntityProvider,
 ];
 
 const exportsProviders = [
   ModerationCartoonRepository,
   ModerationFilmRepository,
+  ModerationSerialRepository,
   ModerationFilmQueryRepository,
   ModerationCartoonQueryRepository,
+  ModerationSerialQueryRepository,
   moderationFilmEntityProvider,
   moderationCartoonEntityProvider,
+  moderationSerialEntityProvider,
   finishedTorrentModerationEntityProvider,
   FinishedTorrentModerationRepository,
 ];
@@ -46,6 +58,7 @@ const exportsProviders = [
     TypeOrmModule.forFeature([
       ModerationFilmEntity,
       ModerationCartoonEntity,
+      ModerationSerialEntity,
       FinishedTorrentModerationEntity,
     ]),
   ],
@@ -54,8 +67,10 @@ const exportsProviders = [
     ...providers,
     ModerationFilmRepository,
     ModerationCartoonRepository,
+    ModerationSerialRepository,
     ModerationFilmQueryRepository,
     ModerationCartoonQueryRepository,
+    ModerationSerialQueryRepository,
     FinishedTorrentModerationRepository,
   ],
   exports: [...exportsProviders],

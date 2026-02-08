@@ -17,6 +17,10 @@ import { FilmRepository } from '@/films/infrastructure/film.repository';
 import { CartoonRepository } from '@/cartoons/infrastructure/cartoon.repository';
 import { Film } from '@/films/domain/film.entity';
 import { Cartoon } from '@/cartoons/domain/cartoon.entity';
+import { SerialRepository } from '@/serials/infrastructure/serial.repository';
+import { Serial } from '@/serials/domain/serial.entity';
+import { ModerationSerialRepository } from '@/moderation-movie/infrastructure/moderation-serial.repository';
+import { ModerationSerialEntity } from '@/moderation-movie/domain/moderation-serial.entity';
 import { DataSource, QueryRunner } from 'typeorm';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { Inject } from '@nestjs/common';
@@ -46,9 +50,11 @@ export class AdminCancelModerationMovieTaskCommandHandler
     private readonly commandBus: CommandBus,
     private readonly moderationFilmRepository: ModerationFilmRepository,
     private readonly moderationCartoonRepository: ModerationCartoonRepository,
+    private readonly moderationSerialRepository: ModerationSerialRepository,
     private readonly filmRepository: FilmRepository,
     private readonly finishedTorrentModerationRepository: FinishedTorrentModerationRepository,
     private readonly cartoonRepository: CartoonRepository,
+    private readonly serialRepository: SerialRepository,
     @Inject(FinishedTorrentModerationEntity.name)
     private readonly finishedTorrentModerationEntity: typeof FinishedTorrentModerationEntity,
     @InjectDataSource() private readonly dataSource: DataSource,
@@ -190,7 +196,16 @@ export class AdminCancelModerationMovieTaskCommandHandler
         };
 
       case MovieTypesEnum.SERIAL:
-        return null; // TODO: реализовать
+        return {
+          getTask: (...args) =>
+            this.moderationSerialRepository.getModerationByIdWithMovieAndAdminInfo(
+              ...args,
+              queryRunner,
+            ),
+          removeTask: (task: ModerationSerialEntity) =>
+            this.moderationSerialRepository.removeTask(task, queryRunner),
+          saveMovie: (movie: Serial) => this.serialRepository.save(movie, queryRunner),
+        };
       default:
         return null;
     }

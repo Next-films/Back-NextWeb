@@ -13,6 +13,7 @@ import { MovieTypesEnum } from '@/common/types/types';
 import { ModerationCartoonRepository } from '@/moderation-movie/infrastructure/moderation-cartoon.repository';
 import { ModerationFilmRepository } from '@/moderation-movie/infrastructure/moderation-film.repository';
 import { DateUtil } from '@/common/utils/date.util';
+import { ModerationSerialRepository } from '@/moderation-movie/infrastructure/moderation-serial.repository';
 
 export class TelegramAdminBotSendNotificationAdminAcceptModerationCommand implements ICommand {
   constructor(
@@ -34,6 +35,7 @@ export class TelegramAdminBotSendNotificationAdminAcceptModerationCommandHandler
     private readonly configService: ConfigService<ConfigurationType, true>,
     private readonly moderationCartoonRepository: ModerationCartoonRepository,
     private readonly moderationFilmRepository: ModerationFilmRepository,
+    private readonly moderationSerialRepository: ModerationSerialRepository,
     private readonly dateUtil: DateUtil,
   ) {
     this.logger.setContext(
@@ -107,7 +109,10 @@ export class TelegramAdminBotSendNotificationAdminAcceptModerationCommandHandler
         };
 
       case MovieTypesEnum.SERIAL:
-        return null; // TODO: реализовать
+        return {
+          getTask: (...args) =>
+            this.moderationSerialRepository.getModerationByIdWithMovieAndAdminInfo(...args),
+        };
       default:
         return null;
     }

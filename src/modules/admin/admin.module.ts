@@ -25,6 +25,7 @@ import { AdminCinemaFilmsController } from '@/admin/api/admin-cinema-films.contr
 import { AdminCinemaMoviesOutputDtoMapper } from '@/admin/api/dtos/output/admin-cinema-movies.output.dto';
 import { AdminCinemaFilmsOutputDtoMapper } from '@/admin/api/dtos/output/admin-cinema-films.output.dto';
 import { AdminCinemaCartoonsOutputDtoMapper } from '@/admin/api/dtos/output/admin-cinema-cartoons.output.dto';
+import { AdminCinemaSerialsOutputDtoMapper } from '@/admin/api/dtos/output/admin-cinema-serials.output.dto';
 import { AdminShowOrHiddeFilmCommandHandler } from '@/admin/application/handlers/admin-show-or-hide-film.handler';
 import { FilmModule } from '@/films/film.module';
 import { AdminTelegram } from '@/admin/domain/admin-telegram.entity';
@@ -65,6 +66,13 @@ import { AdminGetAdminByIdQueryHandler } from '@/admin/application/query-handler
 import { AdminUpdateAvatarCommandHandler } from '@/admin/application/handlers/admin-update-avatar.handler';
 import { AdminGetFilmByIdQueryHandler } from '@/admin/application/query-handlers/admin-get-film-by-id.query-handler';
 import { AdminGetCartoonByIdQueryHandler } from '@/admin/application/query-handlers/admin-get-cartoon-by-id.query-handler';
+import { SerialModule } from '@/serials/serial.module';
+import { AdminCinemaSerialsController } from '@/admin/api/admin-cinema-serials.controller';
+import { AdminGetAllSerialsQueryHandler } from '@/admin/application/query-handlers/admin-get-all-serials.query-handler';
+import { AdminUpdateSerialCommandHandler } from '@/admin/application/handlers/admin-update-serial.handler';
+import { AdminRemoveSerialCommandHandler } from '@/admin/application/handlers/admin-remove-serial.handler';
+import { AdminShowOrHiddeSerialCommandHandler } from '@/admin/application/handlers/admin-show-or-hide-serial.handler';
+import { AdminGetSerialByIdQueryHandler } from '@/admin/application/query-handlers/admin-get-serial-by-id.query-handler';
 
 export const AdminProvider = {
   provide: 'Admin',
@@ -90,6 +98,9 @@ const handlers = [
   AdminUpdateCartoonCommandHandler,
   AdminRemoveCartoonCommandHandler,
   AdminShowOrHiddeCartoonCommandHandler,
+  AdminUpdateSerialCommandHandler,
+  AdminRemoveSerialCommandHandler,
+  AdminShowOrHiddeSerialCommandHandler,
   AdminDeactivateAdminCommandHandler,
   AdminActivateAdminCommandHandler,
   AdminChangeAdminRoleCommandHandler,
@@ -109,6 +120,8 @@ const queryHandlers = [
   AdminGetAdminByIdQueryHandler,
   AdminGetFilmByIdQueryHandler,
   AdminGetCartoonByIdQueryHandler,
+  AdminGetAllSerialsQueryHandler,
+  AdminGetSerialByIdQueryHandler,
 ];
 
 const exportProviders = [
@@ -128,6 +141,7 @@ const exportProviders = [
     BandedProvidersMovieModule,
     FilmModule,
     CartoonModule,
+    SerialModule,
     ModerationMovieModule,
   ],
   controllers: [
@@ -139,6 +153,7 @@ const exportProviders = [
     AdminModerationMovieController,
     AdminCinemaPrivateController,
     AdminCinemaCartoonsController,
+    AdminCinemaSerialsController,
     AdminController,
   ],
   providers: [
@@ -151,6 +166,7 @@ const exportProviders = [
     AdminCinemaMoviesOutputDtoMapper,
     AdminCinemaFilmsOutputDtoMapper,
     AdminCinemaCartoonsOutputDtoMapper,
+    AdminCinemaSerialsOutputDtoMapper,
     AdminRepository,
     AdminModerationMovieTaskOutputDtoMapper,
     AdminRolesOutputDtoMapper,

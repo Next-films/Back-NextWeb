@@ -1,6 +1,7 @@
 import { Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { RU_PG_COLLATION } from '@/common/constants/collation.constant';
 import { Serial } from '@/serials/domain/serial.entity';
+import { SerialSeason } from '@/serials/domain/serial-season.entity';
 
 @Entity()
 export class SerialEpisode {
@@ -13,8 +14,8 @@ export class SerialEpisode {
   @Column({ nullable: true })
   originalTitle: string;
 
-  @Column({ collation: RU_PG_COLLATION, nullable: true })
-  description: string;
+  @Column({ type: 'varchar', collation: RU_PG_COLLATION, nullable: true })
+  description: string | null;
 
   @Column()
   previewUrl: string;
@@ -34,4 +35,11 @@ export class SerialEpisode {
 
   @Column()
   serialId: number;
+
+  @ManyToOne(() => SerialSeason, season => season.episodes)
+  @JoinColumn()
+  season: SerialSeason;
+
+  @Column({ nullable: true })
+  seasonId: number | null;
 }

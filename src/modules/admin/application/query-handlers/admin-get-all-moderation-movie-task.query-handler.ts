@@ -14,6 +14,7 @@ import {
 } from '@/admin/api/dtos/output/admin-moderation-movie-task.output.dto';
 import { ModerationFilmQueryRepository } from '@/moderation-movie/infrastructure/moderation-film.query-repository';
 import { ModerationCartoonQueryRepository } from '@/moderation-movie/infrastructure/moderation-cartoon.query-repository';
+import { ModerationSerialQueryRepository } from '@/moderation-movie/infrastructure/moderation-serial.query-repository';
 import { MovieTypesEnum } from '@/common/types/types';
 import { IGetModerationMovieTasksStrategy } from '@/admin/domain/types';
 
@@ -38,6 +39,7 @@ export class AdminGetAllModerationMovieTaskQueryHandler
     private readonly paginationUtil: PaginationUtil,
     private readonly moderationFilmQueryRepository: ModerationFilmQueryRepository,
     private readonly moderationCartoonQueryRepository: ModerationCartoonQueryRepository,
+    private readonly moderationSerialQueryRepository: ModerationSerialQueryRepository,
     private readonly adminModerationMovieTaskOutputDtoMapper: AdminModerationMovieTaskOutputDtoMapper,
   ) {
     this.logger.setContext(AdminGetAllModerationMovieTaskQueryHandler.name);
@@ -118,7 +120,11 @@ export class AdminGetAllModerationMovieTaskQueryHandler
         };
 
       case MovieTypesEnum.SERIAL:
-        return null; // TODO: реализовать
+        return {
+          getTasks: (...args) => this.moderationSerialQueryRepository.getSerialTasks(...args),
+          getTotalCount: (name, status) =>
+            this.moderationSerialQueryRepository.getSerialTasksCount(name, status),
+        };
       default:
         return null;
     }

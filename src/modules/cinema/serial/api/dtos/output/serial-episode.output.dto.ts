@@ -9,8 +9,8 @@ export class SerialEpisodeOutputDto {
   @ApiProperty()
   title: string;
 
-  @ApiProperty()
-  description: string;
+  @ApiProperty({ nullable: true })
+  description: string | null;
 
   @ApiProperty()
   previewUrl: string;
@@ -20,6 +20,9 @@ export class SerialEpisodeOutputDto {
 
   @ApiProperty()
   duration: number;
+
+  @ApiProperty({ nullable: true })
+  seasonNumber: number | null;
 }
 
 @Injectable()
@@ -32,6 +35,7 @@ export class SerialEpisodesOutputDtoMapper {
       releaseDate: episode.releaseDate,
       description: episode.description,
       duration: episode.duration,
+      seasonNumber: episode.season?.seasonNumber ?? null,
     };
   }
 

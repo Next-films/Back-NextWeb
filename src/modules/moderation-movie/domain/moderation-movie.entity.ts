@@ -4,6 +4,7 @@ import { FindTorApiTorrentFilmType } from '@/common/types/types';
 import { CreateModerationDto } from '@/moderation-movie/domain/types';
 import { Cartoon } from '@/cartoons/domain/cartoon.entity';
 import { Film } from '@/films/domain/film.entity';
+import { Serial } from '@/serials/domain/serial.entity';
 
 export class ModerationMovieEntity {
   @PrimaryGeneratedColumn()
@@ -23,7 +24,7 @@ export class ModerationMovieEntity {
 
   admin: Admin;
 
-  movie: Film | Cartoon;
+  movie: Film | Cartoon | Serial;
 
   static create<T>(dto: CreateModerationDto): T {
     const { movieId, admin, torrentMetaData } = dto;

@@ -3,6 +3,7 @@ export const DOWNLOAD_SERVICE_RMQ_NAME = 'DOWNLOAD_SERVICE';
 
 export const GET_FILM_BY_KP_ID_CMD = 'get_film_by_kp_id_cmd';
 export const GET_CARTOON_BY_KP_ID_CMD = 'get_cartoon_by_kp_id_cmd';
+export const GET_SERIAL_BY_KP_ID_CMD = 'get_serial_by_kp_id_cmd';
 
 export const MODERATE_MOVIE_CMD = 'moderate_movie_cmd';
 export const NEW_FILM_CMD = 'new_film_cmd';
@@ -30,6 +31,7 @@ export const NEW_FILM_IS_HANDLE_CMD = 'new_film_is_handle_cmd';
 export const NEW_CARTOON_IS_HANDLE_CMD = 'new_cartoon_is_handle_cmd';
 export const NEW_SERIAL_IS_HANDLE_CMD = 'new_serial_is_handle_cmd';
 export const NEW_BACKGROUND_CONTENT_FOR_FILM_CMD = 'new_background_content_for_film_cmd';
+export const NEW_BACKGROUND_CONTENT_FOR_SERIAL_CMD = 'new_background_content_for_serial_cmd';
 
 /*
  *

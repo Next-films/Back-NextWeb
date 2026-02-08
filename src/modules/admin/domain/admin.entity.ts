@@ -10,6 +10,7 @@ import {
 import { AdminSession } from '@/admin-auth/domain/admin-session.entity';
 import { ModerationFilmEntity } from '@/moderation-movie/domain/moderation-film.entity';
 import { ModerationCartoonEntity } from '@/moderation-movie/domain/moderation-cartoon.entity';
+import { ModerationSerialEntity } from '@/moderation-movie/domain/moderation-serial.entity';
 import { AdminTelegram } from '@/admin/domain/admin-telegram.entity';
 import { FinishedTorrentModerationEntity } from '@/moderation-movie/domain/finished-torrent-moderation.entity';
 import { AdminRole } from '@/admin/domain/admin-role.entity';
@@ -60,6 +61,12 @@ export class Admin {
     (moderationCartoonEntity: ModerationCartoonEntity) => moderationCartoonEntity.admin,
   )
   moderationCartoons: ModerationCartoonEntity[];
+
+  @OneToMany(
+    () => ModerationSerialEntity,
+    (moderationSerialEntity: ModerationSerialEntity) => moderationSerialEntity.admin,
+  )
+  moderationSerials: ModerationSerialEntity[];
 
   @OneToMany(
     () => FinishedTorrentModerationEntity,

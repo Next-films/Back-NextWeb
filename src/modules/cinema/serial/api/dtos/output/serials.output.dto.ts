@@ -6,6 +6,7 @@ import {
 import { ApiProperty } from '@nestjs/swagger';
 import { Serial } from '@/serials/domain/serial.entity';
 import { SerialEpisode } from '@/serials/domain/serial-episode.entity';
+import { SerialSeason } from '@/serials/domain/serial-season.entity';
 
 export class SerialsOutputDto {
   @ApiProperty()
@@ -14,32 +15,32 @@ export class SerialsOutputDto {
   @ApiProperty()
   title: string;
 
-  @ApiProperty()
-  trailerUrl: string;
+  @ApiProperty({ nullable: true })
+  trailerUrl: string | null;
 
-  @ApiProperty()
-  backgroundImg: string;
+  @ApiProperty({ nullable: true })
+  backgroundImg: string | null;
 
-  @ApiProperty()
-  cardImg: string;
+  @ApiProperty({ nullable: true })
+  cardImg: string | null;
 
-  @ApiProperty()
-  description: string;
+  @ApiProperty({ nullable: true })
+  description: string | null;
 
-  @ApiProperty()
-  subTitle: string;
+  @ApiProperty({ nullable: true })
+  subTitle: string | null;
 
-  @ApiProperty()
-  titleImg: string;
+  @ApiProperty({ nullable: true })
+  titleImg: string | null;
 
-  @ApiProperty()
-  releaseDate: Date;
+  @ApiProperty({ nullable: true })
+  releaseDate: string | null;
 
   @ApiProperty({ type: MovieGenreOutputDto, isArray: true })
   genres: MovieGenreOutputDto[];
 
-  @ApiProperty()
-  country: string[];
+  @ApiProperty({ nullable: true })
+  country: string[] | null;
 
   @ApiProperty()
   episodeCount: number;
@@ -49,21 +50,55 @@ class SerialEpisodeOutputDto {
   @ApiProperty()
   id: number;
 
-  @ApiProperty()
-  title: string;
+  @ApiProperty({ nullable: true })
+  title: string | null;
 
   @ApiProperty()
   previewUrl: string;
+
+  @ApiProperty({ nullable: true })
+  seasonNumber: number | null;
+}
+
+class SerialEpisodeFilmOutputDto extends SerialEpisodeOutputDto {
+  @ApiProperty()
+  videoUrl: string;
+}
+
+class SerialSeasonOutputDto {
+  @ApiProperty()
+  id: number;
+
+  @ApiProperty()
+  seasonNumber: number;
+
+  @ApiProperty({ type: SerialEpisodeOutputDto, isArray: true })
+  episodes: SerialEpisodeOutputDto[];
+
+  @ApiProperty({ type: SerialEpisodeFilmOutputDto, isArray: true })
+  films: SerialEpisodeFilmOutputDto[];
 }
 
 export class SpecifySerialsOutputDto extends SerialsOutputDto {
   @ApiProperty({ type: SerialEpisodeOutputDto, isArray: true })
   episodes: SerialEpisodeOutputDto[];
+
+  @ApiProperty({ type: SerialEpisodeFilmOutputDto, isArray: true })
+  films: SerialEpisodeFilmOutputDto[];
+
+  @ApiProperty({ type: SerialSeasonOutputDto, isArray: true })
+  seasons: SerialSeasonOutputDto[];
 }
 
 @Injectable()
 export class SerialsOutputDtoMapper extends MoviePublicOutputDtoMapper {
-  private mapSerialSubtitle(releaseDate: Date, genres: string, episodesCount: number): string {
+  private mapSerialSubtitle(
+    releaseDate: string | null,
+    genres: string,
+    episodesCount: number,
+  ): string | null {
+    if (!releaseDate) return null;
+
     const date = new Date(releaseDate);
     const year = date.getFullYear();
 
@@ -76,9 +111,9 @@ export class SerialsOutputDtoMapper extends MoviePublicOutputDtoMapper {
     return {
       id: serial.id,
       title: serial.title,
-      backgroundImg: serial.backgroundImg,
+      backgroundImg: serial.backgroundContentUrl,
       releaseDate: serial.releaseDate,
-      cardImg: serial.cardImg,
+      cardImg: serial.previewUrl,
       description: serial.description,
       trailerUrl: serial.trailerUrl,
       subTitle: this.mapSerialSubtitle(
@@ -86,7 +121,7 @@ export class SerialsOutputDtoMapper extends MoviePublicOutputDtoMapper {
         this.formatGenresString(genres),
         episodeCount,
       ),
-      titleImg: serial.titleImg,
+      titleImg: serial.titleUrl,
       genres: this.mapMovieGenres(genres),
       country: serial.country,
       episodeCount: episodeCount,
@@ -98,9 +133,15 @@ export class SerialsOutputDtoMapper extends MoviePublicOutputDtoMapper {
   }
 
   mapSpecifySerial(serial: Serial): SpecifySerialsOutputDto {
+    const episodes = serial.episodes?.map(e => this.mapEpisode(e)) ?? [];
+    const films = serial.episodes?.map(e => this.mapEpisodeFilm(e)) ?? [];
+    const seasons = serial.seasons?.map(season => this.mapSeason(season)) ?? [];
+
     return {
       ...this.mapSerial(serial),
-      episodes: serial.episodes.map(e => this.mapEpisode(e)),
+      episodes,
+      films,
+      seasons,
     };
   }
 
@@ -109,6 +150,44 @@ export class SerialsOutputDtoMapper extends MoviePublicOutputDtoMapper {
       id: episode.id,
       title: episode.title,
       previewUrl: episode.previewUrl,
+      seasonNumber: episode.season?.seasonNumber ?? null,
+    };
+  }
+
+  mapEpisodeFilm(episode: SerialEpisode): SerialEpisodeFilmOutputDto {
+    return {
+      ...this.mapEpisode(episode),
+      videoUrl: episode.videoUrl,
+    };
+  }
+
+  private mapSeason(season: SerialSeason): SerialSeasonOutputDto {
+    const episodes = season.episodes?.map(e => this.mapSeasonEpisode(e, season.seasonNumber)) ?? [];
+    const films =
+      season.episodes?.map(e => this.mapSeasonEpisodeFilm(e, season.seasonNumber)) ?? [];
+
+    return {
+      id: season.id,
+      seasonNumber: season.seasonNumber,
+      episodes,
+      films,
+    };
+  }
+
+  private mapSeasonEpisode(episode: SerialEpisode, seasonNumber: number): SerialEpisodeOutputDto {
+    return {
+      ...this.mapEpisode(episode),
+      seasonNumber,
+    };
+  }
+
+  private mapSeasonEpisodeFilm(
+    episode: SerialEpisode,
+    seasonNumber: number,
+  ): SerialEpisodeFilmOutputDto {
+    return {
+      ...this.mapEpisodeFilm(episode),
+      seasonNumber,
     };
   }
 }

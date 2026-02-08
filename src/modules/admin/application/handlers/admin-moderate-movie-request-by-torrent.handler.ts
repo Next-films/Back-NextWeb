@@ -20,6 +20,10 @@ import { ModerationFilmRepository } from '@/moderation-movie/infrastructure/mode
 import { ModerationCartoonRepository } from '@/moderation-movie/infrastructure/moderation-cartoon.repository';
 import { ModerationFilmEntity } from '@/moderation-movie/domain/moderation-film.entity';
 import { ModerationCartoonEntity } from '@/moderation-movie/domain/moderation-cartoon.entity';
+import { SerialRepository } from '@/serials/infrastructure/serial.repository';
+import { Serial } from '@/serials/domain/serial.entity';
+import { ModerationSerialRepository } from '@/moderation-movie/infrastructure/moderation-serial.repository';
+import { ModerationSerialEntity } from '@/moderation-movie/domain/moderation-serial.entity';
 import { FinishedTorrentModerationRepository } from '@/moderation-movie/infrastructure/finished-torrent-moderation.repository';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource, QueryRunner } from 'typeorm';
@@ -42,15 +46,20 @@ export class AdminModerateRequestByTorrentCommandHandler
     private readonly appNotification: ApplicationNotification,
     private readonly filmRepository: FilmRepository,
     private readonly cartoonRepository: CartoonRepository,
+    private readonly serialRepository: SerialRepository,
     private readonly commandBus: CommandBus,
     @Inject(Film.name) private readonly filmEntity: typeof Film,
     @Inject(Cartoon.name) private readonly cartoonEntity: typeof Cartoon,
+    @Inject(Serial.name) private readonly serialEntity: typeof Serial,
     @Inject(ModerationFilmEntity.name)
     private readonly moderationFilmEntity: typeof ModerationFilmEntity,
     @Inject(ModerationCartoonEntity.name)
     private readonly moderationCartoonEntity: typeof ModerationCartoonEntity,
+    @Inject(ModerationSerialEntity.name)
+    private readonly moderationSerialEntity: typeof ModerationSerialEntity,
     private readonly moderationFilmRepository: ModerationFilmRepository,
     private readonly moderationCartoonRepository: ModerationCartoonRepository,
+    private readonly moderationSerialRepository: ModerationSerialRepository,
     private readonly finishedTorrentModerationRepository: FinishedTorrentModerationRepository,
     @InjectDataSource() private readonly dataSource: DataSource,
   ) {
@@ -196,7 +205,18 @@ export class AdminModerateRequestByTorrentCommandHandler
         };
 
       case MovieTypesEnum.SERIAL:
-        return null; // TODO: реализовать
+        return {
+          getMovie: (...args): Promise<Serial | null> =>
+            this.serialRepository.getSerialByKinopoiskId(...args, queryRunner),
+          createMovie: (...args) => this.serialEntity.create(...args),
+          saveMovie: (movie: Serial) => this.serialRepository.save(movie, queryRunner),
+          createModerationMovieTask: (...args): ModerationSerialEntity =>
+            this.moderationSerialEntity.create(...args),
+          saveModerationMovieTask: (
+            task: ModerationSerialEntity,
+          ): Promise<ModerationSerialEntity> =>
+            this.moderationSerialRepository.save(task, queryRunner),
+        };
       default:
         return null;
     }

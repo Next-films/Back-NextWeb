@@ -40,6 +40,7 @@ export const ADMIN_CINEMA_ROUTE = {
   MAIN: `${ADMIN_PREFIX}/cinema`,
   FILMS: `films`,
   CARTOONS: `cartoons`,
+  SERIALS: `serials`,
 };
 
 export const ADMIN_PRIVATE_CINEMA_ROUTE = {
@@ -89,6 +90,14 @@ export const BRIDGE_RMG_FILMS_ROUTE = {
 
 export const SERIALS_ROUTE = {
   MAIN: `${CINEMA_PREFIX}/serials`,
+};
+
+export const PRIVATE_SERIALS_ROUTE = {
+  MAIN: `${CINEMA_PREFIX}/private/serials`,
+  NEW_SERIAL: 'new-serial',
+  NEW_SERIAL_IS_HANDLE: 'new-serial/is-handle',
+  KP: `kp`,
+  NEW_BACKGROUND_CONTENT: 'new-background-content',
 };
 
 export const BRIDGE_RMG_SERIALS_ROUTE = {

@@ -15,6 +15,8 @@ import { ModerationFilmRepository } from '@/moderation-movie/infrastructure/mode
 import { MovieDurationUtil } from '@/common/utils/movie-duration.util';
 import { ModerationFilmEntity } from '@/moderation-movie/domain/moderation-film.entity';
 import { ModerationCartoonEntity } from '@/moderation-movie/domain/moderation-cartoon.entity';
+import { ModerationSerialRepository } from '@/moderation-movie/infrastructure/moderation-serial.repository';
+import { ModerationSerialEntity } from '@/moderation-movie/domain/moderation-serial.entity';
 
 export class TelegramAdminBotSendNotificationNewModerationMovieCommand implements ICommand {
   constructor(
@@ -37,6 +39,7 @@ export class TelegramAdminBotSendNotificationNewModerationMovieCommandHandler
     private readonly configService: ConfigService<ConfigurationType, true>,
     private readonly moderationCartoonRepository: ModerationCartoonRepository,
     private readonly moderationFilmRepository: ModerationFilmRepository,
+    private readonly moderationSerialRepository: ModerationSerialRepository,
   ) {
     this.logger.setContext(TelegramAdminBotSendNotificationNewModerationMovieCommandHandler.name);
 
@@ -106,7 +109,10 @@ export class TelegramAdminBotSendNotificationNewModerationMovieCommandHandler
         };
 
       case MovieTypesEnum.SERIAL:
-        return null; // TODO: реализовать
+        return {
+          getTask: (...args): Promise<ModerationSerialEntity | null> =>
+            this.moderationSerialRepository.getModerationByIdWithMovieAndAdminInfo(...args),
+        };
       default:
         return null;
     }

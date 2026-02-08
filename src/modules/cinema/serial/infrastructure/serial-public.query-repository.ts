@@ -5,6 +5,7 @@ import { Serial } from '../domain/serial.entity';
 import { SerialEpisode } from '@/serials/domain/serial-episode.entity';
 import { GetSerialSortFieldEnum } from '@/serials/api/dtos/input/get-serial.input-query';
 import { SortDirectionEnum } from '@/common/utils/query-filter.util';
+import { MovieHandleStatus } from '@/movies/domain/types';
 
 @Injectable()
 export class SerialPublicQueryRepository {
@@ -48,16 +49,28 @@ export class SerialPublicQueryRepository {
       qb.setParameter('search', searchValue);
     }
 
-    // Можно добавить фильтр по статусу сериала, если есть поле вроде `isHidden` или `handleStatus`
-    qb.andWhere(`s.isHidden = false`);
+    qb.andWhere(`s.isHidden = false`).andWhere(`s.handleStatus = :handleStatus`, {
+      handleStatus: MovieHandleStatus.PRODUCTION,
+    });
 
     return qb;
   }
 
   async getSerialById(id: number): Promise<Serial | null> {
     return this.serialRepository.findOne({
-      where: { id },
-      relations: { genres: true, episodes: true },
+      where: { id, isHidden: false, handleStatus: MovieHandleStatus.PRODUCTION },
+      relations: {
+        genres: true,
+        episodes: { season: true },
+        seasons: { episodes: true },
+      },
+    });
+  }
+
+  async getSerialEpisodeById(serialId: number, episodeId: number): Promise<SerialEpisode | null> {
+    return this.episodeRepository.findOne({
+      where: { id: episodeId, serialId },
+      relations: { season: true },
     });
   }
 

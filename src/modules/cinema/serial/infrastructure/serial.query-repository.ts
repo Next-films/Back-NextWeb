@@ -5,6 +5,8 @@ import { SortDirectionEnum } from '@/common/utils/query-filter.util';
 import { GetSerialSortFieldEnum } from '@/serials/api/dtos/input/get-serial.input-query';
 import { Serial } from '@/serials/domain/serial.entity';
 import { SerialEpisode } from '@/serials/domain/serial-episode.entity';
+import { AdminGetFilmsStatusEnum } from '@/admin/api/dtos/input/admin-get-all-films.input-query.dto';
+import { AdminGetFilmsSortFieldEnum } from '@/admin/api/dtos/input/admin-get-all-films.input-query.dto';
 
 @Injectable()
 export class SerialQueryRepository {
@@ -17,6 +19,7 @@ export class SerialQueryRepository {
     qb: SelectQueryBuilder<Serial>,
     searchName: string | null,
     searchGenreIds: number[] | null,
+    status?: AdminGetFilmsStatusEnum | null,
   ): SelectQueryBuilder<Serial> {
     if (searchGenreIds && searchGenreIds.length > 0) {
       qb.where(qb => {
@@ -49,13 +52,33 @@ export class SerialQueryRepository {
       qb.setParameter('search', searchValue);
     }
 
+    if (status !== null && status !== undefined) {
+      if (status !== AdminGetFilmsStatusEnum.ALL)
+        qb.andWhere('f.handleStatus = :status', { status });
+    }
+
     return qb;
   }
 
   async getSerialById(id: number): Promise<Serial | null> {
     return this.serialRepository.findOne({
       where: { id },
-      relations: { genres: true, episodes: true },
+      relations: {
+        genres: true,
+        episodes: { season: true },
+        seasons: { episodes: true },
+      },
+    });
+  }
+
+  async getSerialByKinopoiskId(kpId: string): Promise<Serial | null> {
+    return this.serialRepository.findOne({
+      where: { kpId },
+      relations: {
+        genres: true,
+        episodes: { season: true },
+        seasons: { episodes: true },
+      },
     });
   }
 
@@ -66,15 +89,16 @@ export class SerialQueryRepository {
   }
 
   async getSerials(
-    sortField: GetSerialSortFieldEnum,
+    sortField: GetSerialSortFieldEnum | AdminGetFilmsSortFieldEnum,
     sortDirection: SortDirectionEnum,
     skip: number,
     take: number,
     searchName: string | null,
     searchGenreIds: number[] | null,
+    status?: AdminGetFilmsStatusEnum | null,
   ): Promise<Serial[] | null> {
     let qb = this.serialRepository.createQueryBuilder('f').leftJoinAndSelect('f.genres', 'g');
-    qb = this.getSearchSerialClause(qb, searchName, searchGenreIds);
+    qb = this.getSearchSerialClause(qb, searchName, searchGenreIds, status || null);
 
     qb.leftJoin(`f.episodes`, 'e')
       .addSelect('e.id')
@@ -89,9 +113,10 @@ export class SerialQueryRepository {
   async getSerialCount(
     searchName: string | null,
     searchGenreIds: number[] | null,
+    status?: AdminGetFilmsStatusEnum | null,
   ): Promise<number> {
     let qb = this.serialRepository.createQueryBuilder('f').leftJoinAndSelect('f.genres', 'g');
-    qb = this.getSearchSerialClause(qb, searchName, searchGenreIds);
+    qb = this.getSearchSerialClause(qb, searchName, searchGenreIds, status || null);
     const result = await qb.getCount();
     return result || 0;
   }

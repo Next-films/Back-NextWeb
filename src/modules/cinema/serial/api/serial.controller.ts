@@ -20,22 +20,18 @@ import { GetSerialInputQuery } from '@/serials/api/dtos/input/get-serial.input-q
 import { SwaggerDecoratorGetSerialEpisodes } from '@/serials/api/swagger/get-serial-episode-by-id.swagger.decorator';
 import { SerialEpisodeOutputDto } from '@/serials/api/dtos/output/serial-episode.output.dto';
 import { GetSerialEpisodeByIdQuery } from '@/serials/application/query-handlers/get-serial-episode-by-id.query-handler';
-import { ApiDeprecated } from '@/common/decorators/api-deprecated.swagger.decorator';
 
-// TODO:
-@ApiTags('Public - serials. In development')
+@ApiTags('Public - serials')
 @Controller(SERIALS_ROUTE.MAIN)
-export class SerialController {
+export class PublicSerialController {
   constructor(
     private readonly logger: LoggerService,
     private readonly appNotification: ApplicationNotification,
     private readonly queryBus: QueryBus,
   ) {
-    this.logger.setContext(SerialController.name);
+    this.logger.setContext(PublicSerialController.name);
   }
 
-  // TODO:
-  @ApiDeprecated()
   @Get()
   @SwaggerDecoratorGetSerials()
   async getAllSerials(
@@ -54,8 +50,6 @@ export class SerialController {
     this.appNotification.handleHttpResult(result);
   }
 
-  // TODO:
-  @ApiDeprecated()
   @Get(`:serialId`)
   @SwaggerDecoratorGetSerialById()
   async getSerialById(
@@ -74,8 +68,6 @@ export class SerialController {
     this.appNotification.handleHttpResult(result);
   }
 
-  // TODO:
-  @ApiDeprecated()
   @Get(`:serialId/:episodeId`)
   @SwaggerDecoratorGetSerialEpisodes()
   async getSerialEpisodeById(

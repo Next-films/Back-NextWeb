@@ -14,6 +14,7 @@ import { DateUtil } from '@/common/utils/date.util';
 import { AdminRepository } from '@/admin/infrastructure/admin.repository';
 import { FilmRepository } from '@/films/infrastructure/film.repository';
 import { CartoonRepository } from '@/cartoons/infrastructure/cartoon.repository';
+import { SerialRepository } from '@/serials/infrastructure/serial.repository';
 
 export class TelegramAdminBotSendNotificationAdminCancelModerationCommand implements ICommand {
   constructor(
@@ -37,6 +38,7 @@ export class TelegramAdminBotSendNotificationAdminCancelModerationCommandHandler
     private readonly adminRepository: AdminRepository,
     private readonly filmRepository: FilmRepository,
     private readonly cartoonRepository: CartoonRepository,
+    private readonly serialRepository: SerialRepository,
     private readonly dateUtil: DateUtil,
   ) {
     this.logger.setContext(
@@ -115,7 +117,9 @@ export class TelegramAdminBotSendNotificationAdminCancelModerationCommandHandler
         };
 
       case MovieTypesEnum.SERIAL:
-        return null; // TODO: реализовать
+        return {
+          getMovie: (...args) => this.serialRepository.getSerialById(...args),
+        };
       default:
         return null;
     }
