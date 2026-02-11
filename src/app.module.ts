@@ -13,6 +13,7 @@ import { ConverterLogsModule } from '@/converter-logs/converter-logs.module';
 import { BandedProvidersMovieModule } from '@/banned-providers-movie/banned-providers-movie.module';
 import { ModerationMovieModule } from '@/moderation-movie/moderation-movie.module';
 import { TelegramAdminBotModule } from '@/telegram/admin-bot/telegram-admin-bot.module';
+import { ExternalApiConfigModule } from '@/external-api-config/external-api-config.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { TelegramAdminBotModule } from '@/telegram/admin-bot/telegram-admin-bot.
     BandedProvidersMovieModule,
     TelegramAdminBotModule,
     ModerationMovieModule,
+    ExternalApiConfigModule,
   ],
   controllers: [],
   providers: [AsyncLocalStorageService],

@@ -30,6 +30,7 @@ export const ADMIN_EXTERNAL_API_ROUTE = {
   MAIN: `${ADMIN_PREFIX}/external-api`,
   CREATE_TOKEN: 'create-token',
   TOKEN: 'token',
+  CONFIG: 'config',
 };
 
 export const ADMIN_BANNED_PROVIDERS_MOVIES_ROUTE = {
@@ -136,6 +137,8 @@ export const EXTERNAL_API_ROUTE = {
   MAIN: `${EXTERNAL_API_PREFIX}`,
   TOKEN: 'token',
   CHECK: 'check',
+  CONFIG: 'config',
+  SYNC: 'sync',
 };
 /*
 *

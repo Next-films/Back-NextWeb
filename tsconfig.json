@@ -29,6 +29,7 @@
       "@/sessions/*": ["modules/auth/session/*"],
       "@/jwt-module/*": ["modules/jwt/*"],
       "@/external-api/*": ["modules/external-api/*"],
+      "@/external-api-config/*": ["modules/external-api-config/*"],
       "@/converter-logs/*": ["modules/converter-logs/*"],
       "@/banned-providers-movie/*": ["modules/banned-providers-movie/*"],
       "@/moderation-movie/*": ["modules/moderation-movie/*"],

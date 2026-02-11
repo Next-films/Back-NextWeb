@@ -14,6 +14,13 @@ import { AdminGetAllExternalTokensQueryHandler } from '@/admin/application/query
 import { ExternalApiTokenOutputModelMapper } from '@/admin/api/dtos/output/external-api-tokens.output.dto';
 import { AdminUpdateExternalApiTokenCommandHandler } from '@/admin/application/handlers/admin-update-external-api-token.handler';
 import { AdminRemoveExternalApiTokenCommandHandler } from '@/admin/application/handlers/admin-remove-external-api-token.handler';
+import { ExternalApiConfigModule } from '@/external-api-config/external-api-config.module';
+import { AdminExternalApiConfigController } from '@/admin/api/admin-external-api-config.controller';
+import { AdminCreateExternalApiConfigCommandHandler } from '@/admin/application/handlers/admin-create-external-api-config.handler';
+import { AdminUpdateExternalApiConfigCommandHandler } from '@/admin/application/handlers/admin-update-external-api-config.handler';
+import { AdminRemoveExternalApiConfigCommandHandler } from '@/admin/application/handlers/admin-remove-external-api-config.handler';
+import { AdminGetAllExternalApiConfigQueryHandler } from '@/admin/application/query-handlers/admin-get-all-external-api-config.query-handler';
+import { AdminExternalApiConfigOutputDtoMapper } from '@/admin/api/dtos/output/admin-external-api-config.output.dto';
 import { AdminCinemaRpcController } from '@/admin/api/admin-cinema-rpc.controller';
 import { AdminBannedProvidersMovieController } from '@/admin/api/admin-banned-providers-movie.controller';
 import { AdminBanOrUnbanProviderMovieCommandHandler } from '@/admin/application/handlers/admin-ban-or-unban-provider-movie.handler';
@@ -86,6 +93,9 @@ const handlers = [
   AdminCreateExternalApiTokenCommandHandler,
   AdminUpdateExternalApiTokenCommandHandler,
   AdminRemoveExternalApiTokenCommandHandler,
+  AdminCreateExternalApiConfigCommandHandler,
+  AdminUpdateExternalApiConfigCommandHandler,
+  AdminRemoveExternalApiConfigCommandHandler,
   AdminBanOrUnbanProviderMovieCommandHandler,
   AdminUpdateBannedProviderMovieCommandHandler,
   AdminShowOrHiddeFilmCommandHandler,
@@ -110,6 +120,7 @@ const handlers = [
 
 const queryHandlers = [
   AdminGetAllExternalTokensQueryHandler,
+  AdminGetAllExternalApiConfigQueryHandler,
   AdminGetAllBannedProvidersMoviesQueryHandler,
   AdminGetAllModerationMovieTaskQueryHandler,
   AdminGetModerationMovieTaskByIdQueryHandler,
@@ -138,6 +149,7 @@ const exportProviders = [
     BcryptModule,
     JwtModule,
     ExternalApiAuthModule,
+    ExternalApiConfigModule,
     BandedProvidersMovieModule,
     FilmModule,
     CartoonModule,
@@ -147,6 +159,7 @@ const exportProviders = [
   controllers: [
     AdminGenreController,
     AdminExternalApiController,
+    AdminExternalApiConfigController,
     AdminCinemaRpcController,
     AdminBannedProvidersMovieController,
     AdminCinemaFilmsController,
@@ -162,6 +175,7 @@ const exportProviders = [
     ...providers,
     ...queryHandlers,
     ExternalApiTokenOutputModelMapper,
+    AdminExternalApiConfigOutputDtoMapper,
     AdminBannedProvidersMoviesOutputDtoMapper,
     AdminCinemaMoviesOutputDtoMapper,
     AdminCinemaFilmsOutputDtoMapper,

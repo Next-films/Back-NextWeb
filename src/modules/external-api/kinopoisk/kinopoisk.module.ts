@@ -9,6 +9,8 @@ import {
 import { KINOPOISK_AUTH_HEADER } from '@/external-api/kinopoisk/domain/kinopoisk.constants';
 import { ConfigurationType } from '@/settings/configuration';
 import { LoggerService } from '@/common/utils/logger/logger.service';
+import { ExternalApiConfigModule } from '@/external-api-config/external-api-config.module';
+import { ExternalApiConfigService } from '@/external-api-config/application/external-api-config.service';
 
 const kinopoiskServiceProvider = {
   provide: KinopoiskService,
@@ -16,20 +18,22 @@ const kinopoiskServiceProvider = {
     configService: ConfigService<ConfigurationType, true>,
     logger: LoggerService,
     httpService: HttpService,
+    externalApiConfigService: ExternalApiConfigService,
   ) => {
     const env = configService.get('environmentSettings', { infer: true });
 
     return env.isTesting || env.isDevelopment
-      ? new KinopoiskServiceMock(logger, httpService)
-      : new KinopoiskService(logger, httpService);
+      ? new KinopoiskServiceMock(logger, httpService, configService, externalApiConfigService)
+      : new KinopoiskService(logger, httpService, configService, externalApiConfigService);
   },
-  inject: [ConfigService, LoggerService, HttpService],
+  inject: [ConfigService, LoggerService, HttpService, ExternalApiConfigService],
 };
 
 const exportProviders = [KinopoiskService];
 
 @Module({
   imports: [
+    ExternalApiConfigModule,
     HttpModule.registerAsync({
       inject: [ConfigService],
       useFactory: (configService: ConfigService<ConfigurationType, true>) => {
