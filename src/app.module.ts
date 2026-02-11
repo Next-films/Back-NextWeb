@@ -14,6 +14,7 @@ import { BandedProvidersMovieModule } from '@/banned-providers-movie/banned-prov
 import { ModerationMovieModule } from '@/moderation-movie/moderation-movie.module';
 import { TelegramAdminBotModule } from '@/telegram/admin-bot/telegram-admin-bot.module';
 import { ExternalApiConfigModule } from '@/external-api-config/external-api-config.module';
+import { AnalyticsModule } from '@/analytics/analytics.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { ExternalApiConfigModule } from '@/external-api-config/external-api-conf
     TelegramAdminBotModule,
     ModerationMovieModule,
     ExternalApiConfigModule,
+    AnalyticsModule,
   ],
   controllers: [],
   providers: [AsyncLocalStorageService],

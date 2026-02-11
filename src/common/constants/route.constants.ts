@@ -33,6 +33,14 @@ export const ADMIN_EXTERNAL_API_ROUTE = {
   CONFIG: 'config',
 };
 
+export const ADMIN_ANALYTICS_ROUTE = {
+  MAIN: `${ADMIN_PREFIX}/analytics`,
+  SUMMARY: 'summary',
+  VISITS: 'visits',
+  GENRES: 'genres',
+  TYPES: 'types',
+};
+
 export const ADMIN_BANNED_PROVIDERS_MOVIES_ROUTE = {
   MAIN: `${ADMIN_PREFIX}/banned-providers-movies`,
 };
