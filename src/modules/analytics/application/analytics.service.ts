@@ -96,77 +96,38 @@ export class AnalyticsService {
 
   async getGenreStats(range: AnalyticsRangeEnum, limit = 6) {
     const { start, end } = this.getRangeDates(range);
+    const safeLimit = Math.max(Number(limit) || 6, 1);
 
-    const events = await this.analyticsEventRepository.find({
-      select: ['contentType', 'contentId'],
-      where: { type: AnalyticsEventType.VIEW, createdAt: Between(start, end) },
-    });
+    const rows = await this.analyticsEventRepository
+      .createQueryBuilder('e')
+      .leftJoin(Film, 'f', 'e.contentType = :filmType AND e.contentId = f.id', {
+        filmType: AnalyticsContentType.FILM,
+      })
+      .leftJoin('f.genres', 'fg')
+      .leftJoin(Serial, 's', 'e.contentType = :serialType AND e.contentId = s.id', {
+        serialType: AnalyticsContentType.SERIAL,
+      })
+      .leftJoin('s.genres', 'sg')
+      .leftJoin(Cartoon, 'c', 'e.contentType = :cartoonType AND e.contentId = c.id', {
+        cartoonType: AnalyticsContentType.CARTOON,
+      })
+      .leftJoin('c.genres', 'cg')
+      .select('COALESCE(fg.name, sg.name, cg.name)', 'name')
+      .addSelect('COUNT(*)', 'value')
+      .where('e.type = :type', { type: AnalyticsEventType.VIEW })
+      .andWhere('e.createdAt BETWEEN :start AND :end', { start, end })
+      .andWhere('e.contentType IS NOT NULL')
+      .andWhere('e.contentId IS NOT NULL')
+      .andWhere('COALESCE(fg.name, sg.name, cg.name) IS NOT NULL')
+      .groupBy('COALESCE(fg.name, sg.name, cg.name)')
+      .orderBy('value', 'DESC')
+      .limit(safeLimit)
+      .getRawMany<{ name: string; value: string }>();
 
-    const countsByKey = new Map<string, number>();
-    for (const event of events) {
-      if (!event.contentType || !event.contentId) continue;
-      const key = `${event.contentType}:${event.contentId}`;
-      countsByKey.set(key, (countsByKey.get(key) || 0) + 1);
-    }
-
-    const typeIdsMap = new Map<AnalyticsContentType, number[]>();
-    for (const key of countsByKey.keys()) {
-      const [type, id] = key.split(':');
-      const contentType = type as AnalyticsContentType;
-      const contentId = Number(id);
-      if (!typeIdsMap.has(contentType)) typeIdsMap.set(contentType, []);
-      typeIdsMap.get(contentType)!.push(contentId);
-    }
-
-    const genreCounts = new Map<string, number>();
-
-    const addGenreCounts = (
-      contentType: AnalyticsContentType,
-      items: Array<{ id: number; genres?: { name: string }[] }>,
-    ) => {
-      for (const item of items) {
-        const keyPrefix = `${contentType}:${item.id}`;
-        const itemViews = countsByKey.get(keyPrefix) || 0;
-        if (itemViews <= 0) continue;
-        const genres = item.genres || [];
-        for (const genre of genres) {
-          const name = this.capitalize(genre.name);
-          genreCounts.set(name, (genreCounts.get(name) || 0) + itemViews);
-        }
-      }
-    };
-
-    const filmIds = typeIdsMap.get(AnalyticsContentType.FILM) || [];
-    if (filmIds.length) {
-      const films = await this.filmRepository.find({
-        where: { id: In(filmIds) },
-        relations: { genres: true },
-      });
-      addGenreCounts(AnalyticsContentType.FILM, films);
-    }
-
-    const serialIds = typeIdsMap.get(AnalyticsContentType.SERIAL) || [];
-    if (serialIds.length) {
-      const serials = await this.serialRepository.find({
-        where: { id: In(serialIds) },
-        relations: { genres: true },
-      });
-      addGenreCounts(AnalyticsContentType.SERIAL, serials);
-    }
-
-    const cartoonIds = typeIdsMap.get(AnalyticsContentType.CARTOON) || [];
-    if (cartoonIds.length) {
-      const cartoons = await this.cartoonRepository.find({
-        where: { id: In(cartoonIds) },
-        relations: { genres: true },
-      });
-      addGenreCounts(AnalyticsContentType.CARTOON, cartoons);
-    }
-
-    return Array.from(genreCounts.entries())
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, limit)
-      .map(([name, value]) => ({ name, value }));
+    return rows.map(row => ({
+      name: this.capitalize(row.name),
+      value: Number(row.value),
+    }));
   }
 
   async getTypeStats(range: AnalyticsRangeEnum) {
