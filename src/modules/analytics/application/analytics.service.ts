@@ -156,7 +156,7 @@ export class AnalyticsService {
     return Array.from(result.entries()).map(([type, value]) => ({ type, value }));
   }
 
-  async getTopContent(limit = 10) {
+  async getTopContentAllTime(limit = 10) {
     const safeLimit = Math.min(Math.max(Number(limit) || 10, 1), 50);
 
     const rows = await this.analyticsEventRepository

@@ -43,6 +43,6 @@ export class AnalyticsController {
   @Get('top')
   async getTop(@Query('limit') limit?: string) {
     const parsed = limit ? Number(limit) : undefined;
-    return this.analyticsService.getTopContent(Number.isFinite(parsed) ? parsed : 10);
+    return this.analyticsService.getTopContentAllTime(Number.isFinite(parsed) ? parsed : 10);
   }
 }
