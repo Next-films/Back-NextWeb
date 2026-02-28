@@ -38,7 +38,12 @@ const exportProviders = [KinopoiskService];
       inject: [ConfigService],
       useFactory: (configService: ConfigService<ConfigurationType, true>) => {
         const baseURL = configService.get('apiSettings', { infer: true }).KINOPOISK_API_URL; // Without '/' at the end of the line
-        const apiKey = configService.get('apiSettings', { infer: true }).KINOPOISK_API_TOKEN;
+        const apiKey =
+          configService
+            .get('apiSettings', { infer: true })
+            .KINOPOISK_API_TOKEN?.split(',')
+            ?.map(token => token.trim())
+            ?.find(Boolean) ?? '';
 
         return {
           baseURL,

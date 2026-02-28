@@ -13,6 +13,7 @@ import { KINOPOISK_AUTH_HEADER } from '@/external-api/kinopoisk/domain/kinopoisk
 @Injectable()
 export class KinopoiskService {
   private readonly MOVIES: string = `/${KINOPOISK_METHODS_CONSTANTS.MOVIE.MOVIE}`;
+  private fallbackTokenIndex = 0;
   constructor(
     protected readonly logger: LoggerService,
     private readonly httpService: HttpService,
@@ -22,29 +23,73 @@ export class KinopoiskService {
     this.logger.setContext(KinopoiskService.name);
   }
 
+  private parseTokens(rawToken: string | null | undefined): string[] {
+    return (rawToken ?? '')
+      .split(',')
+      .map(token => token.trim())
+      .filter(Boolean);
+  }
+
+  private mergeTokens(...tokensList: string[][]): string[] {
+    const uniq = new Set<string>();
+
+    for (const tokens of tokensList) {
+      for (const token of tokens) uniq.add(token);
+    }
+
+    return [...uniq];
+  }
+
+  private rotateTokens(tokens: string[]): string[] {
+    if (tokens.length <= 1) return tokens;
+
+    const startIndex = this.fallbackTokenIndex % tokens.length;
+    this.fallbackTokenIndex = startIndex + 1;
+    return [...tokens.slice(startIndex), ...tokens.slice(0, startIndex)];
+  }
+
   private async getRequestConfigs(): Promise<
     Array<{ baseURL: string; headers: Record<string, string> }>
   > {
     const apiSettings = this.configService.get('apiSettings', { infer: true });
+    const envTokens = this.parseTokens(apiSettings.KINOPOISK_API_TOKEN);
     const externalConfigs = await this.externalApiConfigService.getRotatedConfigs(
       ExternalApiProviderEnum.KINOPOISK,
       ExternalApiTargetEnum.BACK,
     );
 
-    if (!externalConfigs.length) {
-      const headers: Record<string, string> = {};
-      if (apiSettings.KINOPOISK_API_TOKEN) {
-        headers[KINOPOISK_AUTH_HEADER] = apiSettings.KINOPOISK_API_TOKEN;
-      }
+    const requestConfigs: Array<{ baseURL: string; headers: Record<string, string> }> = [];
+    const dedupe = new Set<string>();
+    const pushConfig = (baseURL: string, token: string | null) => {
+      const key = `${baseURL}|${token ?? ''}`;
+      if (dedupe.has(key)) return;
+      dedupe.add(key);
 
-      return [{ baseURL: apiSettings.KINOPOISK_API_URL, headers }];
+      const headers: Record<string, string> = {};
+      if (token) headers[KINOPOISK_AUTH_HEADER] = token;
+      requestConfigs.push({ baseURL, headers });
+    };
+
+    const rotatedEnvTokens = this.rotateTokens(envTokens);
+    if (rotatedEnvTokens.length) {
+      for (const token of rotatedEnvTokens) pushConfig(apiSettings.KINOPOISK_API_URL, token);
+    } else {
+      pushConfig(apiSettings.KINOPOISK_API_URL, null);
     }
 
-    return externalConfigs.map(config => {
-      const headers: Record<string, string> = {};
-      if (config.token) headers[KINOPOISK_AUTH_HEADER] = config.token;
-      return { baseURL: config.baseUrl, headers };
-    });
+    for (const config of externalConfigs) {
+      const tokens = this.mergeTokens(this.parseTokens(config.token), envTokens);
+      const rotatedTokens = this.rotateTokens(tokens);
+
+      if (!rotatedTokens.length) {
+        pushConfig(config.baseUrl, null);
+        continue;
+      }
+
+      for (const token of rotatedTokens) pushConfig(config.baseUrl, token);
+    }
+
+    return requestConfigs;
   }
 
   private shouldRetryRequest(error: unknown): boolean {
