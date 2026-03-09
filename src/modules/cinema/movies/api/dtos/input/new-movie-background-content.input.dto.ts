@@ -7,7 +7,7 @@ export class NewMovieBackgroundContentPayloadDto {
   @Trim()
   @IsString()
   @IsNotEmpty()
-  @IsUrl()
+  @IsUrl({ require_tld: false })
   url: string;
 
   @ApiProperty()

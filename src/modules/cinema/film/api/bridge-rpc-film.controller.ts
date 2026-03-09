@@ -23,15 +23,15 @@ export class FilmBridgeRmqController {
 
   @Get(BRIDGE_RMG_FILMS_ROUTE.FIND)
   @SwaggerDecoratorBridgeRpcFindFilms()
-  bridgeFindFilms(): void {
+  async bridgeFindFilms(): Promise<void> {
     this.logger.log(`Execute: Find films (Rmq bridge)`, this.bridgeFindFilms.name);
-    this.downloaderServiceAdapter.bridgeFindFilms();
+    await this.downloaderServiceAdapter.bridgeFindFilms();
   }
 
   @Get(BRIDGE_RMG_FILMS_ROUTE.DOWNLOAD)
   @SwaggerDecoratorBridgeRpcDownloadFilms()
-  bridgeDownloadFilms(): void {
+  async bridgeDownloadFilms(): Promise<void> {
     this.logger.log(`Execute: Download films (Rmq bridge)`, this.bridgeDownloadFilms.name);
-    this.downloaderServiceAdapter.bridgeDownloadFilms();
+    await this.downloaderServiceAdapter.bridgeDownloadFilms();
   }
 }

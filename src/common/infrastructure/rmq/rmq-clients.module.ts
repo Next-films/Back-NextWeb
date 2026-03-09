@@ -1,7 +1,7 @@
 import { DynamicModule, Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ConfigurationType } from '@/settings/configuration';
-import { ClientsModule, Transport } from '@nestjs/microservices';
+import { ClientProxyFactory, Transport } from '@nestjs/microservices';
 import {
   DOWNLOAD_SERVICE_RMQ_NAME,
   RMQ_CLIENT_MODULE_NAME,
@@ -15,7 +15,7 @@ export class RmqClientModule {
       imports: [ConfigModule],
       providers: [
         {
-          provide: RMQ_CLIENT_MODULE_NAME,
+          provide: DOWNLOAD_SERVICE_RMQ_NAME,
           inject: [ConfigService],
           useFactory: (configService: ConfigService<ConfigurationType, true>) => {
             const isEnabled = configService.get('businessRulesSettings', {
@@ -26,30 +26,25 @@ export class RmqClientModule {
               return null;
             }
 
-            const client = ClientsModule.registerAsync([
-              {
-                name: DOWNLOAD_SERVICE_RMQ_NAME,
-                imports: [ConfigModule],
-                inject: [ConfigService],
-                useFactory: (configService: ConfigService) => ({
-                  transport: Transport.RMQ,
-                  options: {
-                    urls: [configService.get('apiSettings', { infer: true }).RMQ_URI],
-                    queue: configService.get('apiSettings', { infer: true })
-                      .DOWNLOAD_SERVICE_RMQ_QUEUE_NAME,
-                    queueOptions: {
-                      durable: false,
-                    },
-                  },
-                }),
+            return ClientProxyFactory.create({
+              transport: Transport.RMQ,
+              options: {
+                urls: [configService.get('apiSettings', { infer: true }).RMQ_URI],
+                queue: configService.get('apiSettings', { infer: true })
+                  .DOWNLOAD_SERVICE_RMQ_QUEUE_NAME,
+                queueOptions: {
+                  durable: false,
+                },
               },
-            ]);
-
-            return client;
+            });
           },
         },
+        {
+          provide: RMQ_CLIENT_MODULE_NAME,
+          useExisting: DOWNLOAD_SERVICE_RMQ_NAME,
+        },
       ],
-      exports: [RMQ_CLIENT_MODULE_NAME],
+      exports: [DOWNLOAD_SERVICE_RMQ_NAME, RMQ_CLIENT_MODULE_NAME],
     };
   }
 }

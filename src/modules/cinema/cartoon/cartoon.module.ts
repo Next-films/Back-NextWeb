@@ -14,6 +14,7 @@ import { MoviesModules } from '@/movies/movies.modules';
 import { KinopoiskModule } from '@/external-api/kinopoisk/kinopoisk.module';
 import { CartoonBridgeRmqController } from '@/cartoons/api/bridge-rpc-cartoon.controller';
 import { NewCartoonIsHandleNotificationCommandHandler } from '@/cartoons/application/handlers/new-cartoon-is-handle-notification.handler';
+import { NewBackGroundContentCartoonCommandHandler } from '@/cartoons/application/handlers/new-background-content-cartoon.handler';
 import { CartoonsRpcOutputDtoMapper } from '@/cartoons/api/dtos/output/cartoons-rpc.output.dto';
 import { GetRpcCartoonsByKinopoiskIdQueryHandler } from '@/cartoons/application/query-handlers/get-rpc-cartoons-by-kinopoisk-id.query-handler';
 import { CartoonsPublicOutputDtoMapper } from '@/cartoons/api/dtos/output/cartoons-public.output.dto';
@@ -38,6 +39,7 @@ const queryHandlers = [
 const handlers = [
   NewCartoonNotificationCommandHandler,
   NewCartoonIsHandleNotificationCommandHandler,
+  NewBackGroundContentCartoonCommandHandler,
 ];
 
 const exportProviders = [CartoonRepository, CartoonQueryRepository, cartoonProvider];

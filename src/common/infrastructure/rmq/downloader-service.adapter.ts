@@ -22,7 +22,7 @@ import {
   ApplicationNotification,
   AppNotificationResult,
 } from '@/common/utils/app-notification.util';
-import { firstValueFrom, Observable, timeout } from 'rxjs';
+import { defaultIfEmpty, firstValueFrom, Observable, timeout } from 'rxjs';
 import { ErrorFieldExceptionDto } from '@/common/exception-filters/http/http-exception.filter';
 import { ConfigService } from '@nestjs/config';
 import { ConfigurationType } from '@/settings/configuration';
@@ -63,28 +63,46 @@ export class DownloaderServiceAdapter implements IDownloaderServiceAdapter {
    *  Bridges to download service
    *
    */
-  bridgeFindFilms(): void {
-    this.client.emit({ cmd: BRIDGE_FIND_FILMS_CMD }, {});
+  private getBridgePayload(): RmqAuthPayload<null> {
+    return {
+      payload: null,
+      token: this.auth_token,
+    };
   }
 
-  bridgeDownloadFilms(): void {
-    this.client.emit({ cmd: BRIDGE_DOWNLOAD_FILMS_CMD }, {});
+  private async bridgeSend(cmd: string, scope: string): Promise<void> {
+    try {
+      await firstValueFrom(
+        this.client.send({ cmd }, this.getBridgePayload()).pipe(timeout(20_000), defaultIfEmpty(null)),
+      );
+    } catch (error) {
+      this.logger.error(error, scope);
+      throw error;
+    }
   }
 
-  bridgeFindCartoons(): void {
-    this.client.emit({ cmd: BRIDGE_FIND_CARTOONS_CMD }, {});
+  bridgeFindFilms(): Promise<void> {
+    return this.bridgeSend(BRIDGE_FIND_FILMS_CMD, this.bridgeFindFilms.name);
   }
 
-  bridgeDownloadCartoons(): void {
-    this.client.emit({ cmd: BRIDGE_DOWNLOAD_CARTOONS_CMD }, {});
+  bridgeDownloadFilms(): Promise<void> {
+    return this.bridgeSend(BRIDGE_DOWNLOAD_FILMS_CMD, this.bridgeDownloadFilms.name);
   }
 
-  bridgeFindSerials(): void {
-    this.client.emit({ cmd: BRIDGE_FIND_SERIALS_CMD }, {});
+  bridgeFindCartoons(): Promise<void> {
+    return this.bridgeSend(BRIDGE_FIND_CARTOONS_CMD, this.bridgeFindCartoons.name);
   }
 
-  bridgeDownloadSerials(): void {
-    this.client.emit({ cmd: BRIDGE_DOWNLOAD_SERIALS_CMD }, {});
+  bridgeDownloadCartoons(): Promise<void> {
+    return this.bridgeSend(BRIDGE_DOWNLOAD_CARTOONS_CMD, this.bridgeDownloadCartoons.name);
+  }
+
+  bridgeFindSerials(): Promise<void> {
+    return this.bridgeSend(BRIDGE_FIND_SERIALS_CMD, this.bridgeFindSerials.name);
+  }
+
+  bridgeDownloadSerials(): Promise<void> {
+    return this.bridgeSend(BRIDGE_DOWNLOAD_SERIALS_CMD, this.bridgeDownloadSerials.name);
   }
   /*
    *

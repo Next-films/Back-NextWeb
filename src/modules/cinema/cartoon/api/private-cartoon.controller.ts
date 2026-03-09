@@ -6,6 +6,7 @@ import {
   HttpStatus,
   Param,
   Post,
+  Put,
   UseFilters,
   UseGuards,
 } from '@nestjs/common';
@@ -33,6 +34,9 @@ import { NewCartoonIsHandleNotificationCommand } from '@/cartoons/application/ha
 import { SwaggerDecoratorNewCartoon } from '@/cartoons/api/swagger/new-cartoon-private.swagger.decorator';
 import { SwaggerDecoratorNewCartoonIsHandle } from '@/cartoons/api/swagger/new-cartoon-is-handle-private.swagger.decorator';
 import { BACKEND_TO_BACKEND_AUTH_JWT_SCHEMA_NAME } from '@/common/constants/auth-jwt-schema-name.constants';
+import { NewCartoonBackGroundContentPayloadDto } from '@/cartoons/api/dtos/input/new-cartoon-background-content.input.dto';
+import { NewBackGroundContentCartoonCommand } from '@/cartoons/application/handlers/new-background-content-cartoon.handler';
+import { SwaggerDecoratorNewBackgroundContentForCartoon } from '@/cartoons/api/swagger/new-background-content-private.swagger.decorator';
 
 @ApiBearerAuth(BACKEND_TO_BACKEND_AUTH_JWT_SCHEMA_NAME)
 @ApiUnauthorizedResponse({ description: 'Unauthorized', type: HttpPrivateExceptionDto })
@@ -102,5 +106,23 @@ export class CartoonPrivateController {
     >(new NewCartoonIsHandleNotificationCommand(body));
 
     this.logger.log(result.appResult, this.newCartoonIsHandle.name);
+  }
+
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Put(`${PRIVATE_CARTOONS_ROUTE.NEW_BACKGROUND_CONTENT}`)
+  @SwaggerDecoratorNewBackgroundContentForCartoon()
+  async newBackgroundContent(
+    @Body() body: NewCartoonBackGroundContentPayloadDto,
+  ): Promise<AppNotificationResult<null, ErrorFieldExceptionDto | null> | void> {
+    this.logger.log(`Execute: new background content for cartoon`, this.newBackgroundContent.name);
+
+    const result = await this.commandBus.execute<
+      NewBackGroundContentCartoonCommand,
+      AppNotificationResult<null, ErrorFieldExceptionDto | null>
+    >(new NewBackGroundContentCartoonCommand(body.url, body.movieId));
+
+    this.logger.log(result.appResult, this.newBackgroundContent.name);
+
+    return this.appNotification.handleHttpResult(result, true);
   }
 }

@@ -24,6 +24,12 @@ import {
   DownloaderServiceAdapter,
   DownloaderServiceAdapterMock,
 } from '@/common/infrastructure/rmq/downloader-service.adapter';
+import { DownloaderServiceSwitchAdapter } from '@/common/infrastructure/downloader/downloader-service-switch.adapter';
+import { DownloaderTransportModeService } from '@/common/services/downloader-transport-mode.service';
+
+const hasClientProxyMethods = (client: ClientProxy | undefined | null): client is ClientProxy => {
+  return !!client && typeof (client as any).emit === 'function' && typeof (client as any).send === 'function';
+};
 
 const downloaderServiceAdapterProvider = {
   provide: DownloaderServiceAdapter,
@@ -33,20 +39,39 @@ const downloaderServiceAdapterProvider = {
     appNotification: ApplicationNotification,
     rmqClient: ClientProxy | undefined,
     httpService: HttpService,
+    modeService: DownloaderTransportModeService,
   ) => {
     const env = configService.get('environmentSettings', { infer: true });
     const businessRulesSettings = configService.get('businessRulesSettings', { infer: true });
     const isRmqEnable = businessRulesSettings.IS_RMQ_ENABLE;
 
     if (env.isTesting || env.isDevelopment) {
+      logger.warn('Using DownloaderServiceAdapterMock (test/development mode).', 'downloaderServiceAdapterProvider');
       return new DownloaderServiceAdapterMock(logger, appNotification);
     }
 
-    if (isRmqEnable && rmqClient) {
-      return new DownloaderServiceAdapter(logger, appNotification, rmqClient, configService);
+    const restAdapter = new DownloaderServiceRestAdapter(
+      logger,
+      appNotification,
+      configService,
+      httpService,
+    );
+
+    let rmqAdapter: DownloaderServiceAdapter | null = null;
+    if (isRmqEnable && hasClientProxyMethods(rmqClient)) {
+      rmqAdapter = new DownloaderServiceAdapter(logger, appNotification, rmqClient, configService);
     }
 
-    return new DownloaderServiceRestAdapter(logger, appNotification, configService, httpService);
+    if (isRmqEnable && !rmqAdapter) {
+      throw new Error('RMQ enabled but client proxy is invalid.');
+    }
+
+    logger.log(
+      `Using DownloaderServiceSwitchAdapter. Current mode: ${modeService.getMode()}`,
+      'downloaderServiceAdapterProvider',
+    );
+
+    return new DownloaderServiceSwitchAdapter(rmqAdapter, restAdapter, modeService, logger) as any;
   },
   inject: [
     ConfigService,
@@ -54,6 +79,7 @@ const downloaderServiceAdapterProvider = {
     ApplicationNotification,
     DOWNLOAD_SERVICE_RMQ_NAME,
     DOWNLOADER_HTTP_SERVICE,
+    DownloaderTransportModeService,
   ],
 };
 
@@ -67,6 +93,7 @@ const exportProviders = [
   DateUtil,
   RmqResultHandlerUtil,
   AsyncLocalStorageService,
+  DownloaderTransportModeService,
 ];
 
 @Global()
@@ -88,6 +115,7 @@ const exportProviders = [
     DateUtil,
     RmqResultHandlerUtil,
     AsyncLocalStorageService,
+    DownloaderTransportModeService,
   ],
   exports: [...exportProviders],
 })

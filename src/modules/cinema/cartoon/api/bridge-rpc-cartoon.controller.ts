@@ -23,15 +23,15 @@ export class CartoonBridgeRmqController {
 
   @Get(BRIDGE_RMG_CARTOON_ROUTE.FIND)
   @SwaggerDecoratorBridgeRpcFindCartoon()
-  bridgeFindCartoon(): void {
+  async bridgeFindCartoon(): Promise<void> {
     this.logger.log(`Execute: Find cartoon (Rmq bridge)`, this.bridgeFindCartoon.name);
-    this.downloaderServiceAdapter.bridgeFindCartoons();
+    await this.downloaderServiceAdapter.bridgeFindCartoons();
   }
 
   @Get(BRIDGE_RMG_CARTOON_ROUTE.DOWNLOAD)
   @SwaggerDecoratorBridgeRpcDownloadCartoons()
-  bridgeDownloadCartoon(): void {
+  async bridgeDownloadCartoon(): Promise<void> {
     this.logger.log(`Execute: Download cartoon (Rmq bridge)`, this.bridgeDownloadCartoon.name);
-    this.downloaderServiceAdapter.bridgeDownloadCartoons();
+    await this.downloaderServiceAdapter.bridgeDownloadCartoons();
   }
 }

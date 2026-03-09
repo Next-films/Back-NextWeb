@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -44,6 +45,16 @@ import { AdminRemoveExternalApiTokenCommand } from '@/admin/application/handlers
 import { SwaggerDecoratorExternalTokenRemove } from '@/admin/api/swagger/external-token-remove.swagger.decorator';
 import { ADMIN_AUTH_JWT_SCHEMA_NAME } from '@/common/constants/auth-jwt-schema-name.constants';
 import { AdminAccessTokenByRoleOnlyAdminGuard } from '@/admin-auth/application/guards/jwt/admin-access-token-by-role-only-admin.guard';
+import {
+  DownloaderTransportModeEnum,
+  DownloaderTransportModeService,
+} from '@/common/services/downloader-transport-mode.service';
+import { IsEnum } from 'class-validator';
+
+class SetDownloaderTransportInputDto {
+  @IsEnum(DownloaderTransportModeEnum)
+  mode: DownloaderTransportModeEnum;
+}
 
 @ApiTags(
   'Admin external api. Handles the generation and distribution of access tokens for backend API authorization.',
@@ -59,6 +70,7 @@ export class AdminExternalApiController {
     private readonly commandBus: CommandBus,
     private readonly queryBus: QueryBus,
     private readonly logger: LoggerService,
+    private readonly downloaderTransportModeService: DownloaderTransportModeService,
   ) {
     this.logger.setContext(AdminExternalApiController.name);
   }
@@ -135,5 +147,28 @@ export class AdminExternalApiController {
     this.logger.log(result.appResult, this.removeToken.name);
 
     this.appNotification.handleHttpResult(result);
+  }
+
+  @Get(ADMIN_EXTERNAL_API_ROUTE.TRANSPORT)
+  getDownloaderTransport(): { mode: DownloaderTransportModeEnum; isRmqAvailable: boolean } {
+    this.logger.log('Execute: get downloader transport mode by admin', this.getDownloaderTransport.name);
+    return this.downloaderTransportModeService.getState();
+  }
+
+  @Put(ADMIN_EXTERNAL_API_ROUTE.TRANSPORT)
+  updateDownloaderTransport(
+    @Body() body: SetDownloaderTransportInputDto,
+  ): { mode: DownloaderTransportModeEnum; isRmqAvailable: boolean } {
+    this.logger.log(
+      `Execute: update downloader transport mode by admin. New mode: ${body.mode}`,
+      this.updateDownloaderTransport.name,
+    );
+
+    try {
+      this.downloaderTransportModeService.setMode(body.mode);
+      return this.downloaderTransportModeService.getState();
+    } catch (error: any) {
+      throw new BadRequestException(error?.message || 'Invalid transport mode');
+    }
   }
 }

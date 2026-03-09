@@ -86,7 +86,7 @@ export class DownloaderServiceRestAdapter implements IDownloaderServiceAdapter {
         this.baseAuthHeaders,
       );
     } catch (e) {
-      this.logger.error(e, this.bridgeFindFilms.name);
+      this.logger.error(e, this.bridgeDownloadFilms.name);
     }
   }
 

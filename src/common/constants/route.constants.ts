@@ -31,6 +31,7 @@ export const ADMIN_EXTERNAL_API_ROUTE = {
   CREATE_TOKEN: 'create-token',
   TOKEN: 'token',
   CONFIG: 'config',
+  TRANSPORT: 'transport',
 };
 
 export const ADMIN_ANALYTICS_ROUTE = {

@@ -29,17 +29,17 @@ export class SerialsBridgeRmqController {
   @ApiDeprecated()
   @Get(BRIDGE_RMG_SERIALS_ROUTE.FIND)
   @SwaggerDecoratorBridgeRpcFindSerials()
-  bridgeFindSerials(): void {
+  async bridgeFindSerials(): Promise<void> {
     this.logger.log(`Execute: Find serials (Rmq bridge)`, this.bridgeFindSerials.name);
-    this.downloaderServiceAdapter.bridgeFindSerials();
+    await this.downloaderServiceAdapter.bridgeFindSerials();
   }
 
   // TODO:
   @ApiDeprecated()
   @Get(BRIDGE_RMG_SERIALS_ROUTE.DOWNLOAD)
   @SwaggerDecoratorBridgeRpcDownloadSerials()
-  bridgeDownloadSerials(): void {
+  async bridgeDownloadSerials(): Promise<void> {
     this.logger.log(`Execute: Download serials (Rmq bridge)`, this.bridgeDownloadSerials.name);
-    this.downloaderServiceAdapter.bridgeDownloadSerials();
+    await this.downloaderServiceAdapter.bridgeDownloadSerials();
   }
 }
