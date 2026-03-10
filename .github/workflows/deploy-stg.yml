@@ -91,14 +91,10 @@ jobs:
 
           POSTGRES_URL_VALUE=\$(grep -E '^POSTGRES_URL=' "\$ENV_FILE" | head -n1 | cut -d= -f2- || true)
           if [ -n "\$POSTGRES_URL_VALUE" ]; then
-            docker run --rm postgres:15 sh -lc "
-              psql \"\$POSTGRES_URL_VALUE\" -v ON_ERROR_STOP=1 -v admin_email=\"\$ADMIN_EMAIL\" \
-                -c \"INSERT INTO admin_roles_admin_role(\\\"adminId\\\",\\\"adminRoleId\\\")
-                    SELECT a.id, r.id
-                    FROM admin a, admin_role r
-                    WHERE a.email = :'admin_email' AND r.name='admin'
-                    ON CONFLICT DO NOTHING;\"
-            "
+            docker run --rm \
+              -e POSTGRES_URL_VALUE="\$POSTGRES_URL_VALUE" \
+              -e ADMIN_EMAIL="\$ADMIN_EMAIL" \
+              postgres:15 sh -lc 'psql "$POSTGRES_URL_VALUE" -v ON_ERROR_STOP=1 -c "INSERT INTO admin_roles_admin_role(\"adminId\",\"adminRoleId\") SELECT a.id, r.id FROM admin a, admin_role r WHERE a.email = '\''${ADMIN_EMAIL}'\'' AND r.name = '\''admin'\'' ON CONFLICT DO NOTHING;"'
           else
             echo \"POSTGRES_URL not found in \$ENV_FILE, skip role bootstrap via DB\"
           fi
