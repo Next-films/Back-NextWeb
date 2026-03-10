@@ -89,14 +89,18 @@ jobs:
           ADMIN_EMAIL="\${DEFAULT_ADMIN_EMAIL:-email@mail.ru}"
           ADMIN_PASSWORD="\${DEFAULT_ADMIN_PASSWORD:-Admin123456&}"
 
-          POSTGRES_URL_VALUE=\$(grep -E '^POSTGRES_URL=' "\$ENV_FILE" | head -n1 | cut -d= -f2- || true)
+          POSTGRES_URL_VALUE=\$(docker exec back-nextweb sh -lc 'printenv POSTGRES_URL' 2>/dev/null || true)
+          if [ -z "\$POSTGRES_URL_VALUE" ]; then
+            POSTGRES_URL_VALUE=\$(grep -E '^POSTGRES_URL=' "\$ENV_FILE" | head -n1 | cut -d= -f2- || true)
+          fi
           if [ -n "\$POSTGRES_URL_VALUE" ]; then
             docker run --rm \
               -e POSTGRES_URL_VALUE="\$POSTGRES_URL_VALUE" \
               -e ADMIN_EMAIL="\$ADMIN_EMAIL" \
               postgres:15 sh -lc 'psql "$POSTGRES_URL_VALUE" -v ON_ERROR_STOP=1 -c "INSERT INTO admin_roles_admin_role(\"adminId\",\"adminRoleId\") SELECT a.id, r.id FROM admin a, admin_role r WHERE a.email = '\''${ADMIN_EMAIL}'\'' AND r.name = '\''admin'\'' ON CONFLICT DO NOTHING;"'
           else
-            echo \"POSTGRES_URL not found in \$ENV_FILE, skip role bootstrap via DB\"
+            echo \"POSTGRES_URL not found in container env and \$ENV_FILE\"
+            exit 1
           fi
 
           LOGIN_RESPONSE=\$(curl -sS -X POST "http://127.0.0.1:4000/api/admin/auth/login" \
