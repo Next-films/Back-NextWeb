@@ -50,11 +50,24 @@ import {
   DownloaderTransportModeService,
 } from '@/common/services/downloader-transport-mode.service';
 import { IsEnum } from 'class-validator';
+import { SystemConnectionsStatusService } from '@/common/services/system-connections-status.service';
 
 class SetDownloaderTransportInputDto {
   @IsEnum(DownloaderTransportModeEnum)
   mode: DownloaderTransportModeEnum;
 }
+
+type ConnectionItem = {
+  key: 'webAdminBack' | 'backDownload' | 'backTelegramBot';
+  title: string;
+  connected: boolean;
+  details?: string;
+};
+
+type ConnectionsOutputDto = {
+  updatedAt: string;
+  services: ConnectionItem[];
+};
 
 @ApiTags(
   'Admin external api. Handles the generation and distribution of access tokens for backend API authorization.',
@@ -71,6 +84,7 @@ export class AdminExternalApiController {
     private readonly queryBus: QueryBus,
     private readonly logger: LoggerService,
     private readonly downloaderTransportModeService: DownloaderTransportModeService,
+    private readonly systemConnectionsStatusService: SystemConnectionsStatusService,
   ) {
     this.logger.setContext(AdminExternalApiController.name);
   }
@@ -179,5 +193,48 @@ export class AdminExternalApiController {
     } catch (error: any) {
       throw new BadRequestException(error?.message || 'Invalid transport mode');
     }
+  }
+
+  @Get(ADMIN_EXTERNAL_API_ROUTE.CONNECTIONS)
+  getConnectionsState(): ConnectionsOutputDto {
+    this.logger.log(
+      'Execute: get services connections state by admin',
+      this.getConnectionsState.name,
+    );
+
+    const transport = this.downloaderTransportModeService.getState();
+    const telegram = this.systemConnectionsStatusService.getTelegramState();
+
+    const isDownloadConnected =
+      transport.mode === DownloaderTransportModeEnum.HTTP
+        ? true
+        : transport.isRmqAvailable && !transport.hasRmqErrors;
+
+    return {
+      updatedAt: new Date().toISOString(),
+      services: [
+        {
+          key: 'webAdminBack',
+          title: 'web-admin -> back-nextweb',
+          connected: true,
+          details: 'Admin API is reachable',
+        },
+        {
+          key: 'backDownload',
+          title: 'back-nextweb -> download',
+          connected: isDownloadConnected,
+          details:
+            transport.mode === DownloaderTransportModeEnum.RMQ && transport.hasRmqErrors
+              ? 'RMQ errors detected, fallback to HTTP'
+              : `Transport mode: ${transport.mode.toUpperCase()}`,
+        },
+        {
+          key: 'backTelegramBot',
+          title: 'back-nextweb -> telegram bot',
+          connected: telegram.connected,
+          details: telegram.lastError || 'Polling is active',
+        },
+      ],
+    };
   }
 }

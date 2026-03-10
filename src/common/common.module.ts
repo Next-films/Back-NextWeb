@@ -26,9 +26,14 @@ import {
 } from '@/common/infrastructure/rmq/downloader-service.adapter';
 import { DownloaderServiceSwitchAdapter } from '@/common/infrastructure/downloader/downloader-service-switch.adapter';
 import { DownloaderTransportModeService } from '@/common/services/downloader-transport-mode.service';
+import { SystemConnectionsStatusService } from '@/common/services/system-connections-status.service';
 
 const hasClientProxyMethods = (client: ClientProxy | undefined | null): client is ClientProxy => {
-  return !!client && typeof (client as any).emit === 'function' && typeof (client as any).send === 'function';
+  return (
+    !!client &&
+    typeof (client as any).emit === 'function' &&
+    typeof (client as any).send === 'function'
+  );
 };
 
 const downloaderServiceAdapterProvider = {
@@ -46,7 +51,10 @@ const downloaderServiceAdapterProvider = {
     const isRmqEnable = businessRulesSettings.IS_RMQ_ENABLE;
 
     if (env.isTesting || env.isDevelopment) {
-      logger.warn('Using DownloaderServiceAdapterMock (test/development mode).', 'downloaderServiceAdapterProvider');
+      logger.warn(
+        'Using DownloaderServiceAdapterMock (test/development mode).',
+        'downloaderServiceAdapterProvider',
+      );
       return new DownloaderServiceAdapterMock(logger, appNotification);
     }
 
@@ -94,6 +102,7 @@ const exportProviders = [
   RmqResultHandlerUtil,
   AsyncLocalStorageService,
   DownloaderTransportModeService,
+  SystemConnectionsStatusService,
 ];
 
 @Global()
@@ -116,6 +125,7 @@ const exportProviders = [
     RmqResultHandlerUtil,
     AsyncLocalStorageService,
     DownloaderTransportModeService,
+    SystemConnectionsStatusService,
   ],
   exports: [...exportProviders],
 })

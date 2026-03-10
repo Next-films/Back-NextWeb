@@ -22,6 +22,7 @@ import { FilmModule } from '@/films/film.module';
 import { CartoonModule } from '@/cartoons/cartoon.module';
 import { TelegramAdminBotSendNotificationAdminFinishedModerationCommandHandler } from '@/telegram/admin-bot/application/handlers/bot-send-notification-admin-finished-moderation.handler';
 import { SerialModule } from '@/serials/serial.module';
+import { SystemConnectionsStatusService } from '@/common/services/system-connections-status.service';
 
 const telegramProvider = {
   provide: TELEGRAM_ADMIN_BOT,
@@ -47,6 +48,7 @@ const telegramAdminBotServiceProvider = {
     commandBus: CommandBus,
     templatesService: TelegramAdminBotTemplatesService,
     asyncLocalStorageService: AsyncLocalStorageService,
+    systemConnectionsStatusService: SystemConnectionsStatusService,
   ) => {
     const env = configService.get('environmentSettings', { infer: true });
 
@@ -58,6 +60,7 @@ const telegramAdminBotServiceProvider = {
           templatesService,
           asyncLocalStorageService,
           configService,
+          systemConnectionsStatusService,
         )
       : new TelegramAdminBotService(
           bot,
@@ -66,6 +69,7 @@ const telegramAdminBotServiceProvider = {
           templatesService,
           asyncLocalStorageService,
           configService,
+          systemConnectionsStatusService,
         );
   },
   inject: [
@@ -75,6 +79,7 @@ const telegramAdminBotServiceProvider = {
     CommandBus,
     TelegramAdminBotTemplatesService,
     AsyncLocalStorageService,
+    SystemConnectionsStatusService,
   ],
 };
 

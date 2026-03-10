@@ -22,6 +22,7 @@ import { REQUEST_ID_KEY } from '@/common/utils/logger/request-context.middleware
 import { ConfigService } from '@nestjs/config';
 import { ConfigurationType } from '@/settings/configuration';
 import { MovieTypesEnum } from '@/common/types/types';
+import { SystemConnectionsStatusService } from '@/common/services/system-connections-status.service';
 
 @Injectable()
 export class TelegramAdminBotService implements OnModuleInit {
@@ -33,6 +34,7 @@ export class TelegramAdminBotService implements OnModuleInit {
     private readonly templatesService: TelegramAdminBotTemplatesService,
     private readonly asyncLocalStorageService: AsyncLocalStorageService,
     private readonly configService: ConfigService<ConfigurationType, true>,
+    protected readonly systemConnectionsStatusService: SystemConnectionsStatusService,
   ) {
     this.logger.setContext(TelegramAdminBotService.name);
 
@@ -154,8 +156,9 @@ export class TelegramAdminBotService implements OnModuleInit {
       await this.setBotCommand();
 
       this.bot.on('message', (msg: TelegramBot.Message): void => {
+        this.systemConnectionsStatusService.markTelegramConnected();
         this.asyncLocalStorageService.start(() => {
-          (async () => {
+          void (async () => {
             const store = this.asyncLocalStorageService.getStore();
             const text = msg.text;
 
@@ -171,8 +174,14 @@ export class TelegramAdminBotService implements OnModuleInit {
         });
       });
 
-      this.bot.startPolling();
+      this.bot.on('polling_error', (error: unknown): void => {
+        this.systemConnectionsStatusService.markTelegramDisconnected(error);
+      });
+
+      void this.bot.startPolling();
+      this.systemConnectionsStatusService.markTelegramConnected();
     } catch (error) {
+      this.systemConnectionsStatusService.markTelegramDisconnected(error);
       this.logger.error(error, this.onModuleInit.name);
     }
   }
@@ -231,13 +240,23 @@ export class TelegramAdminBotServiceMock extends TelegramAdminBotService {
     templatesService: TelegramAdminBotTemplatesService,
     asyncLocalStorageService: AsyncLocalStorageService,
     configService: ConfigService<ConfigurationType, true>,
+    systemConnectionsStatusService: SystemConnectionsStatusService,
   ) {
-    super(bot, logger, commandBus, templatesService, asyncLocalStorageService, configService);
+    super(
+      bot,
+      logger,
+      commandBus,
+      templatesService,
+      asyncLocalStorageService,
+      configService,
+      systemConnectionsStatusService,
+    );
 
     this.logger.setContext(TelegramAdminBotServiceMock.name);
   }
   async onModuleInit(): Promise<void> {
     this.logger.log('Telegram admin bot service module init (mock).', this.onModuleInit.name);
+    this.systemConnectionsStatusService.markTelegramConnected();
     await new Promise(res => res('OK'));
   }
 
