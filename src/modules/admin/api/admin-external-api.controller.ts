@@ -150,15 +150,24 @@ export class AdminExternalApiController {
   }
 
   @Get(ADMIN_EXTERNAL_API_ROUTE.TRANSPORT)
-  getDownloaderTransport(): { mode: DownloaderTransportModeEnum; isRmqAvailable: boolean } {
-    this.logger.log('Execute: get downloader transport mode by admin', this.getDownloaderTransport.name);
+  getDownloaderTransport(): {
+    mode: DownloaderTransportModeEnum;
+    isRmqAvailable: boolean;
+    hasRmqErrors: boolean;
+  } {
+    this.logger.log(
+      'Execute: get downloader transport mode by admin',
+      this.getDownloaderTransport.name,
+    );
     return this.downloaderTransportModeService.getState();
   }
 
   @Put(ADMIN_EXTERNAL_API_ROUTE.TRANSPORT)
-  updateDownloaderTransport(
-    @Body() body: SetDownloaderTransportInputDto,
-  ): { mode: DownloaderTransportModeEnum; isRmqAvailable: boolean } {
+  updateDownloaderTransport(@Body() body: SetDownloaderTransportInputDto): {
+    mode: DownloaderTransportModeEnum;
+    isRmqAvailable: boolean;
+    hasRmqErrors: boolean;
+  } {
     this.logger.log(
       `Execute: update downloader transport mode by admin. New mode: ${body.mode}`,
       this.updateDownloaderTransport.name,

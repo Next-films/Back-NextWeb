@@ -11,19 +11,30 @@ export enum DownloaderTransportModeEnum {
 export class DownloaderTransportModeService {
   private mode: DownloaderTransportModeEnum;
   private readonly isRmqAvailable: boolean;
+  private hasRmqErrors = false;
 
   constructor(private readonly configService: ConfigService<ConfigurationType, true>) {
     const businessRulesSettings = this.configService.get('businessRulesSettings', { infer: true });
     this.isRmqAvailable = businessRulesSettings.IS_RMQ_ENABLE;
-    this.mode = this.isRmqAvailable ? DownloaderTransportModeEnum.RMQ : DownloaderTransportModeEnum.HTTP;
+    this.mode = this.isRmqAvailable
+      ? DownloaderTransportModeEnum.RMQ
+      : DownloaderTransportModeEnum.HTTP;
   }
 
   getMode(): DownloaderTransportModeEnum {
     return this.mode;
   }
 
-  getState(): { mode: DownloaderTransportModeEnum; isRmqAvailable: boolean } {
-    return { mode: this.mode, isRmqAvailable: this.isRmqAvailable };
+  getState(): {
+    mode: DownloaderTransportModeEnum;
+    isRmqAvailable: boolean;
+    hasRmqErrors: boolean;
+  } {
+    return {
+      mode: this.mode,
+      isRmqAvailable: this.isRmqAvailable,
+      hasRmqErrors: this.hasRmqErrors,
+    };
   }
 
   setMode(mode: DownloaderTransportModeEnum): void {
@@ -37,5 +48,13 @@ export class DownloaderTransportModeService {
   isRmqMode(): boolean {
     return this.mode === DownloaderTransportModeEnum.RMQ;
   }
-}
 
+  markRmqFailureAndFallbackToHttp(): void {
+    this.hasRmqErrors = true;
+    this.mode = DownloaderTransportModeEnum.HTTP;
+  }
+
+  markRmqSuccess(): void {
+    this.hasRmqErrors = false;
+  }
+}
