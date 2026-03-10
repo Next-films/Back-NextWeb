@@ -94,6 +94,7 @@ jobs:
             POSTGRES_URL_VALUE=\$(grep -E '^POSTGRES_URL=' "\$ENV_FILE" | head -n1 | cut -d= -f2- || true)
           fi
           if [ -n "\$POSTGRES_URL_VALUE" ]; then
+            PSQL_URL=\$(echo "\$POSTGRES_URL_VALUE" | sed 's|@localhost:|@127.0.0.1:|g')
             BACK_NETWORK=\$(docker inspect -f '{{range \$k, \$v := .NetworkSettings.Networks}}{{println \$k}}{{end}}' back-nextweb 2>/dev/null | grep -v '^bridge$' | head -n1 || true)
             PSQL_NETWORK_ARGS=""
             if [ -n "\$BACK_NETWORK" ]; then
@@ -103,9 +104,9 @@ jobs:
             fi
             docker run --rm \
               \$PSQL_NETWORK_ARGS \
-              -e POSTGRES_URL_VALUE="\$POSTGRES_URL_VALUE" \
+              -e PSQL_URL="\$PSQL_URL" \
               -e ADMIN_EMAIL="\$ADMIN_EMAIL" \
-              postgres:15 sh -lc 'psql "$POSTGRES_URL_VALUE" -v ON_ERROR_STOP=1 -c "INSERT INTO admin_roles_admin_role(\"adminId\",\"adminRoleId\") SELECT a.id, r.id FROM admin a, admin_role r WHERE a.email = '\''${ADMIN_EMAIL}'\'' AND r.name = '\''admin'\'' ON CONFLICT DO NOTHING;"'
+              postgres:15 sh -lc 'psql "$PSQL_URL" -v ON_ERROR_STOP=1 -c "INSERT INTO admin_roles_admin_role(\"adminId\",\"adminRoleId\") SELECT a.id, r.id FROM admin a, admin_role r WHERE a.email = '\''${ADMIN_EMAIL}'\'' AND r.name = '\''admin'\'' ON CONFLICT DO NOTHING;"'
           else
             echo \"POSTGRES_URL not found in container env and \$ENV_FILE\"
             exit 1
