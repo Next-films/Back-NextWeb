@@ -94,7 +94,15 @@ jobs:
             POSTGRES_URL_VALUE=\$(grep -E '^POSTGRES_URL=' "\$ENV_FILE" | head -n1 | cut -d= -f2- || true)
           fi
           if [ -n "\$POSTGRES_URL_VALUE" ]; then
+            BACK_NETWORK=\$(docker inspect -f '{{range \$k, \$v := .NetworkSettings.Networks}}{{println \$k}}{{end}}' back-nextweb 2>/dev/null | grep -v '^bridge$' | head -n1 || true)
+            PSQL_NETWORK_ARGS=""
+            if [ -n "\$BACK_NETWORK" ]; then
+              PSQL_NETWORK_ARGS="--network \$BACK_NETWORK"
+            else
+              PSQL_NETWORK_ARGS="--network host"
+            fi
             docker run --rm \
+              \$PSQL_NETWORK_ARGS \
               -e POSTGRES_URL_VALUE="\$POSTGRES_URL_VALUE" \
               -e ADMIN_EMAIL="\$ADMIN_EMAIL" \
               postgres:15 sh -lc 'psql "$POSTGRES_URL_VALUE" -v ON_ERROR_STOP=1 -c "INSERT INTO admin_roles_admin_role(\"adminId\",\"adminRoleId\") SELECT a.id, r.id FROM admin a, admin_role r WHERE a.email = '\''${ADMIN_EMAIL}'\'' AND r.name = '\''admin'\'' ON CONFLICT DO NOTHING;"'
