@@ -1,4 +1,4 @@
-name: Deploy cinema service to STG
+name: Deploy Back-NextWeb to DEV
 
 on:
   push:
@@ -7,63 +7,78 @@ on:
 
 jobs:
   deploy:
-    name: Deploy to STG
     runs-on: ubuntu-latest
+
     env:
-      COMPOSE_FILE: docker-compose.dev.yml
+      SSH_HOST: ${{ secrets.DEV_SSH_HOST }}
+      SSH_PORT: ${{ secrets.DEV_SSH_PORT }}
+      SSH_USERNAME: ${{ secrets.DEV_SSH_USERNAME }}
+      SSHPASS: ${{ secrets.DEV_SSH_PASSWORD }}
+      SSH_OPTS: -o StrictHostKeyChecking=yes
+      REMOTE_PATH: /home/deploy/Back-NextWeb
+      GIT_REPO: https://github.com/Next-films/Back-NextWeb.git
+      GIT_USERNAME: ${{ secrets.BACK_GIT_USERNAME }}
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up SSH
+      - name: Install sshpass
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y sshpass
+
+      - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.DEV_SSH_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -p ${{ secrets.DEV_SSH_PORT }} -H ${{ secrets.DEV_SSH_HOST }} >> ~/.ssh/known_hosts
+          ssh-keyscan -p "$SSH_PORT" -H "$SSH_HOST" >> ~/.ssh/known_hosts || true
 
-      - name: Copy .env.example as .env
-        run: cp .env.example .env
-
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v2
-        with:
-          username: ${{ secrets.DOCKER_HUB_USERNAME }}
-          password: ${{ secrets.DOCKER_HUB_PASSWORD }}
-
-      - name: Build Docker image
-        run: docker compose -f $COMPOSE_FILE --env-file .env build
-
-      - name: Tag image for Docker Hub
+      - name: Check SSH reachability
         run: |
-          image=$(docker compose -f $COMPOSE_FILE config | grep "image:" | awk '{print $2}')
-          docker tag $image nextfilms/cinema-app:latest
+          echo "Using SSH_HOST=$SSH_HOST"
+          nc -vz -w 5 "$SSH_HOST" "$SSH_PORT"
 
-      - name: Push image to Docker Hub
-        run: docker push nextfilms/cinema-app:latest
-
-      - name: Transfer .env and docker-compose to remote server
+      - name: Deploy on server
         run: |
-          ssh -p ${{ secrets.DEV_SSH_PORT }} ${{ secrets.DEV_SSH_USERNAME }}@${{ secrets.DEV_SSH_HOST }} "mkdir -p ${{ secrets.DEV_REMOTE_PATH }}"
-          scp -P ${{ secrets.DEV_SSH_PORT }} .env ${{ secrets.DEV_SSH_USERNAME }}@${{ secrets.DEV_SSH_HOST }}:${{ secrets.DEV_REMOTE_PATH }}/.env
-          scp -P ${{ secrets.DEV_SSH_PORT }} docker-compose.dev.yml ${{ secrets.DEV_SSH_USERNAME }}@${{ secrets.DEV_SSH_HOST }}:${{ secrets.DEV_REMOTE_PATH }}/docker-compose.dev.yml
+          sshpass -e ssh $SSH_OPTS -p "$SSH_PORT" "$SSH_USERNAME@$SSH_HOST" << EOF
+          set -e
+          mkdir -p "$REMOTE_PATH"
 
-      - name: Pull image from Docker Hub and restart docker compose remotely
-        run: |
-          ssh -p ${{ secrets.DEV_SSH_PORT }} ${{ secrets.DEV_SSH_USERNAME }}@${{ secrets.DEV_SSH_HOST }} << EOF
-          cd ${{ secrets.DEV_REMOTE_PATH }}
-
-          if docker ps -a --format '{{.Names}}' | grep -q 'cinema-app'; then
-            docker rm -f cinema-app
-          fi
-          if docker images --format '{{.Repository}}:{{.Tag}}' | grep -q 'nextfilms/cinema-app:latest'; then
-            docker rmi -f nextfilms/cinema-app:latest
+          if [ ! -d "$REMOTE_PATH/.git" ]; then
+            git clone "$GIT_REPO" "$REMOTE_PATH"
           fi
 
-          echo "${{ secrets.DOCKER_HUB_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_HUB_USERNAME }}" --password-stdin
-          docker pull nextfilms/cinema-app:latest
+          cd "$REMOTE_PATH"
 
-          docker compose -f docker-compose.dev.yml --env-file .env down
-          docker compose -f docker-compose.dev.yml --env-file .env up -d --remove-orphans
+          git remote set-url origin "https://$GIT_USERNAME:${{ secrets.BACK_GIT_TOKEN }}@github.com/Next-films/Back-NextWeb.git"
+          git fetch --prune origin
+          git checkout dev
+          git pull --ff-only origin dev
+
+          docker build -t nextfilms/cinema-app:dev .
+
+          BACK_CONTAINERS=\$(docker ps -a --format '{{.ID}} {{.Names}}' | awk '\$2 ~ /back-nextweb|cinema-app/ {print \$1}')
+          if [ -n "\$BACK_CONTAINERS" ]; then
+            docker rm -f \$BACK_CONTAINERS || true
+          fi
+
+          CONTAINERS_ON_4000=\$(docker ps -a --format '{{.ID}} {{.Ports}}' | awk '\$0 ~ /:4000->/ {print \$1}')
+          if [ -n "\$CONTAINERS_ON_4000" ]; then
+            docker rm -f \$CONTAINERS_ON_4000 || true
+          fi
+
+          if [ -f .env.staging ]; then
+            ENV_FILE=.env.staging
+          elif [ -f .env ]; then
+            ENV_FILE=.env
+          else
+            cp .env.example .env.staging
+            ENV_FILE=.env.staging
+          fi
+
+          docker run -d --name back-nextweb --restart unless-stopped \
+            --env-file "\$ENV_FILE" \
+            -e ENV=STAGING \
+            -p 4000:4000 \
+            nextfilms/cinema-app:dev
           EOF
