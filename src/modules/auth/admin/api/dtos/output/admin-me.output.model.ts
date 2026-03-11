@@ -32,13 +32,15 @@ export class AdminMeOutputModelMapper {
     return roles.map(r => r.name);
   }
   mapAdmin(admin: Admin): AdminMeOutputModel {
+    const adminTelegram = admin.adminTelegram;
+
     return {
       id: admin.id,
       email: admin.email,
       username: admin.username,
       avatar: admin.avatarUrl,
-      tgId: admin.adminTelegram.telegramId,
-      tgUsername: admin.adminTelegram.username,
+      tgId: adminTelegram?.telegramId ?? '',
+      tgUsername: adminTelegram?.username ?? null,
       roles: this.mapRole(admin.roles),
     };
   }
