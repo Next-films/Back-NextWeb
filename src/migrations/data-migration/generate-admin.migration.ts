@@ -90,6 +90,12 @@ export class GenerateAdminMigration implements OnModuleInit {
     const { ADMIN_USERNAME, ADMIN_PASSWORD, ADMIN_EMAIL, ADMIN_TG_USERNAME, ADMIN_TG_ID } =
       this.apiSettings;
 
+    const allRoles = await queryRunner.manager.find(this.adminRoleRepository.target);
+    if (!allRoles || allRoles.length === 0) {
+      this.logger.error('Roles were not found, the administrator could not be created');
+      throw new Error('Roles were not found, the administrator could not be created');
+    }
+
     const admin = await queryRunner.manager.findOne(this.adminRepository.target, {
       where: [
         {
@@ -99,32 +105,38 @@ export class GenerateAdminMigration implements OnModuleInit {
           username: ADMIN_USERNAME,
         },
       ],
+      relations: {
+        roles: true,
+      },
     });
 
     if (admin) {
-      this.logger.warn(`Admin already exists, email: ${ADMIN_EMAIL}, username: ${ADMIN_USERNAME}`);
+      const existingRoles = admin.roles || [];
+      const roleIds = new Set(existingRoles.map(r => r.id));
+      const hasAllRoles = allRoles.every(role => roleIds.has(role.id));
+
+      if (!hasAllRoles) {
+        admin.roles = allRoles;
+        await queryRunner.manager.save(this.adminRepository.target, admin);
+        this.logger.warn(
+          `Default admin roles were updated to full access, email: ${ADMIN_EMAIL}, username: ${ADMIN_USERNAME}`,
+        );
+      } else {
+        this.logger.warn(
+          `Admin already exists, email: ${ADMIN_EMAIL}, username: ${ADMIN_USERNAME}`,
+        );
+      }
       return;
     }
 
     const hash = await this.bcryptService.generateHash(ADMIN_PASSWORD, this.admin_salt_round);
-
-    const role = await queryRunner.manager.findOne(this.adminRoleRepository.target, {
-      where: {
-        name: AdminRoleEnum.ADMIN,
-      },
-    });
-
-    if (!role) {
-      this.logger.error('The ADMIN role was not found, the administrator could not be created');
-      throw new Error('The ADMIN role was not found, the administrator could not be created');
-    }
 
     const result = await queryRunner.manager.save(this.adminRepository.target, {
       email: ADMIN_EMAIL,
       username: ADMIN_USERNAME,
       password: hash,
       createdAt: new Date(),
-      roles: [role],
+      roles: allRoles,
     });
 
     await queryRunner.manager.save(this.adminTgRepository.target, {
