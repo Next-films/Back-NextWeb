@@ -108,45 +108,15 @@ export class TelegramAdminBotStartCommandHandler
     username: string | null;
   } {
     const apiSettings = this.configService.get('apiSettings', { infer: true });
-    const friendUrls = apiSettings.FRIEND_FRONT_URLS.split(',')
-      .map(url => url.trim())
-      .filter(Boolean);
+    const adminBaseUrl = apiSettings.ADMIN_PANEL_URL;
 
-    const explicitAdminDomain = friendUrls.find(url =>
-      /(^|\/\/)web\.admin\.next-films\.ru(?=[:/]|$)/i.test(url),
-    );
-
-    const preferredAdminUrl =
-      explicitAdminDomain ??
-      friendUrls.find(url => /(:3002|web-admin|web\.admin|admin)/i.test(url)) ??
-      friendUrls[0];
-
-    const fallbackBase = 'https://web.admin.next-films.ru';
-    const adminBaseRaw = preferredAdminUrl || fallbackBase;
-    const adminBase = adminBaseRaw;
-
-    const baseWithProtocol = /^https?:\/\//i.test(adminBase) ? adminBase : `https://${adminBase}`;
-
-    const fallbackPath = `/login?tgAuthToken=${authToken}&flow=${
-      isPasswordSet ? 'login' : 'registration'
-    }`;
-    let loginUrl = `${fallbackBase}${fallbackPath}`;
-
-    try {
-      const parsed = new URL(baseWithProtocol);
-      parsed.pathname = '/login';
-      parsed.searchParams.set('tgAuthToken', authToken);
-      parsed.searchParams.set('flow', isPasswordSet ? 'login' : 'registration');
-      loginUrl = parsed.toString();
-    } catch {
-      this.logger.warn(
-        `Invalid admin URL for bot login link: ${adminBaseRaw}`,
-        this.getPayloadData.name,
-      );
-    }
+    const parsed = new URL(adminBaseUrl);
+    parsed.pathname = '/login';
+    parsed.searchParams.set('tgAuthToken', authToken);
+    parsed.searchParams.set('flow', isPasswordSet ? 'login' : 'registration');
 
     return {
-      loginUrl,
+      loginUrl: parsed.toString(),
       isPasswordSet,
       username,
     };

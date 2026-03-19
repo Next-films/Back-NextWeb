@@ -73,4 +73,7 @@ export class ApiSettings {
 
   @IsString()
   DOWNLOAD_SERVICE_HTTP_URL: string = this.environmentVariables.DOWNLOAD_SERVICE_HTTP_URL;
+
+  @IsString()
+  ADMIN_PANEL_URL: string = this.environmentVariables.ADMIN_PANEL_URL;
 }
