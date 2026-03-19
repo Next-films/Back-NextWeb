@@ -49,12 +49,69 @@ import {
   DownloaderTransportModeEnum,
   DownloaderTransportModeService,
 } from '@/common/services/downloader-transport-mode.service';
-import { IsEnum } from 'class-validator';
+import { IsArray, IsEnum, IsOptional, IsString } from 'class-validator';
 import { SystemConnectionsStatusService } from '@/common/services/system-connections-status.service';
+import { DownloaderServiceAdapter } from '@/common/infrastructure/rmq/downloader-service.adapter';
+import {
+  DownloaderRunByListInputDto,
+  DownloaderTriggerScheduleDto,
+  DownloaderTriggerTaskRuntimeStatusDto,
+} from '@/common/types/types';
 
 class SetDownloaderTransportInputDto {
   @IsEnum(DownloaderTransportModeEnum)
   mode: DownloaderTransportModeEnum;
+}
+
+class UpdateDownloaderTriggersInputDto {
+  @IsOptional()
+  @IsString()
+  findFilms?: string;
+
+  @IsOptional()
+  @IsString()
+  findCartoons?: string;
+
+  @IsOptional()
+  @IsString()
+  findSerials?: string;
+
+  @IsOptional()
+  @IsString()
+  downloadFilms?: string;
+
+  @IsOptional()
+  @IsString()
+  downloadCartoons?: string;
+
+  @IsOptional()
+  @IsString()
+  downloadSerials?: string;
+}
+
+class RunDownloaderByListInputDto implements DownloaderRunByListInputDto {
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  films?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  cartoons?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  serials?: string[];
+}
+
+class SignMediaUrlInputDto {
+  @IsString()
+  url: string;
+
+  @IsOptional()
+  expiresInSec?: number;
 }
 
 type ConnectionItem = {
@@ -85,6 +142,7 @@ export class AdminExternalApiController {
     private readonly logger: LoggerService,
     private readonly downloaderTransportModeService: DownloaderTransportModeService,
     private readonly systemConnectionsStatusService: SystemConnectionsStatusService,
+    private readonly downloaderServiceAdapter: DownloaderServiceAdapter,
   ) {
     this.logger.setContext(AdminExternalApiController.name);
   }
@@ -236,5 +294,80 @@ export class AdminExternalApiController {
         },
       ],
     };
+  }
+
+  @Get(ADMIN_EXTERNAL_API_ROUTE.TRIGGERS)
+  async getDownloaderTriggersSchedule(): Promise<DownloaderTriggerScheduleDto> {
+    this.logger.log(
+      'Execute: get downloader triggers schedule by admin',
+      this.getDownloaderTriggersSchedule.name,
+    );
+
+    return this.downloaderServiceAdapter.getBridgeSchedule();
+  }
+
+  @Put(ADMIN_EXTERNAL_API_ROUTE.TRIGGERS)
+  async updateDownloaderTriggersSchedule(
+    @Body() body: UpdateDownloaderTriggersInputDto,
+  ): Promise<DownloaderTriggerScheduleDto> {
+    this.logger.log(
+      'Execute: update downloader triggers schedule by admin',
+      this.updateDownloaderTriggersSchedule.name,
+    );
+
+    return this.downloaderServiceAdapter.updateBridgeSchedule(body);
+  }
+
+  @Get(ADMIN_EXTERNAL_API_ROUTE.TRIGGERS_STATUS)
+  async getDownloaderTriggersStatus(): Promise<DownloaderTriggerTaskRuntimeStatusDto> {
+    this.logger.log(
+      'Execute: get downloader triggers status by admin',
+      this.getDownloaderTriggersStatus.name,
+    );
+
+    return this.downloaderServiceAdapter.getBridgeStatus();
+  }
+
+  @Post(ADMIN_EXTERNAL_API_ROUTE.TRIGGERS_RUN_BY_LIST)
+  async runDownloaderByList(
+    @Body() body: RunDownloaderByListInputDto,
+  ): Promise<{ message: string }> {
+    this.logger.log(
+      'Execute: run downloader by title lists by admin',
+      this.runDownloaderByList.name,
+    );
+
+    await this.downloaderServiceAdapter.bridgeRunByList(body);
+
+    return { message: 'Run by list started' };
+  }
+
+  @Post(ADMIN_EXTERNAL_API_ROUTE.SIGN_MEDIA_URL)
+  async signMediaUrl(@Body() body: SignMediaUrlInputDto): Promise<{ url: string }> {
+    this.logger.log('Execute: sign media url by admin', this.signMediaUrl.name);
+
+    const signed = await this.downloaderServiceAdapter.signMediaUrl(body.url, body.expiresInSec);
+    if (!signed) {
+      throw new BadRequestException([{ field: 'url', message: 'Failed to sign media url' }]);
+    }
+
+    return { url: signed };
+  }
+
+  @Post(ADMIN_EXTERNAL_API_ROUTE.TRIGGERS_CANCEL)
+  async cancelDownloaderProcess(): Promise<{ message: string }> {
+    this.logger.log(
+      'Execute: cancel downloader process by admin',
+      this.cancelDownloaderProcess.name,
+    );
+
+    const result = await this.downloaderServiceAdapter.cancelBridgeProcess();
+    if (result.appResult !== AppNotificationResultEnum.Success) {
+      throw new BadRequestException(
+        result.errorField || [{ field: 'task', message: 'Cancel request failed' }],
+      );
+    }
+
+    return { message: result.data?.message || 'Cancellation requested' };
   }
 }

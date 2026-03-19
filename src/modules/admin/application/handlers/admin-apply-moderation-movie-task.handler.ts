@@ -208,23 +208,25 @@ export class AdminApplyModerationMovieTaskCommandHandler
     const genres =
       rawGenres && rawGenres.length > 0
         ? await this.moviesService.getOrCreateGenre(rawGenres, queryRunner)
-        : [];
+        : movie.genres || [];
 
     const updatedDto: FilmUpdateDto = {
-      name,
-      kpId,
+      name: name ?? movie.title,
+      kpId: kpId ?? movie.kpId,
       genres,
-      releaseDate: releaseDate ? this.dateUtil.formatDateYyMmDd(releaseDate) : null,
-      duration: duration || 0,
-      videUrl: videUrl || null,
-      backgroundContentUrl: backgroundContentUrl || null,
-      titleUrl: titleUrl || null,
-      previewUrl: previewUrl || null,
-      description: description || null,
-      originalName: originalName || null,
-      alternativeName: alternativeName || null,
-      country: country && country.length > 0 ? country : null,
-      trailerUrl: trailerUrl || null,
+      releaseDate: releaseDate
+        ? this.dateUtil.formatDateYyMmDd(releaseDate)
+        : movie.releaseDate ?? null,
+      duration: duration ?? movie.duration ?? 0,
+      videUrl: videUrl ?? movie.videoUrl ?? null,
+      backgroundContentUrl: backgroundContentUrl ?? movie.backgroundContentUrl ?? null,
+      titleUrl: titleUrl ?? movie.titleUrl ?? null,
+      previewUrl: previewUrl ?? movie.previewUrl ?? null,
+      description: description ?? movie.description ?? null,
+      originalName: originalName ?? movie.originalTitle ?? null,
+      alternativeName: alternativeName ?? movie.alternativeTitles ?? null,
+      country: country && country.length > 0 ? country : movie.country ?? null,
+      trailerUrl: trailerUrl ?? movie.trailerUrl ?? null,
     };
 
     movie.update(updatedDto);
@@ -324,7 +326,7 @@ export class AdminApplyModerationMovieTaskCommandHandler
   }
 
   private publish(type: MovieTypesEnum, adminId: number, movieId: number): void {
-    this.commandBus.execute(
+    void this.commandBus.execute(
       new TelegramAdminBotSendNotificationAdminFinishedModerationCommand(type, adminId, movieId),
     );
   }

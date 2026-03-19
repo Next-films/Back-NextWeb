@@ -55,13 +55,6 @@ export class AdminUpdateSerialCommandHandler
       await queryRunner.connect();
       await queryRunner.startTransaction();
 
-      const validateFileResult = this.validateFileResult(inputDto);
-
-      if (validateFileResult) {
-        await queryRunner.rollbackTransaction();
-        return this.appNotification.badRequest(validateFileResult);
-      }
-
       const serial = await this.serialRepository.getSerialById(serialId, queryRunner);
 
       if (!serial) {
@@ -73,6 +66,22 @@ export class AdminUpdateSerialCommandHandler
         });
       }
 
+      const validateFileResult = this.validateFileResult(inputDto, serial);
+
+      if (validateFileResult) {
+        await queryRunner.rollbackTransaction();
+        return this.appNotification.badRequest(validateFileResult);
+      }
+
+      const mergedInputDto: AdminUpdateSerialInputDto = {
+        ...inputDto,
+        videUrl: inputDto.videUrl ?? serial.videoUrl ?? undefined,
+        backgroundContentUrl:
+          inputDto.backgroundContentUrl ?? serial.backgroundContentUrl ?? undefined,
+        previewUrl: inputDto.previewUrl ?? serial.previewUrl ?? undefined,
+        titleUrl: inputDto.titleUrl ?? serial.titleUrl ?? undefined,
+      };
+
       const {
         genres: rawGenres,
         releaseDate,
@@ -80,7 +89,7 @@ export class AdminUpdateSerialCommandHandler
         backgroundFile,
         previewFile,
         videoFile,
-      } = inputDto;
+      } = mergedInputDto;
 
       const genres =
         rawGenres && rawGenres.length > 0
@@ -88,7 +97,7 @@ export class AdminUpdateSerialCommandHandler
           : [];
 
       const updateDto: SerialUpdateDto = {
-        ...inputDto,
+        ...mergedInputDto,
         releaseDate: this.dateUtil.formatDateYyMmDd(releaseDate),
         genres,
       };
@@ -127,7 +136,10 @@ export class AdminUpdateSerialCommandHandler
     }
   }
 
-  private validateFileResult(inputDto: AdminUpdateSerialInputDto): ValidationErrorsDto | null {
+  private validateFileResult(
+    inputDto: AdminUpdateSerialInputDto,
+    serial: Serial,
+  ): ValidationErrorsDto | null {
     const errors: ValidationErrorsDto = {
       errorsMessages: [],
     };
@@ -138,11 +150,16 @@ export class AdminUpdateSerialCommandHandler
       previewFile,
       titleFile,
 
-      videUrl,
-      backgroundContentUrl,
-      previewUrl,
-      titleUrl,
+      videUrl: incomingVideoUrl,
+      backgroundContentUrl: incomingBackgroundContentUrl,
+      previewUrl: incomingPreviewUrl,
+      titleUrl: incomingTitleUrl,
     } = inputDto;
+
+    const videUrl = incomingVideoUrl ?? serial.videoUrl;
+    const backgroundContentUrl = incomingBackgroundContentUrl ?? serial.backgroundContentUrl;
+    const previewUrl = incomingPreviewUrl ?? serial.previewUrl;
+    const titleUrl = incomingTitleUrl ?? serial.titleUrl;
 
     if (!videoFile && !videUrl)
       errors.errorsMessages.push({

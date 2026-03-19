@@ -5,6 +5,9 @@ import { TelegramAdminBotService } from '@/telegram/admin-bot/application/telegr
 import { BotCommandsDto, BotSendMessagePayloadDto } from '@/telegram/admin-bot/domain/types';
 import { ADMIN_BOT_TEMPLATES_NAME_ENUM } from '@/telegram/admin-bot/domain/templates-name.enum';
 import { AdminRepository } from '@/admin/infrastructure/admin.repository';
+import { randomUUID } from 'node:crypto';
+import { ConfigService } from '@nestjs/config';
+import { ConfigurationType } from '@/settings/configuration';
 
 export class TelegramAdminBotStartCommand implements ICommand {
   constructor(public payload: BotCommandsDto) {}
@@ -19,6 +22,7 @@ export class TelegramAdminBotStartCommandHandler
     @Inject(forwardRef(() => TelegramAdminBotService))
     private readonly botService: TelegramAdminBotService,
     private readonly adminRepository: AdminRepository,
+    private readonly configService: ConfigService<ConfigurationType, true>,
   ) {
     this.logger.setContext(TelegramAdminBotStartCommandHandler.name);
   }
@@ -39,11 +43,19 @@ export class TelegramAdminBotStartCommandHandler
 
     const payload: BotSendMessagePayloadDto = {
       chatId,
-      template: ADMIN_BOT_TEMPLATES_NAME_ENUM.WELCOME,
+      template: ADMIN_BOT_TEMPLATES_NAME_ENUM.LOGIN_LINK,
     };
 
     try {
-      const user = await this.adminRepository.getAdminByTelegramId(String(chatId));
+      await this.adminRepository.deleteExpiredPasswordSetupAdmins();
+
+      const userById = await this.adminRepository.getAdminByTelegramId(String(chatId));
+      const userByUsername =
+        !userById && username
+          ? await this.adminRepository.getAdminByTelegramUsername(username)
+          : null;
+
+      const user = userById || userByUsername;
 
       if (!user) {
         this.logger.log('User not found', this.execute.name);
@@ -55,17 +67,82 @@ export class TelegramAdminBotStartCommandHandler
         return;
       }
 
-      if (!user.adminTelegram.username && username) {
-        this.logger.log(`Update username for user: ${chatId}, ${username}`, this.execute.name);
+      const chatIdString = String(chatId);
+      const isPendingTelegramId = user.adminTelegram.telegramId.startsWith('pending:');
+
+      if (isPendingTelegramId) {
+        this.logger.log(`Bind telegram id to invited user: ${chatId}`, this.execute.name);
+        user.setTelegramIdentity(chatIdString, username || undefined);
+      } else if (user.adminTelegram.telegramId !== chatIdString) {
+        this.logger.warn(`Telegram id mismatch for user: ${chatId}`, this.execute.name);
+        await this.botService.sendHtmlMessage({
+          chatId,
+          template: ADMIN_BOT_TEMPLATES_NAME_ENUM.I_DONT_KNOW_YOU,
+        });
+        return;
+      } else if (username && user.adminTelegram.username !== username) {
         user.updateTelegramInfo(username);
-        await this.adminRepository.save(user);
       }
 
-      await this.botService.sendHtmlMessage(payload, {
-        username: username || user.adminTelegram.username,
-      });
+      const authToken = randomUUID();
+      const tokenExpAt = new Date(Date.now() + 15 * 60 * 1000);
+      user.issueTelegramAuthToken(authToken, tokenExpAt);
+      await this.adminRepository.save(user);
+
+      await this.botService.sendHtmlMessage(
+        payload,
+        this.getPayloadData(authToken, user.password !== null, user.adminTelegram.username),
+      );
     } catch (error) {
       this.logger.error(error, this.execute.name);
     }
+  }
+
+  private getPayloadData(
+    authToken: string,
+    isPasswordSet: boolean,
+    username: string | null,
+  ): {
+    loginUrl: string;
+    isPasswordSet: boolean;
+    username: string | null;
+  } {
+    const apiSettings = this.configService.get('apiSettings', { infer: true });
+    const friendUrls = apiSettings.FRIEND_FRONT_URLS.split(',')
+      .map(url => url.trim())
+      .filter(Boolean);
+
+    const preferredAdminUrl =
+      friendUrls.find(url => /(:3002|web-admin|web\.admin|admin)/i.test(url)) ?? friendUrls[0];
+
+    const fallbackBase = 'http://127.0.0.1:3002';
+    const adminBaseRaw = preferredAdminUrl || fallbackBase;
+    const adminBase = adminBaseRaw.replace('://localhost', '://127.0.0.1');
+
+    const baseWithProtocol = /^https?:\/\//i.test(adminBase) ? adminBase : `https://${adminBase}`;
+
+    const fallbackPath = `/login?tgAuthToken=${authToken}&flow=${
+      isPasswordSet ? 'login' : 'registration'
+    }`;
+    let loginUrl = `${fallbackBase}${fallbackPath}`;
+
+    try {
+      const parsed = new URL(baseWithProtocol);
+      parsed.pathname = '/login';
+      parsed.searchParams.set('tgAuthToken', authToken);
+      parsed.searchParams.set('flow', isPasswordSet ? 'login' : 'registration');
+      loginUrl = parsed.toString();
+    } catch {
+      this.logger.warn(
+        `Invalid admin URL for bot login link: ${adminBaseRaw}`,
+        this.getPayloadData.name,
+      );
+    }
+
+    return {
+      loginUrl,
+      isPasswordSet,
+      username,
+    };
   }
 }

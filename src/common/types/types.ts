@@ -115,7 +115,61 @@ export enum MovieTypesEnum {
   FILM = 'film',
   CARTOON = 'cartoon',
   SERIAL = 'serial',
+  BANNER = 'banner',
 }
+
+export type DownloaderTriggerScheduleDto = {
+  findFilms: string;
+  findCartoons: string;
+  findSerials: string;
+  downloadFilms: string;
+  downloadCartoons: string;
+  downloadSerials: string;
+};
+
+export const DEFAULT_DOWNLOADER_TRIGGER_SCHEDULE: DownloaderTriggerScheduleDto = {
+  findFilms: '0 1 * * *',
+  findCartoons: '0 2 * * *',
+  findSerials: '0 3 * * *',
+  downloadFilms: '0 5 * * *',
+  downloadCartoons: '0 13 * * *',
+  downloadSerials: '0 21 * * *',
+};
+
+export type DownloaderTriggerTaskStatus = 'idle' | 'running' | 'success' | 'error';
+export type DownloaderTriggerTaskSource = 'manual' | 'auto';
+export type DownloaderProcessingStage =
+  | 'none'
+  | 'download'
+  | 'convert'
+  | 'upload'
+  | 'notify'
+  | 'cleanup';
+
+export type DownloaderTriggerTaskRuntimeItem = {
+  status: DownloaderTriggerTaskStatus;
+  source: DownloaderTriggerTaskSource | null;
+  message: string | null;
+  startedAt: string | null;
+  finishedAt: string | null;
+  updatedAt: string | null;
+  executionId: string | null;
+  stage: DownloaderProcessingStage | null;
+  stageProgress: number | null;
+  overallProgress: number | null;
+  details: string | null;
+};
+
+export type DownloaderTriggerTaskRuntimeStatusDto = Record<
+  keyof DownloaderTriggerScheduleDto,
+  DownloaderTriggerTaskRuntimeItem
+>;
+
+export type DownloaderRunByListInputDto = {
+  films?: string[];
+  cartoons?: string[];
+  serials?: string[];
+};
 
 export type HandledRmqErrorType = {
   isError: boolean;
@@ -123,6 +177,11 @@ export type HandledRmqErrorType = {
 };
 
 export interface IDownloaderServiceAdapter {
+  bridgeRunByList(payload: DownloaderRunByListInputDto): void | Promise<void>;
+  cancelBridgeProcess():
+    | AppNotificationResult<{ message: string }, ErrorFieldExceptionDto | null>
+    | Promise<AppNotificationResult<{ message: string }, ErrorFieldExceptionDto | null>>;
+
   bridgeFindFilms(): void | Promise<void>;
 
   bridgeDownloadFilms(): void | Promise<void>;
@@ -135,6 +194,20 @@ export interface IDownloaderServiceAdapter {
 
   bridgeDownloadSerials(): void | Promise<void>;
 
+  bridgeReconcileSerialByKpId(
+    kpId: string,
+  ): Promise<AppNotificationResult<{ message: string }, ErrorFieldExceptionDto | null>> | void;
+
+  getBridgeSchedule(): DownloaderTriggerScheduleDto | Promise<DownloaderTriggerScheduleDto>;
+
+  updateBridgeSchedule(
+    schedule: Partial<DownloaderTriggerScheduleDto>,
+  ): DownloaderTriggerScheduleDto | Promise<DownloaderTriggerScheduleDto>;
+
+  getBridgeStatus():
+    | DownloaderTriggerTaskRuntimeStatusDto
+    | Promise<DownloaderTriggerTaskRuntimeStatusDto>;
+
   clearLogs(keys: string[]): Promise<AppNotificationResult<null, ErrorFieldExceptionDto | null>>;
 
   removeMovie(key: string): Promise<AppNotificationResult<null, ErrorFieldExceptionDto | null>>;
@@ -144,6 +217,8 @@ export interface IDownloaderServiceAdapter {
     provider: TorApiProvidersEnum,
     type: MovieTypesEnum,
   ): Promise<AppNotificationResult<null, ErrorFieldExceptionDto | null>>;
+
+  signMediaUrl(url: string | null, expiresInSec?: number): Promise<string | null>;
 }
 
 export class UploadFilmPayloadDto {

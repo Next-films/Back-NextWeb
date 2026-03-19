@@ -64,12 +64,28 @@ export class AdminLoginHandler
     this.logger.log('Login admin command', this.execute.name);
 
     const { inputModel } = command;
-    const { password, email } = inputModel;
+    const { password, token } = inputModel;
     try {
-      const admin = await this.adminAuthRepository.getAdminByEmail(email);
+      await this.adminAuthRepository.deleteExpiredPasswordSetupAdmins();
+
+      const admin = await this.adminAuthRepository.getAdminByAuthToken(token);
       if (!admin)
         return this.appNotification.unauthorized({
-          field: 'email_password',
+          field: 'token_password',
+          message: 'Login or password not correct',
+          errorKey: EXCEPTION_KEYS_ENUM.LOGIN_OR_PASSWORD_NOT_CORRECT,
+        });
+
+      if (!admin.isActive || !admin.password)
+        return this.appNotification.unauthorized({
+          field: 'token_password',
+          message: 'Login or password not correct',
+          errorKey: EXCEPTION_KEYS_ENUM.LOGIN_OR_PASSWORD_NOT_CORRECT,
+        });
+
+      if (!admin.telegramAuthTokenExpAt || admin.telegramAuthTokenExpAt.getTime() <= Date.now())
+        return this.appNotification.unauthorized({
+          field: 'token_password',
           message: 'Login or password not correct',
           errorKey: EXCEPTION_KEYS_ENUM.LOGIN_OR_PASSWORD_NOT_CORRECT,
         });
@@ -78,10 +94,13 @@ export class AdminLoginHandler
 
       if (!verifyPass)
         return this.appNotification.unauthorized({
-          field: 'email_password',
+          field: 'token_password',
           message: 'Login or password not correct',
           errorKey: EXCEPTION_KEYS_ENUM.LOGIN_OR_PASSWORD_NOT_CORRECT,
         });
+
+      admin.clearTelegramAuthToken();
+      await this.adminAuthRepository.save(admin);
 
       const { refreshTokenOptions, refreshTokenPayload, accessTokenPayload, accessTokenOptions } =
         this.getTokensData(admin.id);
@@ -102,7 +121,7 @@ export class AdminLoginHandler
       const session = this.adminSessionEntity.create(admin.id, deviceId, issueAt, expAt);
 
       await this.adminAuthSessionRepository.save(session);
-      return this.appNotification.success({ accessToken, refreshToken });
+      return this.appNotification.success({ accessToken, refreshToken, isPasswordSet: true });
     } catch (e) {
       this.logger.error(e, this.execute.name);
       return this.appNotification.internalServerError();

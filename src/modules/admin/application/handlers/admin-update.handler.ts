@@ -77,9 +77,8 @@ export class AdminUpdateCommandHandler
         });
       }
 
-      const currentTgId = admin.adminTelegram.telegramId;
       admin.updateAdmin(username, email, tgId);
-      await this.adminRepository.updateProfile(admin, currentTgId, queryRunner);
+      await this.adminRepository.updateProfile(admin, queryRunner);
 
       await queryRunner.commitTransaction();
       return this.appNotification.success(null);

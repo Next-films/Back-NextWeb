@@ -22,6 +22,12 @@ export class MovieEntity {
   originalTitle: string | null;
 
   @Column({ type: 'varchar', collation: RU_PG_COLLATION, nullable: true })
+  universe: string | null;
+
+  @Column({ type: 'varchar', collation: RU_PG_COLLATION, nullable: true })
+  studio: string | null;
+
+  @Column({ type: 'varchar', collation: RU_PG_COLLATION, nullable: true })
   description: string | null;
 
   @Column({ default: false })
@@ -75,6 +81,8 @@ export class MovieEntity {
       genres,
       originalName,
       alternativeName,
+      universe,
+      studio,
       name,
       country,
       duration,
@@ -93,6 +101,8 @@ export class MovieEntity {
     instance.isHidden = hidden;
     instance.title = name;
     instance.originalTitle = originalName;
+    instance.universe = universe || null;
+    instance.studio = studio || null;
     instance.description = description;
     instance.duration = duration;
     instance.country = country;
@@ -127,6 +137,8 @@ export class MovieEntity {
       videUrl,
       genres,
       alternativeName,
+      universe,
+      studio,
       name,
       originalName,
       description,
@@ -135,6 +147,12 @@ export class MovieEntity {
     this.kpId = kpId;
     this.title = name;
     this.originalTitle = originalName;
+    if (typeof universe !== 'undefined') {
+      this.universe = universe || null;
+    }
+    if (typeof studio !== 'undefined') {
+      this.studio = studio || null;
+    }
     this.description = description;
     this.duration = duration;
     this.country = country;

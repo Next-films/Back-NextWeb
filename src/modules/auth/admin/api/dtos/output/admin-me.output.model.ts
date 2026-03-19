@@ -24,6 +24,9 @@ export class AdminMeOutputModel {
 
   @ApiProperty({ type: String, nullable: true })
   avatar: string | null;
+
+  @ApiProperty()
+  isPasswordSet: boolean;
 }
 
 @Injectable()
@@ -42,6 +45,7 @@ export class AdminMeOutputModelMapper {
       tgId: adminTelegram?.telegramId ?? '',
       tgUsername: adminTelegram?.username ?? null,
       roles: this.mapRole(admin.roles),
+      isPasswordSet: !!admin.password,
     };
   }
 }

@@ -11,6 +11,7 @@ import {
   AdminCinemaSerialsOutputDtoMapper,
 } from '@/admin/api/dtos/output/admin-cinema-serials.output.dto';
 import { SerialQueryRepository } from '@/serials/infrastructure/serial.query-repository';
+import { AdminMediaUrlSigningService } from '@/admin/application/services/admin-media-url-signing.service';
 
 export class AdminGetSerialByIdQuery implements IQuery {
   constructor(public serialId: number) {}
@@ -29,6 +30,7 @@ export class AdminGetSerialByIdQueryHandler
     private readonly logger: LoggerService,
     private readonly serialQueryRepository: SerialQueryRepository,
     private readonly adminCinemaSerialsOutputDtoMapper: AdminCinemaSerialsOutputDtoMapper,
+    private readonly adminMediaUrlSigningService: AdminMediaUrlSigningService,
   ) {
     this.logger.setContext(AdminGetSerialByIdQueryHandler.name);
   }
@@ -48,7 +50,10 @@ export class AdminGetSerialByIdQueryHandler
           errorKey: EXCEPTION_KEYS_ENUM.SERIAL_NOT_FOUND,
         });
 
-      return this.appNotification.success(this.adminCinemaSerialsOutputDtoMapper.mapMovie(serial));
+      const mapped = this.adminCinemaSerialsOutputDtoMapper.mapMovie(serial);
+      const signed = await this.adminMediaUrlSigningService.signMovie(mapped);
+
+      return this.appNotification.success(signed);
     } catch (e) {
       this.logger.error(e, this.execute.name);
       return this.appNotification.internalServerError();

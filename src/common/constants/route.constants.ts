@@ -1,22 +1,18 @@
-/*
-*
-*
-        Admin
-*
-*
-*/
 const ADMIN_PREFIX = 'admin';
 
 export const ADMIN_ROUTE = {
   MAIN: ADMIN_PREFIX,
   ROLES: 'roles',
   AVATAR: 'avatar',
+  REMOVE: 'remove',
 };
 
 export const ADMIN_AUTH_ROUTES = {
   MAIN: `${ADMIN_PREFIX}/auth`,
   REGISTRATION: 'registration',
   LOGIN: 'login',
+  TELEGRAM_LOGIN: 'telegram/login',
+  SET_PASSWORD: 'set-password',
   UPDATE_TOKENS: 'refresh-token',
   LOGOUT: 'logout',
   ME: 'me',
@@ -33,6 +29,11 @@ export const ADMIN_EXTERNAL_API_ROUTE = {
   CONFIG: 'config',
   TRANSPORT: 'transport',
   CONNECTIONS: 'connections',
+  TRIGGERS: 'triggers',
+  TRIGGERS_STATUS: 'triggers/status',
+  TRIGGERS_RUN_BY_LIST: 'triggers/run-by-list',
+  TRIGGERS_CANCEL: 'triggers/cancel',
+  SIGN_MEDIA_URL: 'media/sign-url',
 };
 
 export const ADMIN_ANALYTICS_ROUTE = {
@@ -52,6 +53,14 @@ export const ADMIN_CINEMA_ROUTE = {
   FILMS: `films`,
   CARTOONS: `cartoons`,
   SERIALS: `serials`,
+};
+
+export const ADMIN_BANNER_ROUTE = {
+  MAIN: `${ADMIN_PREFIX}/banners`,
+};
+
+export const BANNER_ROUTE = {
+  MAIN: `banners`,
 };
 
 export const ADMIN_PRIVATE_CINEMA_ROUTE = {

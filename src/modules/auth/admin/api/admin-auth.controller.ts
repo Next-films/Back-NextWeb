@@ -41,6 +41,10 @@ import { SwaggerDecoratorAdminMe } from '@/admin-auth/api/swagger/admin-auth-me.
 import { ApiTags } from '@nestjs/swagger';
 import { AdminGetAdminByIdQuery } from '@/admin/application/query-handlers/admin-get-admin-by-id.query-handler';
 import { AdminGetAllAdminOutputDto } from '@/admin/api/dtos/output/admin-get-all-admins.output.dto';
+import { AdminTelegramLoginInputModel } from '@/admin-auth/api/dtos/input/admin-login-telegram.input.model';
+import { AdminTelegramLoginCommand } from '@/admin-auth/application/handlers/admin-login-telegram.handler';
+import { AdminSetupPasswordInputModel } from '@/admin-auth/api/dtos/input/admin-setup-password.input.model';
+import { AdminSetupPasswordCommand } from '@/admin-auth/application/handlers/admin-setup-password.handler';
 
 @ApiTags('Admin - auth')
 @Controller(ADMIN_AUTH_ROUTES.MAIN)
@@ -71,10 +75,11 @@ export class AdminAuthController {
 
     if (result.appResult === AppNotificationResultEnum.Success) {
       const { accessToken, refreshToken } = result.data!;
+      const { isPasswordSet } = result.data!;
 
       res.cookie(COOKIE_REFRESH_TOKEN_NAME, refreshToken, COOKIE_REFRESH_TOKEN_ADMIN_OPTIONS);
 
-      return { accessToken };
+      return { accessToken, isPasswordSet };
     }
 
     this.appNotification.handleHttpResult(result);
@@ -130,6 +135,31 @@ export class AdminAuthController {
     this.appNotification.handleHttpResult(result);
   }
 
+  @Post(ADMIN_AUTH_ROUTES.TELEGRAM_LOGIN)
+  async loginByTelegram(
+    @Res({ passthrough: true }) res: Response,
+    @Body() body: AdminTelegramLoginInputModel,
+  ): Promise<AdminLoginOutputModel | void> {
+    this.logger.log('Execute: login by telegram token', this.loginByTelegram.name);
+
+    const result = await this.commandBus.execute<
+      AdminTelegramLoginCommand,
+      AppNotificationResult<AdminLoginOutputDto, ErrorFieldExceptionDto | null>
+    >(new AdminTelegramLoginCommand(body.token));
+
+    this.logger.log(result.appResult, this.loginByTelegram.name);
+
+    if (result.appResult === AppNotificationResultEnum.Success) {
+      const { accessToken, refreshToken, isPasswordSet } = result.data!;
+
+      res.cookie(COOKIE_REFRESH_TOKEN_NAME, refreshToken, COOKIE_REFRESH_TOKEN_ADMIN_OPTIONS);
+
+      return { accessToken, isPasswordSet };
+    }
+
+    this.appNotification.handleHttpResult(result);
+  }
+
   @UseGuards(AdminRefreshTokenGuard)
   @Post(ADMIN_AUTH_ROUTES.UPDATE_TOKENS)
   @SwaggerDecoratorAdminUpdateTokens()
@@ -147,10 +177,11 @@ export class AdminAuthController {
 
     if (result.appResult === AppNotificationResultEnum.Success) {
       const { accessToken, refreshToken } = result.data!;
+      const { isPasswordSet } = result.data!;
 
       res.cookie(COOKIE_REFRESH_TOKEN_NAME, refreshToken, COOKIE_REFRESH_TOKEN_ADMIN_OPTIONS);
 
-      return { accessToken };
+      return { accessToken, isPasswordSet };
     }
 
     this.appNotification.handleHttpResult(result);
@@ -162,5 +193,23 @@ export class AdminAuthController {
   me(@CurrentUser() user: AdminMeOutputModel): AdminMeOutputModel {
     this.logger.debug('Execute: get info about current user', this.me.name);
     return user;
+  }
+
+  @UseGuards(AdminAccessTokenGuard)
+  @Post(ADMIN_AUTH_ROUTES.SET_PASSWORD)
+  async setupPassword(
+    @CurrentUser() user: AdminAccessTokenPayload,
+    @Body() body: AdminSetupPasswordInputModel,
+  ): Promise<void> {
+    this.logger.log('Execute: setup password', this.setupPassword.name);
+
+    const result = await this.commandBus.execute<
+      AdminSetupPasswordCommand,
+      AppNotificationResult<null, ErrorFieldExceptionDto | null>
+    >(new AdminSetupPasswordCommand(user.id, body.password));
+
+    this.logger.log(result.appResult, this.setupPassword.name);
+
+    this.appNotification.handleHttpResult(result);
   }
 }

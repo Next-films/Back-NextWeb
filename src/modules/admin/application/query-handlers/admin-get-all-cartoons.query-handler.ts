@@ -14,6 +14,7 @@ import {
 } from '@/admin/api/dtos/output/admin-cinema-cartoons.output.dto';
 import { CartoonQueryRepository } from '@/cartoons/infrastructure/cartoon.query-repository';
 import { GetCartoonSortFieldEnum } from '@/cartoons/api/dtos/input/get-cartoon.input-query';
+import { AdminMediaUrlSigningService } from '@/admin/application/services/admin-media-url-signing.service';
 
 export class AdminGetAllCartoonsQuery implements IQuery {
   constructor(public query: AdminGetAllCartoonsInputQueryDto) {}
@@ -36,6 +37,7 @@ export class AdminGetAllCartoonsQueryHandler
     private readonly paginationUtil: PaginationUtil,
     private readonly cartoonQueryRepository: CartoonQueryRepository,
     private readonly adminCinemaCartoonsOutputDtoMapper: AdminCinemaCartoonsOutputDtoMapper,
+    private readonly adminMediaUrlSigningService: AdminMediaUrlSigningService,
   ) {
     this.logger.setContext(AdminGetAllCartoonsQueryHandler.name);
   }
@@ -81,13 +83,11 @@ export class AdminGetAllCartoonsQueryHandler
         status || null,
       );
 
-      const result = this.paginationUtil.create(
-        totalCount,
-        pagesCount,
-        page,
-        size,
+      const signedMovies = await this.adminMediaUrlSigningService.signMovies(
         movies ? this.adminCinemaCartoonsOutputDtoMapper.mapMovies(movies) : [],
       );
+
+      const result = this.paginationUtil.create(totalCount, pagesCount, page, size, signedMovies);
       return this.appNotification.success(result);
     } catch (e) {
       this.logger.error(e, this.execute.name);

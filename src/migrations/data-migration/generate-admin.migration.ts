@@ -5,14 +5,13 @@ import { DataSource, QueryRunner, Repository } from 'typeorm';
 import { Admin } from '@/admin/domain/admin.entity';
 import { ConfigService } from '@nestjs/config';
 import { ApiSettingsType, ConfigurationType } from '@/settings/configuration';
-import { BcryptService } from '@/bcrypt-module/application/bcrypt.service';
 import { AdminTelegram } from '@/admin/domain/admin-telegram.entity';
 import { AdminRole } from '@/admin/domain/admin-role.entity';
 import { AdminRoleEnum } from '@/common/enums/admin-role.enum';
 
 @Injectable()
 export class GenerateAdminMigration implements OnModuleInit {
-  private readonly admin_salt_round: number;
+  private static readonly OWNER_TG_ID = '1499096990';
   private readonly apiSettings: ApiSettingsType;
   constructor(
     @InjectRepository(Admin)
@@ -24,12 +23,9 @@ export class GenerateAdminMigration implements OnModuleInit {
     @InjectDataSource() private readonly dataSource: DataSource,
     private readonly logger: LoggerService,
     private readonly configService: ConfigService<ConfigurationType, true>,
-    private readonly bcryptService: BcryptService,
   ) {
     this.logger.setContext(GenerateAdminMigration.name);
-    const businessRules = this.configService.get('businessRulesSettings', { infer: true });
     this.apiSettings = this.configService.get('apiSettings', { infer: true });
-    this.admin_salt_round = businessRules.ADMIN_HASH_SALT_ROUND;
   }
 
   async onModuleInit(): Promise<void> {
@@ -87,8 +83,7 @@ export class GenerateAdminMigration implements OnModuleInit {
   }
 
   private async generate(queryRunner: QueryRunner): Promise<void> {
-    const { ADMIN_USERNAME, ADMIN_PASSWORD, ADMIN_EMAIL, ADMIN_TG_USERNAME, ADMIN_TG_ID } =
-      this.apiSettings;
+    const { ADMIN_USERNAME, ADMIN_EMAIL, ADMIN_TG_USERNAME } = this.apiSettings;
 
     const allRoles = await queryRunner.manager.find(this.adminRoleRepository.target);
     if (!allRoles || allRoles.length === 0) {
@@ -104,9 +99,13 @@ export class GenerateAdminMigration implements OnModuleInit {
         {
           username: ADMIN_USERNAME,
         },
+        {
+          adminTelegram: { telegramId: GenerateAdminMigration.OWNER_TG_ID },
+        },
       ],
       relations: {
         roles: true,
+        adminTelegram: true,
       },
     });
 
@@ -117,31 +116,39 @@ export class GenerateAdminMigration implements OnModuleInit {
 
       if (!hasAllRoles) {
         admin.roles = allRoles;
-        await queryRunner.manager.save(this.adminRepository.target, admin);
-        this.logger.warn(
-          `Default admin roles were updated to full access, email: ${ADMIN_EMAIL}, username: ${ADMIN_USERNAME}`,
-        );
-      } else {
-        this.logger.warn(
-          `Admin already exists, email: ${ADMIN_EMAIL}, username: ${ADMIN_USERNAME}`,
-        );
       }
+
+      admin.isOwner = true;
+      admin.password = null;
+      admin.passwordSetupDeadlineAt = null;
+      admin.telegramAuthToken = null;
+      admin.telegramAuthTokenExpAt = null;
+
+      if (admin.adminTelegram) {
+        admin.adminTelegram.telegramId = GenerateAdminMigration.OWNER_TG_ID;
+        admin.adminTelegram.username = ADMIN_TG_USERNAME || admin.adminTelegram.username;
+      }
+
+      await queryRunner.manager.save(this.adminRepository.target, admin);
+      this.logger.warn(
+        `Owner admin already exists and was synced, email: ${ADMIN_EMAIL}, username: ${ADMIN_USERNAME}`,
+      );
       return;
     }
-
-    const hash = await this.bcryptService.generateHash(ADMIN_PASSWORD, this.admin_salt_round);
 
     const result = await queryRunner.manager.save(this.adminRepository.target, {
       email: ADMIN_EMAIL,
       username: ADMIN_USERNAME,
-      password: hash,
+      password: null,
+      isOwner: true,
+      passwordSetupDeadlineAt: null,
       createdAt: new Date(),
       roles: allRoles,
     });
 
     await queryRunner.manager.save(this.adminTgRepository.target, {
       adminId: result.id,
-      telegramId: ADMIN_TG_ID,
+      telegramId: GenerateAdminMigration.OWNER_TG_ID,
       username: ADMIN_TG_USERNAME,
       createdAt: new Date(),
     });

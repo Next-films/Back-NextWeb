@@ -82,8 +82,12 @@ export class TelegramAdminBotService implements OnModuleInit {
 
   private async handleCommand(msg: TelegramBot.Message): Promise<void> {
     this.logger.log('Handle command', this.handleCommand.name);
-    const commandKey = msg.text;
-    const Command = ADMIN_TG_BOT_COMMAND[commandKey!];
+    const text = msg.text?.trim() ?? '';
+    const isStartCommand =
+      text === BOT_COMMANDS_INFO.START.COMMAND ||
+      text.startsWith(`${BOT_COMMANDS_INFO.START.COMMAND} `);
+    const commandKey = isStartCommand ? BOT_COMMANDS_INFO.START.COMMAND : text;
+    const Command = ADMIN_TG_BOT_COMMAND[commandKey];
     const chatId = msg.from?.id;
 
     if (!chatId) {
@@ -160,16 +164,25 @@ export class TelegramAdminBotService implements OnModuleInit {
         this.asyncLocalStorageService.start(() => {
           void (async () => {
             const store = this.asyncLocalStorageService.getStore();
-            const text = msg.text;
+            const text = msg.text?.trim();
 
             const isMainGroup = this.isMainGroup(msg);
             if (isMainGroup) return;
 
-            const isAuth = await this.auth(msg);
-            if (!isAuth) return;
-
             store?.set(REQUEST_ID_KEY, this.generateRequestId());
-            await (text && text.startsWith('/') ? this.handleCommand(msg) : this.handleText(msg));
+
+            const isCommand = !!text && text.startsWith('/');
+            const isStartCommand =
+              !!text &&
+              (text === BOT_COMMANDS_INFO.START.COMMAND ||
+                text.startsWith(`${BOT_COMMANDS_INFO.START.COMMAND} `));
+
+            if (!isStartCommand) {
+              const isAuth = await this.auth(msg);
+              if (!isAuth) return;
+            }
+
+            await (isCommand ? this.handleCommand(msg) : this.handleText(msg));
           })();
         });
       });

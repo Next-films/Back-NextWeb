@@ -9,11 +9,17 @@ import {
 } from '@/common/utils/app-notification.util';
 import { ErrorFieldExceptionDto } from '@/common/exception-filters/http/http-exception.filter';
 import {
+  DEFAULT_DOWNLOADER_TRIGGER_SCHEDULE,
+  DownloaderRunByListInputDto,
+  DownloaderTriggerScheduleDto,
+  DownloaderTriggerTaskRuntimeStatusDto,
   ImgExtEnum,
   MovieTypesEnum,
   TorApiMovieById,
   TorApiProvidersEnum,
 } from '@/common/types/types';
+
+type FallbackResult<T> = AppNotificationResult<T, ErrorFieldExceptionDto | null>;
 
 @Injectable()
 export class DownloaderServiceSwitchAdapter {
@@ -26,6 +32,20 @@ export class DownloaderServiceSwitchAdapter {
     this.logger.setContext(DownloaderServiceSwitchAdapter.name);
   }
 
+  // ─── Core helpers ───────────────────────────────────────────────
+
+  private requireRmq(): DownloaderServiceAdapter {
+    if (!this.rmqAdapter) throw new Error('RMQ adapter is unavailable.');
+    return this.rmqAdapter;
+  }
+
+  private rmqCall<T>(fn: (adapter: DownloaderServiceAdapter) => T): () => T {
+    return () => fn(this.requireRmq());
+  }
+
+  /**
+   * RMQ-first, HTTP-fallback (fire-and-forget / void actions).
+   */
   private async executeBridgeWithFallback(
     actionName: string,
     rmqAction: () => Promise<void>,
@@ -50,11 +70,14 @@ export class DownloaderServiceSwitchAdapter {
     }
   }
 
+  /**
+   * RMQ-first, HTTP-fallback (request/response actions).
+   */
   private async executeRequestWithFallback<T>(
     actionName: string,
-    rmqAction: () => Promise<AppNotificationResult<T, ErrorFieldExceptionDto | null>>,
-    httpAction: () => Promise<AppNotificationResult<T, ErrorFieldExceptionDto | null>>,
-  ): Promise<AppNotificationResult<T, ErrorFieldExceptionDto | null>> {
+    rmqAction: () => Promise<FallbackResult<T>>,
+    httpAction: () => Promise<FallbackResult<T>>,
+  ): Promise<FallbackResult<T>> {
     if (!this.modeService.isRmqMode()) {
       return httpAction();
     }
@@ -84,13 +107,45 @@ export class DownloaderServiceSwitchAdapter {
     }
   }
 
+  /**
+   * REST-first, RMQ-fallback (for read-only / status operations).
+   */
+  private async restFirstWithFallback<T>(
+    actionName: string,
+    restAction: () => Promise<T>,
+    rmqFallback: ((adapter: DownloaderServiceAdapter) => Promise<T>) | null,
+    defaultValue?: T,
+  ): Promise<T> {
+    try {
+      return await restAction();
+    } catch (error) {
+      this.logger.error(error, actionName);
+
+      if (rmqFallback && this.modeService.isRmqMode() && this.rmqAdapter) {
+        return rmqFallback(this.rmqAdapter);
+      }
+
+      if (arguments.length >= 4) return defaultValue as T;
+      throw error;
+    }
+  }
+
+  // ─── REST-only (no fallback needed) ─────────────────────────────
+
+  bridgeRunByList(payload: DownloaderRunByListInputDto): Promise<void> {
+    return this.restAdapter.bridgeRunByList(payload);
+  }
+
+  cancelBridgeProcess(): Promise<FallbackResult<{ message: string }>> {
+    return this.restAdapter.cancelBridgeProcess();
+  }
+
+  // ─── Bridge void actions (RMQ → HTTP fallback) ─────────────────
+
   bridgeFindFilms(): Promise<void> {
     return this.executeBridgeWithFallback(
       this.bridgeFindFilms.name,
-      () => {
-        if (!this.rmqAdapter) throw new Error('RMQ adapter is unavailable.');
-        return this.rmqAdapter.bridgeFindFilms();
-      },
+      this.rmqCall(a => a.bridgeFindFilms()),
       () => this.restAdapter.bridgeFindFilms(),
     );
   }
@@ -98,10 +153,7 @@ export class DownloaderServiceSwitchAdapter {
   bridgeDownloadFilms(): Promise<void> {
     return this.executeBridgeWithFallback(
       this.bridgeDownloadFilms.name,
-      () => {
-        if (!this.rmqAdapter) throw new Error('RMQ adapter is unavailable.');
-        return this.rmqAdapter.bridgeDownloadFilms();
-      },
+      this.rmqCall(a => a.bridgeDownloadFilms()),
       () => this.restAdapter.bridgeDownloadFilms(),
     );
   }
@@ -109,10 +161,7 @@ export class DownloaderServiceSwitchAdapter {
   bridgeFindCartoons(): Promise<void> {
     return this.executeBridgeWithFallback(
       this.bridgeFindCartoons.name,
-      () => {
-        if (!this.rmqAdapter) throw new Error('RMQ adapter is unavailable.');
-        return this.rmqAdapter.bridgeFindCartoons();
-      },
+      this.rmqCall(a => a.bridgeFindCartoons()),
       () => this.restAdapter.bridgeFindCartoons(),
     );
   }
@@ -120,10 +169,7 @@ export class DownloaderServiceSwitchAdapter {
   bridgeDownloadCartoons(): Promise<void> {
     return this.executeBridgeWithFallback(
       this.bridgeDownloadCartoons.name,
-      () => {
-        if (!this.rmqAdapter) throw new Error('RMQ adapter is unavailable.');
-        return this.rmqAdapter.bridgeDownloadCartoons();
-      },
+      this.rmqCall(a => a.bridgeDownloadCartoons()),
       () => this.restAdapter.bridgeDownloadCartoons(),
     );
   }
@@ -131,10 +177,7 @@ export class DownloaderServiceSwitchAdapter {
   bridgeFindSerials(): Promise<void> {
     return this.executeBridgeWithFallback(
       this.bridgeFindSerials.name,
-      () => {
-        if (!this.rmqAdapter) throw new Error('RMQ adapter is unavailable.');
-        return this.rmqAdapter.bridgeFindSerials();
-      },
+      this.rmqCall(a => a.bridgeFindSerials()),
       () => this.restAdapter.bridgeFindSerials(),
     );
   }
@@ -142,32 +185,33 @@ export class DownloaderServiceSwitchAdapter {
   bridgeDownloadSerials(): Promise<void> {
     return this.executeBridgeWithFallback(
       this.bridgeDownloadSerials.name,
-      () => {
-        if (!this.rmqAdapter) throw new Error('RMQ adapter is unavailable.');
-        return this.rmqAdapter.bridgeDownloadSerials();
-      },
+      this.rmqCall(a => a.bridgeDownloadSerials()),
       () => this.restAdapter.bridgeDownloadSerials(),
     );
   }
 
-  clearLogs(keys: string[]): Promise<AppNotificationResult<null, ErrorFieldExceptionDto | null>> {
+  // ─── Request/response actions (RMQ → HTTP fallback) ────────────
+
+  bridgeReconcileSerialByKpId(kpId: string): Promise<FallbackResult<{ message: string }>> {
+    return this.executeRequestWithFallback(
+      this.bridgeReconcileSerialByKpId.name,
+      this.rmqCall(a => a.bridgeReconcileSerialByKpId(kpId)),
+      () => this.restAdapter.bridgeReconcileSerialByKpId(kpId),
+    );
+  }
+
+  clearLogs(keys: string[]): Promise<FallbackResult<null>> {
     return this.executeRequestWithFallback(
       this.clearLogs.name,
-      async () => {
-        if (!this.rmqAdapter) throw new Error('RMQ adapter is unavailable.');
-        return this.rmqAdapter.clearLogs(keys);
-      },
+      this.rmqCall(a => a.clearLogs(keys)),
       () => this.restAdapter.clearLogs(keys),
     );
   }
 
-  removeMovie(key: string): Promise<AppNotificationResult<null, ErrorFieldExceptionDto | null>> {
+  removeMovie(key: string): Promise<FallbackResult<null>> {
     return this.executeRequestWithFallback(
       this.removeMovie.name,
-      async () => {
-        if (!this.rmqAdapter) throw new Error('RMQ adapter is unavailable.');
-        return this.rmqAdapter.removeMovie(key);
-      },
+      this.rmqCall(a => a.removeMovie(key)),
       () => this.restAdapter.removeMovie(key),
     );
   }
@@ -176,13 +220,10 @@ export class DownloaderServiceSwitchAdapter {
     torrent: TorApiMovieById,
     provider: TorApiProvidersEnum,
     type: MovieTypesEnum,
-  ): Promise<AppNotificationResult<null, ErrorFieldExceptionDto | null>> {
+  ): Promise<FallbackResult<null>> {
     return this.executeRequestWithFallback(
       this.addMovieToQueue.name,
-      async () => {
-        if (!this.rmqAdapter) throw new Error('RMQ adapter is unavailable.');
-        return this.rmqAdapter.addMovieToQueue(torrent, provider, type);
-      },
+      this.rmqCall(a => a.addMovieToQueue(torrent, provider, type)),
       () => this.restAdapter.addMovieToQueue(torrent, provider, type),
     );
   }
@@ -191,13 +232,10 @@ export class DownloaderServiceSwitchAdapter {
     movieId: number,
     file: string | Express.Multer.File,
     type: MovieTypesEnum,
-  ): Promise<AppNotificationResult<string | null, ErrorFieldExceptionDto | null>> {
+  ): Promise<FallbackResult<string | null>> {
     return this.executeRequestWithFallback(
       this.downloadPreviewClip.name,
-      async () => {
-        if (!this.rmqAdapter) throw new Error('RMQ adapter is unavailable.');
-        return this.rmqAdapter.downloadPreviewClip(movieId, file, type);
-      },
+      this.rmqCall(a => a.downloadPreviewClip(movieId, file, type)),
       () => this.restAdapter.downloadPreviewClip(movieId, file, type),
     );
   }
@@ -206,14 +244,13 @@ export class DownloaderServiceSwitchAdapter {
     movieId: number,
     file: Express.Multer.File,
     type: MovieTypesEnum,
-  ): AppNotificationResult<null, ErrorFieldExceptionDto | null> {
+  ): FallbackResult<null> {
     if (!this.modeService.isRmqMode()) {
       return this.restAdapter.uploadFilm(movieId, file, type);
     }
 
     try {
-      if (!this.rmqAdapter) throw new Error('RMQ adapter is unavailable.');
-      const rmqResult = this.rmqAdapter.uploadFilm(movieId, file, type);
+      const rmqResult = this.requireRmq().uploadFilm(movieId, file, type);
 
       if (rmqResult.appResult === AppNotificationResultEnum.InternalError) {
         this.logger.warn(
@@ -241,13 +278,10 @@ export class DownloaderServiceSwitchAdapter {
     movieId: number,
     file: string | Express.Multer.File,
     type: MovieTypesEnum,
-  ): Promise<AppNotificationResult<string, ErrorFieldExceptionDto | null>> {
+  ): Promise<FallbackResult<string>> {
     return this.executeRequestWithFallback(
       this.resizeAndSavePoster.name,
-      async () => {
-        if (!this.rmqAdapter) throw new Error('RMQ adapter is unavailable.');
-        return this.rmqAdapter.resizeAndSavePoster(movieId, file, type);
-      },
+      this.rmqCall(a => a.resizeAndSavePoster(movieId, file, type)),
       () => this.restAdapter.resizeAndSavePoster(movieId, file, type),
     );
   }
@@ -256,13 +290,10 @@ export class DownloaderServiceSwitchAdapter {
     movieId: number,
     file: string | Express.Multer.File,
     type: MovieTypesEnum,
-  ): Promise<AppNotificationResult<string, ErrorFieldExceptionDto | null>> {
+  ): Promise<FallbackResult<string>> {
     return this.executeRequestWithFallback(
       this.resizeAndSaveLogo.name,
-      async () => {
-        if (!this.rmqAdapter) throw new Error('RMQ adapter is unavailable.');
-        return this.rmqAdapter.resizeAndSaveLogo(movieId, file, type);
-      },
+      this.rmqCall(a => a.resizeAndSaveLogo(movieId, file, type)),
       () => this.restAdapter.resizeAndSaveLogo(movieId, file, type),
     );
   }
@@ -272,14 +303,69 @@ export class DownloaderServiceSwitchAdapter {
     extension: ImgExtEnum,
     adminId: number,
     currentAvatarPath: string,
-  ): Promise<AppNotificationResult<string, ErrorFieldExceptionDto | null>> {
+  ): Promise<FallbackResult<string>> {
     return this.executeRequestWithFallback(
       this.adminUploadAvatar.name,
-      async () => {
-        if (!this.rmqAdapter) throw new Error('RMQ adapter is unavailable.');
-        return this.rmqAdapter.adminUploadAvatar(file, extension, adminId, currentAvatarPath);
-      },
+      this.rmqCall(a => a.adminUploadAvatar(file, extension, adminId, currentAvatarPath)),
       () => this.restAdapter.adminUploadAvatar(file, extension, adminId, currentAvatarPath),
+    );
+  }
+
+  // ─── REST-first with RMQ fallback (status/config operations) ───
+
+  getBridgeSchedule(): Promise<DownloaderTriggerScheduleDto> {
+    return this.restFirstWithFallback(
+      this.getBridgeSchedule.name,
+      () => this.restAdapter.getBridgeSchedule(),
+      a => a.getBridgeSchedule(),
+      DEFAULT_DOWNLOADER_TRIGGER_SCHEDULE,
+    );
+  }
+
+  updateBridgeSchedule(
+    schedule: Partial<DownloaderTriggerScheduleDto>,
+  ): Promise<DownloaderTriggerScheduleDto> {
+    return this.restFirstWithFallback(
+      this.updateBridgeSchedule.name,
+      () => this.restAdapter.updateBridgeSchedule(schedule),
+      a => a.updateBridgeSchedule(schedule),
+    );
+  }
+
+  signMediaUrl(url: string | null, expiresInSec: number = 900): Promise<string | null> {
+    return this.restFirstWithFallback(
+      this.signMediaUrl.name,
+      () => this.restAdapter.signMediaUrl(url, expiresInSec),
+      a => a.signMediaUrl(url, expiresInSec),
+      url,
+    );
+  }
+
+  getBridgeStatus(): Promise<DownloaderTriggerTaskRuntimeStatusDto> {
+    const defaultStatus = Object.fromEntries(
+      Object.keys(DEFAULT_DOWNLOADER_TRIGGER_SCHEDULE).map(key => [
+        key,
+        {
+          status: 'idle',
+          source: null,
+          message: null,
+          startedAt: null,
+          finishedAt: null,
+          updatedAt: null,
+          executionId: null,
+          stage: null,
+          stageProgress: null,
+          overallProgress: null,
+          details: null,
+        },
+      ]),
+    ) as DownloaderTriggerTaskRuntimeStatusDto;
+
+    return this.restFirstWithFallback(
+      this.getBridgeStatus.name,
+      () => this.restAdapter.getBridgeStatus(),
+      a => a.getBridgeStatus(),
+      defaultStatus,
     );
   }
 }

@@ -60,6 +60,7 @@ import { AdminUpdateAvatarCommand } from '@/admin/application/handlers/admin-upd
 import { SwaggerDecoratorAdminUpdate } from '@/admin/api/swagger/admin-update.swagger.decorator';
 import { SwaggerDecoratorAdminUpdateAvatar } from '@/admin/api/swagger/admin-update-avatar.swagger.decorator';
 import { AdminAccessTokenByRoleOnlyAdminGuard } from '@/admin-auth/application/guards/jwt/admin-access-token-by-role-only-admin.guard';
+import { AdminRemoveAdminCommand } from '@/admin/application/handlers/admin-remove-admin.handler';
 
 @UseGuards(AdminAccessTokenGuard)
 @ApiBearerAuth(ADMIN_AUTH_JWT_SCHEMA_NAME)
@@ -217,6 +218,24 @@ export class AdminController {
     >(new AdminDeactivateAdminCommand(id, user.id));
 
     this.logger.log(result.appResult, this.deactivateAdmin.name);
+
+    this.appNotification.handleHttpResult(result);
+  }
+
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Delete(`${ADMIN_ROUTE.REMOVE}/:id`)
+  async removeAdmin(
+    @Param('id', ParseIntPatchPipe) id: number,
+    @CurrentUser() user: AdminAccessTokenPayload,
+  ): Promise<void> {
+    this.logger.log('Remove admin', this.removeAdmin.name);
+
+    const result = await this.commandBus.execute<
+      AdminRemoveAdminCommand,
+      AppNotificationResult<null, ErrorFieldExceptionDto | null>
+    >(new AdminRemoveAdminCommand(id, user.id));
+
+    this.logger.log(result.appResult, this.removeAdmin.name);
 
     this.appNotification.handleHttpResult(result);
   }

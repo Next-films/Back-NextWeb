@@ -49,6 +49,12 @@ export class MoviesPublicOutputDto {
 
   @ApiProperty({ type: MovieGenreOutputDto, isArray: true })
   genres: MovieGenreOutputDto[];
+
+  @ApiProperty({ nullable: true })
+  universe: string | null;
+
+  @ApiProperty({ nullable: true })
+  studio: string | null;
 }
 /*
  *
@@ -82,6 +88,12 @@ export class MoviePublicOutputDto {
 
   @ApiProperty({ nullable: true })
   country: string[] | null;
+
+  @ApiProperty({ nullable: true })
+  universe: string | null;
+
+  @ApiProperty({ nullable: true })
+  studio: string | null;
 }
 
 @Injectable()
@@ -122,6 +134,8 @@ export class MoviePublicOutputDtoMapper {
       duration,
       titleUrl,
       videoUrl,
+      universe,
+      studio,
     } = movie;
 
     return {
@@ -144,6 +158,8 @@ export class MoviePublicOutputDtoMapper {
       genres: this.mapMovieGenres(genres),
       country: country,
       duration: duration,
+      universe,
+      studio,
     };
   }
 
@@ -156,13 +172,15 @@ export class MoviePublicOutputDtoMapper {
    *
    */
   mapAllPublicMovie(movie: MovieEntity): MoviesPublicOutputDto {
-    const { id, title, releaseDate, previewUrl, genres } = movie;
+    const { id, title, releaseDate, previewUrl, genres, universe, studio } = movie;
     return {
       id,
       name: title,
       previewUrl,
       releaseDate,
       genres: this.mapMovieGenres(genres),
+      universe,
+      studio,
     };
   }
 

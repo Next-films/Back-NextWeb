@@ -39,12 +39,12 @@ export class ModerationSerialRepository {
     if (queryRunner) {
       return queryRunner.manager.findOne(this.moderationSerialEntity.target, {
         where: { id: id },
-        relations: { movie: true, admin: { adminTelegram: true } },
+        relations: { movie: { genres: true }, admin: { adminTelegram: true } },
       });
     }
     return this.moderationSerialEntity.findOne({
       where: { id },
-      relations: { movie: true, admin: { adminTelegram: true } },
+      relations: { movie: { genres: true }, admin: { adminTelegram: true } },
     });
   }
 

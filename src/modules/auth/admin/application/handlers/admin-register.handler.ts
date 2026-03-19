@@ -6,9 +6,6 @@ import {
 } from '@/common/utils/app-notification.util';
 import { LoggerService } from '@/common/utils/logger/logger.service';
 import { AdminAuthRepository } from '@/admin-auth/infrastructure/admin-auth.repository';
-import { BcryptService } from '@/bcrypt-module/application/bcrypt.service';
-import { ConfigService } from '@nestjs/config';
-import { ConfigurationType } from '@/settings/configuration';
 import { Admin } from '@/admin/domain/admin.entity';
 import { Inject } from '@nestjs/common';
 import { EXCEPTION_KEYS_ENUM } from '@/common/enums/exception-keys.enum';
@@ -18,6 +15,10 @@ import {
 } from '@/common/exception-filters/http/http-exception.filter';
 import { AdminRoleRepository } from '@/admin/infrastructure/admin-role.repository';
 import { AdminRoleEnum } from '@/common/enums/admin-role.enum';
+import { TelegramAdminBotService } from '@/telegram/admin-bot/application/telegram-admin-bot.service';
+import { ADMIN_BOT_TEMPLATES_NAME_ENUM } from '@/telegram/admin-bot/domain/templates-name.enum';
+import { ConfigService } from '@nestjs/config';
+import { ConfigurationType } from '@/settings/configuration';
 
 export class AdminRegisterCommand implements ICommand {
   constructor(
@@ -34,20 +35,21 @@ export class AdminRegisterHandler
       AppNotificationResult<number | null, ValidationErrorsDto | null>
     >
 {
-  private readonly salt_round: number;
+  private readonly mainTelegramGroupChatId: string;
+
   constructor(
     private readonly appNotification: ApplicationNotification,
     private readonly logger: LoggerService,
     private readonly adminAuthRepository: AdminAuthRepository,
     private readonly adminRoleRepository: AdminRoleRepository,
-    private readonly bcryptService: BcryptService,
+    private readonly botService: TelegramAdminBotService,
     private readonly configService: ConfigService<ConfigurationType, true>,
     @Inject(Admin.name) private readonly adminEntity: typeof Admin,
   ) {
     this.logger.setContext(AdminRegisterHandler.name);
-    this.salt_round = this.configService.get('businessRulesSettings', {
+    this.mainTelegramGroupChatId = this.configService.get('apiSettings', {
       infer: true,
-    }).ADMIN_HASH_SALT_ROUND;
+    }).MAIN_TELEGRAM_GROUP_CHAT_ID;
   }
   async execute(
     command: AdminRegisterCommand,
@@ -55,12 +57,23 @@ export class AdminRegisterHandler
     this.logger.debug('Execute: register new admin command', this.execute.name);
 
     const { inputModel, currentUserId } = command;
-    const { password, email, username, telegramId, roles } = inputModel;
+    const { username, telegramUsername, roles } = inputModel;
+    const normalizedTgUsername = telegramUsername.trim().replace(/^@/, '');
+
     try {
+      await this.adminAuthRepository.deleteExpiredPasswordSetupAdmins();
+
       const [admin, currentAdmin] = await Promise.all([
-        this.adminAuthRepository.getAdminByEmailOrUsernameOrTgId(email, username, telegramId),
+        this.adminAuthRepository.getAdminByEmailOrUsername(
+          this.getPlaceholderEmail(username),
+          username,
+        ),
         this.adminAuthRepository.getAdminById(currentUserId),
       ]);
+
+      const adminByTgUsername = await this.adminAuthRepository.getAdminByTelegramUsername(
+        normalizedTgUsername,
+      );
 
       if (
         !currentAdmin ||
@@ -78,12 +91,9 @@ export class AdminRegisterHandler
         });
       }
 
-      if (admin) return this.generateBadRequest(admin, email, username, telegramId);
+      if (admin || adminByTgUsername) return this.generateBadRequest(!!admin, !!adminByTgUsername);
 
-      const [hashPassword, adminRoles] = await Promise.all([
-        this.bcryptService.generateHash(password, this.salt_round),
-        this.adminRoleRepository.getRolesByNames(roles),
-      ]);
+      const adminRoles = await this.adminRoleRepository.getRolesByNames(roles);
 
       if (!adminRoles)
         return this.appNotification.notFound({
@@ -96,15 +106,41 @@ export class AdminRegisterHandler
           ],
         });
 
+      const passwordSetupDeadlineAt = new Date(Date.now() + 60 * 60 * 1000);
+      const pendingTelegramId = `pending:${normalizedTgUsername}:${Date.now()}`;
       const newAdmin = this.adminEntity.create(
-        email,
+        this.getPlaceholderEmail(username),
         username,
-        hashPassword,
-        telegramId,
+        null,
+        pendingTelegramId,
+        normalizedTgUsername,
         adminRoles,
+        passwordSetupDeadlineAt,
       );
 
       const newAdminId = await this.adminAuthRepository.save(newAdmin);
+      await this.botService.sendHtmlMessage(
+        {
+          chatId: `@${normalizedTgUsername}`,
+          template: ADMIN_BOT_TEMPLATES_NAME_ENUM.INVITE_ACCOUNT,
+        },
+        {
+          username,
+          role: roles.join(', '),
+          expiresAt: passwordSetupDeadlineAt.toLocaleString('ru-RU'),
+        },
+      );
+
+      await this.botService.sendHtmlMessage(
+        {
+          chatId: Number(this.mainTelegramGroupChatId),
+          template: ADMIN_BOT_TEMPLATES_NAME_ENUM.INVITE_ACCOUNT_GROUP,
+        },
+        {
+          telegramUsername: normalizedTgUsername,
+          role: roles.join(', '),
+        },
+      );
 
       return this.appNotification.success(newAdminId);
     } catch (e) {
@@ -113,32 +149,28 @@ export class AdminRegisterHandler
     }
   }
 
+  private getPlaceholderEmail(username: string): string {
+    const normalized = username.toLowerCase();
+    return `${normalized}@pending.local`;
+  }
+
   private generateBadRequest(
-    admin: Admin,
-    email: string,
-    username: string,
-    telegramId: string,
+    hasByUsername: boolean,
+    hasByTgUsername: boolean,
   ): AppNotificationResult<null, ValidationErrorsDto> {
     const errorsMessages: ErrorFieldExceptionDto[] = [];
 
-    if (admin.email === email) {
-      errorsMessages.push({
-        message: 'Email address already exists',
-        field: 'email',
-        errorKey: EXCEPTION_KEYS_ENUM.EMAIL_IS_EXIST,
-      });
-    }
-    if (admin.username === username) {
+    if (hasByUsername) {
       errorsMessages.push({
         message: 'Username already exists',
         field: 'username',
         errorKey: EXCEPTION_KEYS_ENUM.USERNAME_IS_EXIST,
       });
     }
-    if (admin.adminTelegram.telegramId === telegramId) {
+    if (hasByTgUsername) {
       errorsMessages.push({
-        message: 'Telegram id already exists',
-        field: 'telegramId',
+        message: 'Telegram username already exists',
+        field: 'telegramUsername',
         errorKey: EXCEPTION_KEYS_ENUM.TELEGRAM_ID_IS_EXIST,
       });
     }

@@ -11,6 +11,34 @@ import { DownloaderServiceAdapter } from '@/common/infrastructure/rmq/downloader
 import { RmqResultHandlerUtil } from '@/common/utils/rmq-result-handler.util';
 import { AppNotificationResultEnum } from '@/common/utils/app-notification.util';
 
+const UNIVERSE_STUDIO_KEYWORDS = [
+  {
+    universe: 'DISNEY',
+    studio: 'Disney',
+    keywords: ['disney', 'дисней', 'walt disney'],
+  },
+  {
+    universe: 'PIXAR',
+    studio: 'Pixar',
+    keywords: ['pixar', 'пиксар', 'pixar animation studios'],
+  },
+  {
+    universe: 'MARVEL',
+    studio: 'Marvel Studios',
+    keywords: ['marvel', 'марвел', 'marvel studios', 'mcu'],
+  },
+  {
+    universe: 'STAR WARS',
+    studio: 'Lucasfilm',
+    keywords: ['star wars', 'звездные войны', 'звёздные войны', 'lucasfilm'],
+  },
+  {
+    universe: 'DC',
+    studio: 'Warner Bros.',
+    keywords: ['dc', 'дс', 'dc comics', 'warner bros', 'dceu'],
+  },
+] as const;
+
 @Injectable()
 export class MoviesService {
   constructor(
@@ -21,44 +49,39 @@ export class MoviesService {
     private readonly rmqResultHandlerUtil: RmqResultHandlerUtil,
   ) {}
 
+  // ─── Genre helpers ──────────────────────────────────────────────
+
   async getOrCreateGenreFromKinopoisk(
     genres: KinopoiskItemName[],
     queryRunner?: QueryRunner,
   ): Promise<Genre[]> {
-    const names = [...new Set(genres.map(g => g.name.toLowerCase()))];
-
-    const existingGenres = await this.genreRepository.getByNames(names, queryRunner);
-
-    const existingNames = new Set(existingGenres.map(g => g.name.toLowerCase()));
-    const newGenresData = names
-      .filter(name => !existingNames.has(name))
-      .map(name => this.genreEntity.create(name));
-
-    const createdGenres =
-      newGenresData && newGenresData.length > 0
-        ? await Promise.all(newGenresData.map(g => this.genreRepository.save(g, queryRunner)))
-        : [];
-
-    return [...existingGenres, ...createdGenres];
+    return this.getOrCreateGenre(
+      genres.map(g => g.name),
+      queryRunner,
+    );
   }
 
   async getOrCreateGenre(genres: string[], queryRunner?: QueryRunner): Promise<Genre[]> {
     const names = [...new Set(genres.map(g => g.toLowerCase()))];
 
     const existingGenres = await this.genreRepository.getByNames(names, queryRunner);
-
     const existingNames = new Set(existingGenres.map(g => g.name.toLowerCase()));
-    const newGenresData = names
-      .filter(name => !existingNames.has(name))
-      .map(name => this.genreEntity.create(name));
+
+    const newGenres = names.filter(name => !existingNames.has(name));
 
     const createdGenres =
-      newGenresData && newGenresData.length > 0
-        ? await Promise.all(newGenresData.map(g => this.genreRepository.save(g, queryRunner)))
+      newGenres.length > 0
+        ? await Promise.all(
+            newGenres.map(name =>
+              this.genreRepository.save(this.genreEntity.create(name), queryRunner),
+            ),
+          )
         : [];
 
     return [...existingGenres, ...createdGenres];
   }
+
+  // ─── Movie validation ──────────────────────────────────────────
 
   isValidMovieForProduction<T extends MovieEntity>(movie: T): boolean {
     const {
@@ -77,28 +100,42 @@ export class MoviesService {
       genres,
     } = movie;
 
-    if (
-      !title ||
-      !description ||
-      !originalTitle ||
-      !releaseDate ||
-      !trailerUrl ||
-      !videoUrl ||
-      !previewUrl ||
-      !backgroundContentUrl ||
-      !titleUrl ||
-      !duration ||
-      duration === 0 ||
-      !genres ||
-      genres.length <= 0 ||
-      !country ||
-      country.length <= 0 ||
-      !alternativeTitles
-    )
-      return false;
-
-    return true;
+    return !!(
+      title &&
+      description &&
+      originalTitle &&
+      releaseDate &&
+      trailerUrl &&
+      videoUrl &&
+      previewUrl &&
+      backgroundContentUrl &&
+      titleUrl &&
+      duration &&
+      duration !== 0 &&
+      genres &&
+      genres.length > 0 &&
+      country &&
+      country.length > 0 &&
+      alternativeTitles
+    );
   }
+
+  isFilmInProductionOrModerate<T extends MovieEntity>(movie: T | null): boolean {
+    return (
+      movie?.handleStatus === MovieHandleStatus.PRODUCTION ||
+      movie?.handleStatus === MovieHandleStatus.MODERATE
+    );
+  }
+
+  setHandleProductionStatus<T extends MovieEntity>(movie: T): void {
+    const isValid = this.isValidMovieForProduction(movie);
+    movie.showOrHiddeMovie(
+      !isValid,
+      isValid ? MovieHandleStatus.PRODUCTION : MovieHandleStatus.MODERATE,
+    );
+  }
+
+  // ─── Kinopoisk metadata extraction ─────────────────────────────
 
   async extractMovieMetadata(
     kpMovie: KinopoiskMovie | null,
@@ -109,6 +146,8 @@ export class MoviesService {
         name: null,
         originalName: null,
         alternativeName: null,
+        universe: null,
+        studio: null,
         genres: null,
         countries: null,
         description: null,
@@ -131,15 +170,9 @@ export class MoviesService {
       poster,
       logo,
       videos,
-    } = kpMovie || {};
+    } = kpMovie;
 
-    let worldReleaseDate: string | null = null;
-
-    if (premiere) {
-      const { world } = premiere;
-      worldReleaseDate = world || null;
-    }
-
+    const worldReleaseDate = premiere?.world || null;
     const name = rawName || rawAlternativeName || enName || null;
     const originalName = enName || rawAlternativeName || null;
     const alternativeName = [rawName, rawAlternativeName, enName, year].filter(Boolean).join(' ');
@@ -148,39 +181,101 @@ export class MoviesService {
       ? await this.getOrCreateGenreFromKinopoisk(rawGenres, queryRunner)
       : null;
 
-    const countryNames = countries?.map(c => c.name) || null;
-
-    const posterUrl = poster?.url || null;
-    const titleUrl = logo?.url || null;
-    const trailerUrl = videos?.trailers?.find(t => t.site === 'youtube')?.url || null;
+    const { universe, studio } = this.extractUniverseAndStudio(kpMovie);
 
     return {
       name,
       originalName,
       alternativeName,
+      universe,
+      studio,
       genres,
-      countries: countryNames,
+      countries: countries?.map(c => c.name) || null,
       description: description || null,
       releaseDate: worldReleaseDate ? this.dateUtil.formatDateYyMmDd(worldReleaseDate) : null,
-      posterUrl,
-      trailerUrl,
-      titleUrl,
+      posterUrl: poster?.url || null,
+      trailerUrl: videos?.trailers?.find(t => t.site === 'youtube')?.url || null,
+      titleUrl: logo?.url || null,
     };
   }
 
-  isFilmInProductionOrModerate<T extends MovieEntity>(movie: T | null): boolean {
-    return (
-      movie?.handleStatus === MovieHandleStatus.PRODUCTION ||
-      movie?.handleStatus === MovieHandleStatus.MODERATE
-    );
+  // ─── Universe & studio detection ───────────────────────────────
+
+  private normalizeSearchText(value: string): string {
+    return value.toLowerCase().replace(/ё/g, 'е');
   }
 
-  setHandleProductionStatus<T extends MovieEntity>(movie: T): void {
-    const isValid = this.isValidMovieForProduction(movie);
-    movie.showOrHiddeMovie(
-      !isValid,
-      isValid ? MovieHandleStatus.PRODUCTION : MovieHandleStatus.MODERATE,
-    );
+  extractUniverseAndStudio(kpMovie: KinopoiskMovie | null): {
+    universe: string | null;
+    studio: string | null;
+  } {
+    if (!kpMovie) return { universe: null, studio: null };
+
+    const networks = kpMovie.networks?.items || [];
+    const networkStudio =
+      networks
+        .map(item => item?.name?.trim())
+        .find(Boolean)
+        ?.toString() || null;
+
+    const textParts = [
+      kpMovie.name,
+      kpMovie.enName,
+      kpMovie.alternativeName,
+      kpMovie.description,
+      kpMovie.shortDescription,
+      kpMovie.slogan,
+      ...(kpMovie.lists || []),
+      ...(kpMovie.names?.map(n => n.name).filter(Boolean) || []),
+      ...networks.map(item => item?.name).filter(Boolean),
+    ].filter(Boolean) as string[];
+
+    const fullText = this.normalizeSearchText(textParts.join(' '));
+
+    let universe: string | null = null;
+    let studio: string | null = networkStudio;
+
+    for (const item of UNIVERSE_STUDIO_KEYWORDS) {
+      const matched = item.keywords.some(keyword =>
+        fullText.includes(this.normalizeSearchText(String(keyword))),
+      );
+      if (!matched) continue;
+
+      universe = item.universe;
+      if (!studio) studio = item.studio;
+      break;
+    }
+
+    if (!universe && studio) {
+      const normalizedStudio = this.normalizeSearchText(studio);
+      for (const item of UNIVERSE_STUDIO_KEYWORDS) {
+        if (
+          item.keywords.some(kw => normalizedStudio.includes(this.normalizeSearchText(String(kw))))
+        ) {
+          universe = item.universe;
+          break;
+        }
+      }
+    }
+
+    if (universe && !studio) {
+      studio = UNIVERSE_STUDIO_KEYWORDS.find(item => item.universe === universe)?.studio || null;
+    }
+
+    return { universe, studio };
+  }
+
+  // ─── Media upload helpers ───────────────────────────────────────
+
+  private async callDownloaderOrNull<T>(
+    input: string | Express.Multer.File | null,
+    action: () => Promise<{ appResult: AppNotificationResultEnum; data?: T | null }>,
+    scope: string,
+  ): Promise<T | null> {
+    if (!input) return null;
+
+    const result = await this.rmqResultHandlerUtil.getRmqData(action, scope);
+    return result.appResult === AppNotificationResultEnum.Success ? result.data ?? null : null;
   }
 
   async getVideoContentUrl(
@@ -188,16 +283,11 @@ export class MoviesService {
     movieId: number,
     movieType: MovieTypesEnum,
   ): Promise<string | null> {
-    if (!file) return null;
-
-    const result = await this.rmqResultHandlerUtil.getRmqData(
-      () => Promise.resolve(this.downloaderServiceAdapter.uploadFilm(movieId, file, movieType)),
+    return this.callDownloaderOrNull(
+      file,
+      () => Promise.resolve(this.downloaderServiceAdapter.uploadFilm(movieId, file!, movieType)),
       this.getVideoContentUrl.name,
     );
-
-    if (result.appResult !== AppNotificationResultEnum.Success) return null;
-
-    return result.data;
   }
 
   async getBackgroundContentUrl(
@@ -205,16 +295,11 @@ export class MoviesService {
     movieId: number,
     movieType: MovieTypesEnum,
   ): Promise<string | null> {
-    if (!file) return null;
-
-    const result = await this.rmqResultHandlerUtil.getRmqData(
-      () => this.downloaderServiceAdapter.downloadPreviewClip(movieId, file, movieType),
+    return this.callDownloaderOrNull(
+      file,
+      () => this.downloaderServiceAdapter.downloadPreviewClip(movieId, file!, movieType),
       this.getBackgroundContentUrl.name,
     );
-
-    if (result.appResult !== AppNotificationResultEnum.Success) return null;
-
-    return result.data;
   }
 
   async getPosterUrl(
@@ -222,16 +307,11 @@ export class MoviesService {
     movieId: number,
     movieType: MovieTypesEnum,
   ): Promise<string | null> {
-    if (!posterUrl) return null;
-
-    const result = await this.rmqResultHandlerUtil.getRmqData(
-      () => this.downloaderServiceAdapter.resizeAndSavePoster(movieId, posterUrl, movieType),
+    return this.callDownloaderOrNull(
+      posterUrl,
+      () => this.downloaderServiceAdapter.resizeAndSavePoster(movieId, posterUrl!, movieType),
       this.getPosterUrl.name,
     );
-
-    if (result.appResult !== AppNotificationResultEnum.Success) return null;
-
-    return result.data;
   }
 
   async getLogoUrl(
@@ -239,15 +319,10 @@ export class MoviesService {
     movieId: number,
     movieType: MovieTypesEnum,
   ): Promise<string | null> {
-    if (!logo) return null;
-
-    const result = await this.rmqResultHandlerUtil.getRmqData(
-      () => this.downloaderServiceAdapter.resizeAndSaveLogo(movieId, logo, movieType),
+    return this.callDownloaderOrNull(
+      logo,
+      () => this.downloaderServiceAdapter.resizeAndSaveLogo(movieId, logo!, movieType),
       this.getLogoUrl.name,
     );
-
-    if (result.appResult !== AppNotificationResultEnum.Success) return null;
-
-    return result.data;
   }
 }

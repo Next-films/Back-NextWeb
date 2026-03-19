@@ -36,6 +36,7 @@
       "@/moderation-movie/*": ["modules/moderation-movie/*"],
       "@/telegram/*": ["modules/telegram/*"],
       "@/telegram-admin-bot/*": ["modules/telegram/admin-bot/*"],
+      "@/banner/*": ["modules/banner/*"],
     }
   }
 }

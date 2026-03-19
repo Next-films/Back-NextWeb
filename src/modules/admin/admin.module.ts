@@ -80,6 +80,8 @@ import { AdminUpdateSerialCommandHandler } from '@/admin/application/handlers/ad
 import { AdminRemoveSerialCommandHandler } from '@/admin/application/handlers/admin-remove-serial.handler';
 import { AdminShowOrHiddeSerialCommandHandler } from '@/admin/application/handlers/admin-show-or-hide-serial.handler';
 import { AdminGetSerialByIdQueryHandler } from '@/admin/application/query-handlers/admin-get-serial-by-id.query-handler';
+import { AdminMediaUrlSigningService } from '@/admin/application/services/admin-media-url-signing.service';
+import { AdminRemoveAdminCommandHandler } from '@/admin/application/handlers/admin-remove-admin.handler';
 
 export const AdminProvider = {
   provide: 'Admin',
@@ -116,6 +118,7 @@ const handlers = [
   AdminChangeAdminRoleCommandHandler,
   AdminUpdateCommandHandler,
   AdminUpdateAvatarCommandHandler,
+  AdminRemoveAdminCommandHandler,
 ];
 
 const queryHandlers = [
@@ -188,6 +191,7 @@ const exportProviders = [
     AdminQueryRepository,
     AdminGetAllAdminOutputDtoMapper,
     AdminRoleRepository,
+    AdminMediaUrlSigningService,
   ],
   exports: [...exportProviders],
 })

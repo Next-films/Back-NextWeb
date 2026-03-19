@@ -16,6 +16,8 @@ import { Trim } from '@/common/decorators/transform/trim.decorator';
 import { ToArray } from '@/common/decorators/transform/array.decorator';
 import { FILMS_VALIDATION_RULES } from '@/common/constants/validation-rules.constants';
 
+const URL_VALIDATION_OPTIONS = { require_tld: false };
+
 export class AdminUpdateFilmInputDto {
   @ApiProperty({
     minLength: FILMS_VALIDATION_RULES.NAME.LENGTH_MIN,
@@ -128,35 +130,35 @@ export class AdminUpdateFilmInputDto {
   @IsOptional()
   @Trim()
   @IsNotEmpty()
-  @IsUrl()
+  @IsUrl(URL_VALIDATION_OPTIONS)
   videUrl: string;
 
   @ApiPropertyOptional()
   @IsOptional()
   @Trim()
   @IsNotEmpty()
-  @IsUrl()
+  @IsUrl(URL_VALIDATION_OPTIONS)
   trailerUrl: string;
 
   @ApiPropertyOptional()
   @IsOptional()
   @Trim()
   @IsNotEmpty()
-  @IsUrl()
+  @IsUrl(URL_VALIDATION_OPTIONS)
   backgroundContentUrl: string;
 
   @ApiPropertyOptional()
   @IsOptional()
   @Trim()
   @IsNotEmpty()
-  @IsUrl()
+  @IsUrl(URL_VALIDATION_OPTIONS)
   previewUrl: string;
 
   @ApiPropertyOptional()
   @IsOptional()
   @Trim()
   @IsNotEmpty()
-  @IsUrl()
+  @IsUrl(URL_VALIDATION_OPTIONS)
   titleUrl: string;
 
   @ApiPropertyOptional({

@@ -11,6 +11,7 @@ import {
   AdminCinemaCartoonsOutputDto,
   AdminCinemaCartoonsOutputDtoMapper,
 } from '@/admin/api/dtos/output/admin-cinema-cartoons.output.dto';
+import { AdminMediaUrlSigningService } from '@/admin/application/services/admin-media-url-signing.service';
 
 export class AdminGetCartoonByIdQuery implements IQuery {
   constructor(public cartoonId: number) {}
@@ -29,6 +30,7 @@ export class AdminGetCartoonByIdQueryHandler
     private readonly logger: LoggerService,
     private readonly cartoonQueryRepository: CartoonQueryRepository,
     private readonly adminCinemaCartoonsOutputDtoMapper: AdminCinemaCartoonsOutputDtoMapper,
+    private readonly adminMediaUrlSigningService: AdminMediaUrlSigningService,
   ) {
     this.logger.setContext(AdminGetCartoonByIdQueryHandler.name);
   }
@@ -48,9 +50,10 @@ export class AdminGetCartoonByIdQueryHandler
           errorKey: EXCEPTION_KEYS_ENUM.CARTOON_NOT_FOUND,
         });
 
-      return this.appNotification.success(
-        this.adminCinemaCartoonsOutputDtoMapper.mapMovie(cartoon),
-      );
+      const mapped = this.adminCinemaCartoonsOutputDtoMapper.mapMovie(cartoon);
+      const signed = await this.adminMediaUrlSigningService.signMovie(mapped);
+
+      return this.appNotification.success(signed);
     } catch (e) {
       this.logger.error(e, this.execute.name);
       return this.appNotification.internalServerError();

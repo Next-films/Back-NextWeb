@@ -14,4 +14,5 @@ export class AdminRefreshTokenPayload {
 export class AdminLoginOutputDto {
   accessToken: string;
   refreshToken: string;
+  isPasswordSet: boolean;
 }

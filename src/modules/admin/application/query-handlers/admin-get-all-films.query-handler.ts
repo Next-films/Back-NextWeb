@@ -13,6 +13,7 @@ import {
 } from '@/admin/api/dtos/output/admin-cinema-films.output.dto';
 import { FilmQueryRepository } from '@/films/infrastructure/film.query-repository';
 import { AdminGetAllFilmsInputQueryDto } from '@/admin/api/dtos/input/admin-get-all-films.input-query.dto';
+import { AdminMediaUrlSigningService } from '@/admin/application/services/admin-media-url-signing.service';
 
 export class AdminGetAllFilmsQuery implements IQuery {
   constructor(public query: AdminGetAllFilmsInputQueryDto) {}
@@ -35,6 +36,7 @@ export class AdminGetAllFilmsQueryHandler
     private readonly paginationUtil: PaginationUtil,
     private readonly filmQueryRepository: FilmQueryRepository,
     private readonly adminCinemaFilmsOutputDtoMapper: AdminCinemaFilmsOutputDtoMapper,
+    private readonly adminMediaUrlSigningService: AdminMediaUrlSigningService,
   ) {
     this.logger.setContext(AdminGetAllFilmsQueryHandler.name);
   }
@@ -79,13 +81,11 @@ export class AdminGetAllFilmsQueryHandler
         status || null,
       );
 
-      const result = this.paginationUtil.create(
-        totalCount,
-        pagesCount,
-        page,
-        size,
+      const signedMovies = await this.adminMediaUrlSigningService.signMovies(
         bannedMovies ? this.adminCinemaFilmsOutputDtoMapper.mapMovies(bannedMovies) : [],
       );
+
+      const result = this.paginationUtil.create(totalCount, pagesCount, page, size, signedMovies);
       return this.appNotification.success(result);
     } catch (e) {
       this.logger.error(e, this.execute.name);

@@ -101,6 +101,6 @@ const handlers = [
     ...handlers,
     TelegramAdminBotTemplatesService,
   ],
-  exports: [],
+  exports: [TelegramAdminBotService],
 })
 export class TelegramAdminBotModule {}

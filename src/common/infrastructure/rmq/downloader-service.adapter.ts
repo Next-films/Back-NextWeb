@@ -22,7 +22,7 @@ import {
   ApplicationNotification,
   AppNotificationResult,
 } from '@/common/utils/app-notification.util';
-import { defaultIfEmpty, firstValueFrom, Observable, timeout } from 'rxjs';
+import { defaultIfEmpty, firstValueFrom, timeout } from 'rxjs';
 import { ErrorFieldExceptionDto } from '@/common/exception-filters/http/http-exception.filter';
 import { ConfigService } from '@nestjs/config';
 import { ConfigurationType } from '@/settings/configuration';
@@ -32,6 +32,10 @@ import { AddMovieToDownloadQueuePayloadDto, RemoveMoviePayloadDto } from '@/admi
 import {
   AdminUploadAvatarPayloadDto,
   DownloadPreviewYtClipPayloadDto,
+  DEFAULT_DOWNLOADER_TRIGGER_SCHEDULE,
+  DownloaderRunByListInputDto,
+  DownloaderTriggerScheduleDto,
+  DownloaderTriggerTaskRuntimeStatusDto,
   IDownloaderServiceAdapter,
   ImgExtEnum,
   MovieTypesEnum,
@@ -41,6 +45,42 @@ import {
   TorApiProvidersEnum,
   UploadFilmPayloadDto,
 } from '@/common/types/types';
+
+type Res<T> = AppNotificationResult<T, ErrorFieldExceptionDto | null>;
+
+// ─── Shared utilities ─────────────────────────────────────────────
+
+function buildFileOrUrlFields(file: string | Express.Multer.File): {
+  url?: string;
+  file?: Express.Multer.File;
+} {
+  return typeof file === 'string' ? { url: file } : { file };
+}
+
+function buildIdleStatus(
+  schedule: DownloaderTriggerScheduleDto,
+): DownloaderTriggerTaskRuntimeStatusDto {
+  return Object.fromEntries(
+    Object.keys(schedule).map(key => [
+      key,
+      {
+        status: 'idle',
+        source: null,
+        message: null,
+        startedAt: null,
+        finishedAt: null,
+        updatedAt: null,
+        executionId: null,
+        stage: null,
+        stageProgress: null,
+        overallProgress: null,
+        details: null,
+      },
+    ]),
+  ) as DownloaderTriggerTaskRuntimeStatusDto;
+}
+
+// ─── Real RMQ adapter ─────────────────────────────────────────────
 
 @Injectable()
 export class DownloaderServiceAdapter implements IDownloaderServiceAdapter {
@@ -54,32 +94,66 @@ export class DownloaderServiceAdapter implements IDownloaderServiceAdapter {
   ) {
     this.logger.setContext(DownloaderServiceAdapter.name);
     const apiSettings = this.configService.get('apiSettings', { infer: true });
-
     this.auth_token = apiSettings.DOWNLOAD_SERVICE_TOKEN;
   }
 
-  /*
-   *
-   *  Bridges to download service
-   *
-   */
-  private getBridgePayload(): RmqAuthPayload<null> {
-    return {
-      payload: null,
-      token: this.auth_token,
-    };
+  // ─── Core helpers ───────────────────────────────────────────────
+
+  private wrap<T>(payload: T): RmqAuthPayload<T> {
+    return { payload, token: this.auth_token };
   }
 
+  /**
+   * Send an RMQ command and await the response with a timeout.
+   * On error — logs and returns internalServerError.
+   */
+  private async sendCommand<TPayload, TResult>(
+    cmd: string,
+    payload: TPayload,
+    scope: string,
+    timeoutMs: number,
+  ): Promise<Res<TResult>> {
+    try {
+      const response = this.client.send({ cmd }, this.wrap(payload)).pipe(timeout(timeoutMs));
+
+      return await firstValueFrom(response);
+    } catch (error) {
+      this.logger.error(error, scope);
+      return this.appNotification.internalServerError();
+    }
+  }
+
+  /**
+   * Send a bridge command (void result, shorter timeout, re-throws on error).
+   */
   private async bridgeSend(cmd: string, scope: string): Promise<void> {
     try {
       await firstValueFrom(
-        this.client.send({ cmd }, this.getBridgePayload()).pipe(timeout(20_000), defaultIfEmpty(null)),
+        this.client.send({ cmd }, this.wrap(null)).pipe(timeout(20_000), defaultIfEmpty(null)),
       );
     } catch (error) {
       this.logger.error(error, scope);
       throw error;
     }
   }
+
+  // ─── HTTP-only methods (throw if called via RMQ) ────────────────
+
+  bridgeRunByList(_payload: DownloaderRunByListInputDto): Promise<void> {
+    void _payload;
+    throw new Error('Run-by-list is available only via HTTP transport adapter.');
+  }
+
+  cancelBridgeProcess(): Promise<Res<{ message: string }>> {
+    throw new Error('Cancel process is available only via HTTP transport adapter.');
+  }
+
+  bridgeReconcileSerialByKpId(_kpId: string): Promise<Res<{ message: string }>> {
+    void _kpId;
+    throw new Error('Serial reconcile by kpId is available only via HTTP transport adapter.');
+  }
+
+  // ─── Bridge void actions ────────────────────────────────────────
 
   bridgeFindFilms(): Promise<void> {
     return this.bridgeSend(BRIDGE_FIND_FILMS_CMD, this.bridgeFindFilms.name);
@@ -104,270 +178,126 @@ export class DownloaderServiceAdapter implements IDownloaderServiceAdapter {
   bridgeDownloadSerials(): Promise<void> {
     return this.bridgeSend(BRIDGE_DOWNLOAD_SERIALS_CMD, this.bridgeDownloadSerials.name);
   }
-  /*
-   *
-   *  Logs
-   *
-   */
-  async clearLogs(
-    keys: string[],
-  ): Promise<AppNotificationResult<null, ErrorFieldExceptionDto | null>> {
-    try {
-      const payload: RmqAuthPayload<ClearConverterLogsPayloadDto> = {
-        payload: {
-          keys,
-        },
-        token: this.auth_token,
-      };
 
-      const response: Observable<AppNotificationResult<null, ErrorFieldExceptionDto | null>> =
-        this.client.send({ cmd: CLEAR_LOGS_CMD }, payload).pipe(timeout(50_000));
+  // ─── Bridge schedule & status (fallback-only via RMQ) ──────────
 
-      return await firstValueFrom(response);
-    } catch (error) {
-      this.logger.error(error, this.clearLogs.name);
-
-      return this.appNotification.internalServerError();
-    }
-  }
-  /*
-   *
-   *  Remove movies
-   *
-   */
-  async removeMovie(
-    key: string,
-  ): Promise<AppNotificationResult<null, ErrorFieldExceptionDto | null>> {
-    try {
-      const payload: RmqAuthPayload<RemoveMoviePayloadDto> = {
-        payload: {
-          key,
-        },
-        token: this.auth_token,
-      };
-
-      const response: Observable<AppNotificationResult<null, ErrorFieldExceptionDto | null>> =
-        this.client.send({ cmd: REMOVE_MOVIE_CMD }, payload).pipe(timeout(50_000));
-
-      return await firstValueFrom(response);
-    } catch (error) {
-      this.logger.error(error, this.removeMovie.name);
-
-      return this.appNotification.internalServerError();
-    }
+  getBridgeSchedule(): Promise<DownloaderTriggerScheduleDto> {
+    this.logger.warn(
+      'Bridge schedule is available only via HTTP transport adapter.',
+      this.getBridgeSchedule.name,
+    );
+    return Promise.resolve(DEFAULT_DOWNLOADER_TRIGGER_SCHEDULE);
   }
 
-  /*
-   *
-   *  Add to queue
-   *
-   */
-  async addMovieToQueue(
+  async updateBridgeSchedule(
+    schedule: Partial<DownloaderTriggerScheduleDto>,
+  ): Promise<DownloaderTriggerScheduleDto> {
+    this.logger.warn(
+      `Bridge schedule update is available only via HTTP transport adapter. Payload: ${JSON.stringify(
+        schedule,
+      )}`,
+      this.updateBridgeSchedule.name,
+    );
+    return this.getBridgeSchedule();
+  }
+
+  getBridgeStatus(): Promise<DownloaderTriggerTaskRuntimeStatusDto> {
+    return this.getBridgeSchedule().then(schedule => buildIdleStatus(schedule));
+  }
+
+  // ─── Request/response commands ──────────────────────────────────
+
+  clearLogs(keys: string[]): Promise<Res<null>> {
+    const payload: ClearConverterLogsPayloadDto = { keys };
+    return this.sendCommand(CLEAR_LOGS_CMD, payload, this.clearLogs.name, 50_000);
+  }
+
+  removeMovie(key: string): Promise<Res<null>> {
+    const payload: RemoveMoviePayloadDto = { key };
+    return this.sendCommand(REMOVE_MOVIE_CMD, payload, this.removeMovie.name, 50_000);
+  }
+
+  addMovieToQueue(
     torrent: TorApiMovieById,
     provider: TorApiProvidersEnum,
     type: MovieTypesEnum,
-  ): Promise<AppNotificationResult<null, ErrorFieldExceptionDto | null>> {
-    try {
-      const payload: RmqAuthPayload<AddMovieToDownloadQueuePayloadDto> = {
-        payload: {
-          torrent,
-          provider,
-          type,
-        },
-        token: this.auth_token,
-      };
-
-      const response: Observable<AppNotificationResult<null, ErrorFieldExceptionDto | null>> =
-        this.client.send({ cmd: ADD_MOVIE_TO_DOWNLOAD_QUEUE_CMD }, payload).pipe(timeout(20_000));
-
-      return await firstValueFrom(response);
-    } catch (error) {
-      this.logger.error(error, this.addMovieToQueue.name);
-
-      return this.appNotification.internalServerError();
-    }
+  ): Promise<Res<null>> {
+    const payload: AddMovieToDownloadQueuePayloadDto = { torrent, provider, type };
+    return this.sendCommand(
+      ADD_MOVIE_TO_DOWNLOAD_QUEUE_CMD,
+      payload,
+      this.addMovieToQueue.name,
+      20_000,
+    );
   }
 
-  /*
-   *
-   *  Send request to download preview yt clip
-   *
-   */
-  async downloadPreviewClip(
+  signMediaUrl(url: string | null, expiresInSec?: number): Promise<string | null> {
+    void expiresInSec;
+    return Promise.resolve(url);
+  }
+
+  downloadPreviewClip(
     movieId: number,
     file: string | Express.Multer.File,
     type: MovieTypesEnum,
-  ): Promise<AppNotificationResult<string | null, ErrorFieldExceptionDto | null>> {
-    try {
-      let fileBody: Express.Multer.File | null = null;
-      let url: string | null = null;
-
-      if (typeof file === 'string') {
-        url = file;
-      } else {
-        fileBody = file;
-      }
-
-      const payload: RmqAuthPayload<DownloadPreviewYtClipPayloadDto> = {
-        payload: {
-          movieId,
-          type,
-          ...(url ? { url } : {}),
-          ...(fileBody ? { file: fileBody } : {}),
-        },
-        token: this.auth_token,
-      };
-
-      if (url) {
-        const response: Observable<AppNotificationResult<string, ErrorFieldExceptionDto | null>> =
-          this.client.send({ cmd: DOWNLOAD_YT_CLIP_CMD }, payload).pipe(timeout(60_000));
-
-        return await firstValueFrom(response);
-      } else {
-        this.client.emit({ cmd: DOWNLOAD_YT_CLIP_CMD }, payload);
-
-        return this.appNotification.success(null);
-      }
-    } catch (error) {
-      this.logger.error(error, this.downloadPreviewClip.name);
-
-      return this.appNotification.internalServerError();
-    }
+  ): Promise<Res<string | null>> {
+    const payload: DownloadPreviewYtClipPayloadDto = {
+      movieId,
+      type,
+      ...buildFileOrUrlFields(file),
+    };
+    return this.sendCommand(DOWNLOAD_YT_CLIP_CMD, payload, this.downloadPreviewClip.name, 180_000);
   }
 
-  uploadFilm(
-    movieId: number,
-    file: Express.Multer.File,
-    type: MovieTypesEnum,
-  ): AppNotificationResult<null, ErrorFieldExceptionDto | null> {
+  uploadFilm(movieId: number, file: Express.Multer.File, type: MovieTypesEnum): Res<null> {
     try {
-      const payload: RmqAuthPayload<UploadFilmPayloadDto> = {
-        payload: {
-          movieId,
-          type,
-          file,
-        },
-        token: this.auth_token,
-      };
-
-      this.client.emit({ cmd: UPLOAD_FILM_CMD }, payload);
-
+      const payload: UploadFilmPayloadDto = { movieId, type, file };
+      this.client.emit({ cmd: UPLOAD_FILM_CMD }, this.wrap(payload));
       return this.appNotification.success(null);
     } catch (error) {
       this.logger.error(error, this.uploadFilm.name);
-
       return this.appNotification.internalServerError();
     }
   }
-  /*
-   *
-   *  Resize poster, logo and save
-   *
-   */
-  async resizeAndSavePoster(
+
+  resizeAndSavePoster(
     movieId: number,
     file: string | Express.Multer.File,
     type: MovieTypesEnum,
-  ): Promise<AppNotificationResult<string, ErrorFieldExceptionDto | null>> {
-    try {
-      let fileBody: Express.Multer.File | null = null;
-      let url: string | null = null;
-
-      if (typeof file === 'string') {
-        url = file;
-      } else {
-        fileBody = file;
-      }
-
-      const payload: RmqAuthPayload<ResizeAndSafePosterPayloadDto> = {
-        payload: {
-          movieId,
-          ...(url ? { url } : {}),
-          ...(fileBody ? { file: fileBody } : {}),
-          type,
-        },
-        token: this.auth_token,
-      };
-
-      const response: Observable<AppNotificationResult<string, ErrorFieldExceptionDto | null>> =
-        this.client.send({ cmd: RESIZE_SAVE_POSTER_CMD }, payload).pipe(timeout(60_000));
-
-      return await firstValueFrom(response);
-    } catch (error) {
-      this.logger.error(error, this.resizeAndSavePoster.name);
-
-      return this.appNotification.internalServerError();
-    }
+  ): Promise<Res<string>> {
+    const payload: ResizeAndSafePosterPayloadDto = {
+      movieId,
+      type,
+      ...buildFileOrUrlFields(file),
+    };
+    return this.sendCommand(RESIZE_SAVE_POSTER_CMD, payload, this.resizeAndSavePoster.name, 60_000);
   }
 
-  async resizeAndSaveLogo(
+  resizeAndSaveLogo(
     movieId: number,
     file: string | Express.Multer.File,
     type: MovieTypesEnum,
-  ): Promise<AppNotificationResult<string, ErrorFieldExceptionDto | null>> {
-    try {
-      let fileBody: Express.Multer.File | null = null;
-      let url: string | null = null;
-
-      if (typeof file === 'string') {
-        url = file;
-      } else {
-        fileBody = file;
-      }
-
-      const payload: RmqAuthPayload<ResizeAndSafeLogoPayloadDto> = {
-        payload: {
-          movieId,
-          ...(url ? { url } : {}),
-          ...(fileBody ? { file: fileBody } : {}),
-          type,
-        },
-        token: this.auth_token,
-      };
-
-      const response: Observable<AppNotificationResult<string, ErrorFieldExceptionDto | null>> =
-        this.client.send({ cmd: RESIZE_SAVE_LOGO_CMD }, payload).pipe(timeout(60_000));
-
-      return await firstValueFrom(response);
-    } catch (error) {
-      this.logger.error(error, this.resizeAndSaveLogo.name);
-
-      return this.appNotification.internalServerError();
-    }
+  ): Promise<Res<string>> {
+    const payload: ResizeAndSafeLogoPayloadDto = {
+      movieId,
+      type,
+      ...buildFileOrUrlFields(file),
+    };
+    return this.sendCommand(RESIZE_SAVE_LOGO_CMD, payload, this.resizeAndSaveLogo.name, 60_000);
   }
-  /*
-   *
-   *  Upload avatars
-   *
-   */
-  async adminUploadAvatar(
+
+  adminUploadAvatar(
     file: Express.Multer.File,
     extension: ImgExtEnum,
     adminId: number,
     currentAvatarPath: string,
-  ): Promise<AppNotificationResult<string, ErrorFieldExceptionDto | null>> {
-    try {
-      const payload: RmqAuthPayload<AdminUploadAvatarPayloadDto> = {
-        payload: {
-          file,
-          extension,
-          adminId,
-          currentAvatarPath,
-        },
-        token: this.auth_token,
-      };
-
-      const response: Observable<AppNotificationResult<string, ErrorFieldExceptionDto | null>> =
-        this.client.send({ cmd: ADMIN_UPLOAD_AVATAR_CMD }, payload).pipe(timeout(60_000));
-
-      return await firstValueFrom(response);
-    } catch (error) {
-      this.logger.error(error, this.adminUploadAvatar.name);
-
-      return this.appNotification.internalServerError();
-    }
+  ): Promise<Res<string>> {
+    const payload: AdminUploadAvatarPayloadDto = { file, extension, adminId, currentAvatarPath };
+    return this.sendCommand(ADMIN_UPLOAD_AVATAR_CMD, payload, this.adminUploadAvatar.name, 60_000);
   }
 }
+
+// ─── Mock adapter ─────────────────────────────────────────────────
 
 @Injectable()
 export class DownloaderServiceAdapterMock implements IDownloaderServiceAdapter {
@@ -378,166 +308,187 @@ export class DownloaderServiceAdapterMock implements IDownloaderServiceAdapter {
     this.logger.setContext(DownloaderServiceAdapterMock.name);
   }
 
-  /*
-   *
-   *  Bridges to download service
-   *
-   */
+  private mockLog(message: string, scope: string): void {
+    this.logger.log(message, scope);
+  }
+
+  private mockSuccess<T>(data: T): Res<T> {
+    return this.appNotification.success(data);
+  }
+
+  // ─── Bridge void actions ────────────────────────────────────────
+
+  bridgeRunByList(payload: DownloaderRunByListInputDto): void {
+    this.mockLog(
+      `Execute: run by lists (mock). Payload: ${JSON.stringify(payload)}`,
+      this.bridgeRunByList.name,
+    );
+  }
+
+  cancelBridgeProcess(): Promise<Res<{ message: string }>> {
+    this.mockLog('Execute: cancel process (mock)', this.cancelBridgeProcess.name);
+    return Promise.resolve(this.mockSuccess({ message: 'Mock cancel request accepted' }));
+  }
+
   bridgeFindFilms(): void {
-    this.logger.log('Execute: start find films process. (mock)', this.bridgeFindFilms.name);
+    this.mockLog('Execute: start find films process. (mock)', this.bridgeFindFilms.name);
   }
 
   bridgeDownloadFilms(): void {
-    this.logger.log('Execute: start download films process. (mock)', this.bridgeDownloadFilms.name);
+    this.mockLog('Execute: start download films process. (mock)', this.bridgeDownloadFilms.name);
   }
 
   bridgeFindCartoons(): void {
-    this.logger.log('Execute: start find cartoons process. (mock)', this.bridgeFindCartoons.name);
+    this.mockLog('Execute: start find cartoons process. (mock)', this.bridgeFindCartoons.name);
   }
 
   bridgeDownloadCartoons(): void {
-    this.logger.log(
+    this.mockLog(
       'Execute: start download cartoons process. (mock)',
       this.bridgeDownloadCartoons.name,
     );
   }
 
   bridgeFindSerials(): void {
-    this.logger.log('Execute: start find serials process. (mock)', this.bridgeFindSerials.name);
+    this.mockLog('Execute: start find serials process. (mock)', this.bridgeFindSerials.name);
   }
 
   bridgeDownloadSerials(): void {
-    this.logger.log(
+    this.mockLog(
       'Execute: start download serials process. (mock)',
       this.bridgeDownloadSerials.name,
     );
   }
-  /*
-   *
-   *  Logs
-   *
-   */
-  async clearLogs(
-    keys: string[],
-  ): Promise<AppNotificationResult<null, ErrorFieldExceptionDto | null>> {
-    this.logger.log(
+
+  bridgeReconcileSerialByKpId(kpId: string): Promise<Res<{ message: string }>> {
+    this.mockLog(
+      `Execute: serial reconcile by kpId (mock). kpId: ${kpId}`,
+      this.bridgeReconcileSerialByKpId.name,
+    );
+    return Promise.resolve(
+      this.mockSuccess({ message: `Mock serial reconcile started for kpId ${kpId}` }),
+    );
+  }
+
+  // ─── Bridge schedule & status ───────────────────────────────────
+
+  getBridgeSchedule(): DownloaderTriggerScheduleDto {
+    this.mockLog('Execute: get bridge schedule (mock)', this.getBridgeSchedule.name);
+    return DEFAULT_DOWNLOADER_TRIGGER_SCHEDULE;
+  }
+
+  updateBridgeSchedule(
+    schedule: Partial<DownloaderTriggerScheduleDto>,
+  ): DownloaderTriggerScheduleDto {
+    this.mockLog(
+      `Execute: update bridge schedule (mock): ${JSON.stringify(schedule)}`,
+      this.updateBridgeSchedule.name,
+    );
+    return { ...this.getBridgeSchedule(), ...schedule };
+  }
+
+  getBridgeStatus(): DownloaderTriggerTaskRuntimeStatusDto {
+    return buildIdleStatus(this.getBridgeSchedule());
+  }
+
+  // ─── Request/response commands ──────────────────────────────────
+
+  clearLogs(keys: string[]): Promise<Res<null>> {
+    this.mockLog(
       `Execute: clear converter logs (mock). Keys: ${JSON.stringify(keys)}`,
       this.clearLogs.name,
     );
-    await new Promise(resolve => resolve(null));
-    return this.appNotification.success(null);
+    return Promise.resolve(this.mockSuccess(null));
   }
-  /*
-   *
-   *  Remove movies
-   *
-   */
-  async removeMovie(
-    key: string,
-  ): Promise<AppNotificationResult<null, ErrorFieldExceptionDto | null>> {
-    this.logger.log(`Execute: remove movie (mock). Key: ${key}`, this.removeMovie.name);
-    await new Promise(resolve => resolve(null));
-    return this.appNotification.success(null);
+
+  removeMovie(key: string): Promise<Res<null>> {
+    this.mockLog(`Execute: remove movie (mock). Key: ${key}`, this.removeMovie.name);
+    return Promise.resolve(this.mockSuccess(null));
   }
-  /*
-   *
-   *  Add to queue
-   *
-   */
-  async addMovieToQueue(
+
+  addMovieToQueue(
     torrent: TorApiMovieById,
     provider: TorApiProvidersEnum,
     type: MovieTypesEnum,
-  ): Promise<AppNotificationResult<null, ErrorFieldExceptionDto | null>> {
-    this.logger.log(
+  ): Promise<Res<null>> {
+    this.mockLog(
       `Execute: add movie to queue (mock). Provider: ${provider}, type: ${type}, torrent: ${JSON.stringify(
         torrent,
       )}`,
       this.addMovieToQueue.name,
     );
-    await new Promise(resolve => resolve(null));
-    return this.appNotification.success(null);
+    return Promise.resolve(this.mockSuccess(null));
   }
 
-  /*
-   *
-   *  Send request to download preview yt clip
-   *
-   */
-  async downloadPreviewClip(
-    kpId: string,
-    url: string,
+  signMediaUrl(url: string | null, expiresInSec?: number): Promise<string | null> {
+    void expiresInSec;
+    this.mockLog(`Execute: sign media url (mock). Url: ${url ?? 'null'}`, this.signMediaUrl.name);
+    return Promise.resolve(url);
+  }
+
+  downloadPreviewClip(
+    movieId: number,
+    file: string | Express.Multer.File,
     type: MovieTypesEnum,
-  ): Promise<AppNotificationResult<string, ErrorFieldExceptionDto | null>> {
-    this.logger.log(
-      `Execute: download yt clip (mock). Kp id: ${kpId}, type: ${type}, url: ${url}`,
+  ): Promise<Res<string | null>> {
+    const fileData = typeof file === 'string' ? `url: ${file}` : `file: ${file.originalname}`;
+    this.mockLog(
+      `Execute: download yt clip (mock). Movie id: ${movieId}, type: ${type}, ${fileData}`,
       this.downloadPreviewClip.name,
     );
-    await new Promise(resolve => resolve(null));
-    return this.appNotification.success('mock');
+    return Promise.resolve(this.mockSuccess('mock'));
   }
 
-  async uploadFilm(
-    movieId: number,
-    file: Express.Multer.File,
-    type: MovieTypesEnum,
-  ): Promise<AppNotificationResult<string, ErrorFieldExceptionDto | null>> {
-    this.logger.log(
+  uploadFilm(movieId: number, file: Express.Multer.File, type: MovieTypesEnum): Res<null> {
+    void file;
+    this.mockLog(
       `Execute: upload film (mock). Movie id: ${movieId}, type: ${type}`,
       this.uploadFilm.name,
     );
-    await new Promise(resolve => resolve(null));
-    return this.appNotification.success('mock');
+    return this.mockSuccess(null);
   }
 
-  /*
-   *
-   *  Resize poster, logo and save
-   *
-   */
-  async resizeAndSavePoster(
+  resizeAndSavePoster(
     movieId: number,
-    url: string,
+    file: string | Express.Multer.File,
     type: MovieTypesEnum,
-  ): Promise<AppNotificationResult<string, ErrorFieldExceptionDto | null>> {
-    this.logger.log(
-      `Execute: resize and save poster (mock). Movie id: ${movieId}, type: ${type}, url: ${url}`,
+  ): Promise<Res<string>> {
+    const fileData = typeof file === 'string' ? `url: ${file}` : `file: ${file.originalname}`;
+    this.mockLog(
+      `Execute: resize and save poster (mock). Movie id: ${movieId}, type: ${type}, ${fileData}`,
       this.resizeAndSavePoster.name,
     );
-    await new Promise(resolve => resolve(null));
-    return this.appNotification.success('mock');
+    return Promise.resolve(this.mockSuccess('mock'));
   }
 
-  async resizeAndSaveLogo(
+  resizeAndSaveLogo(
     movieId: number,
-    url: string,
+    file: string | Express.Multer.File,
     type: MovieTypesEnum,
-  ): Promise<AppNotificationResult<string, ErrorFieldExceptionDto | null>> {
-    this.logger.log(
-      `Execute: resize and save logo (mock). Movie id: ${movieId}, type: ${type}, url: ${url}`,
+  ): Promise<Res<string>> {
+    const fileData = typeof file === 'string' ? `url: ${file}` : `file: ${file.originalname}`;
+    this.mockLog(
+      `Execute: resize and save logo (mock). Movie id: ${movieId}, type: ${type}, ${fileData}`,
       this.resizeAndSaveLogo.name,
     );
-    await new Promise(resolve => resolve(null));
-    return this.appNotification.success('mock');
+    return Promise.resolve(this.mockSuccess('mock'));
   }
-  /*
-   *
-   *  Upload avatars
-   *
-   */
-  async adminUploadAvatar(
-    file: Express.Multer.File,
+
+  adminUploadAvatar(
+    _file: Express.Multer.File,
     extension: ImgExtEnum,
     adminId: number,
     currentAvatarPath: string,
-  ): Promise<AppNotificationResult<string, ErrorFieldExceptionDto | null>> {
-    this.logger.log(
+  ): Promise<Res<string>> {
+    void _file;
+    this.mockLog(
       `Execute: upload avatar (mock). Ext: ${extension}, admin id: ${adminId}, current avatar: ${currentAvatarPath}`,
       this.adminUploadAvatar.name,
     );
-    await new Promise(resolve => resolve(null));
-    return this.appNotification.success(
-      'https://www.shutterstock.com/image-vector/young-smiling-man-avatar-3d-600nw-2124054758.jpg',
+    return Promise.resolve(
+      this.mockSuccess(
+        'https://www.shutterstock.com/image-vector/young-smiling-man-avatar-3d-600nw-2124054758.jpg',
+      ),
     );
   }
 }

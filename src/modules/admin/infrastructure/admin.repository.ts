@@ -1,4 +1,4 @@
-import { QueryRunner, Repository } from 'typeorm';
+import { IsNull, Not, QueryRunner, Repository } from 'typeorm';
 import { Admin } from '@/admin/domain/admin.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Injectable } from '@nestjs/common';
@@ -21,7 +21,7 @@ export class AdminRepository {
     await this.adminRepository.save(admin);
   }
 
-  async updateProfile(admin: Admin, currentTgId: string, queryRunner?: QueryRunner): Promise<void> {
+  async updateProfile(admin: Admin, queryRunner?: QueryRunner): Promise<void> {
     const { id, username, email, adminTelegram } = admin;
     const { telegramId } = adminTelegram;
 
@@ -39,7 +39,7 @@ export class AdminRepository {
         queryRunner.manager.update(this.adminRepository.target, { id }, adminUpdateData),
         queryRunner.manager.update(
           this.adminTelegramRepository.target,
-          { telegramId: currentTgId },
+          { adminId: id },
           tgUpdateData,
         ),
       ]);
@@ -48,7 +48,7 @@ export class AdminRepository {
 
     await Promise.all([
       this.adminRepository.update({ id }, adminUpdateData),
-      this.adminTelegramRepository.update({ telegramId: currentTgId }, tgUpdateData),
+      this.adminTelegramRepository.update({ adminId: id }, tgUpdateData),
     ]);
   }
 
@@ -91,7 +91,48 @@ export class AdminRepository {
   async getAdminByTelegramId(telegramId: string): Promise<Admin | null> {
     return this.adminRepository.findOne({
       where: { adminTelegram: { telegramId } },
-      relations: { adminTelegram: true },
+      relations: { adminTelegram: true, roles: true },
     });
+  }
+
+  async getAdminByTelegramUsername(username: string): Promise<Admin | null> {
+    return this.adminRepository.findOne({
+      where: { adminTelegram: { username } },
+      relations: { adminTelegram: true, roles: true },
+    });
+  }
+
+  async removeById(id: number, queryRunner?: QueryRunner): Promise<void> {
+    if (queryRunner) {
+      await queryRunner.manager.delete(this.adminRepository.target, { id });
+      return;
+    }
+
+    await this.adminRepository.delete({ id });
+  }
+
+  async deleteExpiredPasswordSetupAdmins(): Promise<void> {
+    const candidates = await this.adminRepository.find({
+      where: {
+        isOwner: false,
+        password: IsNull(),
+        passwordSetupDeadlineAt: Not(IsNull()),
+      },
+    });
+
+    if (candidates.length === 0) return;
+
+    const now = new Date();
+    const expiredIds = candidates
+      .filter(
+        admin =>
+          !!admin.passwordSetupDeadlineAt &&
+          admin.passwordSetupDeadlineAt.getTime() < now.getTime(),
+      )
+      .map(admin => admin.id);
+
+    if (expiredIds.length === 0) return;
+
+    await this.adminRepository.delete(expiredIds);
   }
 }

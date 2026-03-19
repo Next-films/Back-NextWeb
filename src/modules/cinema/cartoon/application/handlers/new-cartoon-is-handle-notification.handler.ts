@@ -93,6 +93,8 @@ export class NewCartoonIsHandleNotificationCommandHandler
       hidden: true,
       genres: null,
       alternativeName: null,
+      universe: null,
+      studio: null,
       country: null,
       description: null,
       releaseDate: null,

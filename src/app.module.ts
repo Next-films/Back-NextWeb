@@ -15,6 +15,7 @@ import { ModerationMovieModule } from '@/moderation-movie/moderation-movie.modul
 import { TelegramAdminBotModule } from '@/telegram/admin-bot/telegram-admin-bot.module';
 import { ExternalApiConfigModule } from '@/external-api-config/external-api-config.module';
 import { AnalyticsModule } from '@/analytics/analytics.module';
+import { BannerModule } from '@/banner/banner.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { AnalyticsModule } from '@/analytics/analytics.module';
     ModerationMovieModule,
     ExternalApiConfigModule,
     AnalyticsModule,
+    BannerModule,
   ],
   controllers: [],
   providers: [AsyncLocalStorageService],

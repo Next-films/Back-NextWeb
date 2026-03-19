@@ -17,6 +17,9 @@ import { AdminUpdateCartoonInputDto } from '@/admin/api/dtos/input/admin-update-
 import { CartonUpdateDto } from '@/cartoons/domain/types';
 import { CartoonRepository } from '@/cartoons/infrastructure/cartoon.repository';
 import { AdminUpdateFilmInputDto } from '@/admin/api/dtos/input/admin-update-film.input.dto';
+import { Cartoon } from '@/cartoons/domain/cartoon.entity';
+import { MovieTypesEnum } from '@/common/types/types';
+import { MovieHandleStatus, UploadedFilesUrlResult } from '@/movies/domain/types';
 
 export class AdminUpdateCartoonCommand implements ICommand {
   constructor(
@@ -53,13 +56,6 @@ export class AdminUpdateCartoonCommandHandler
       await queryRunner.connect();
       await queryRunner.startTransaction();
 
-      const validateFileResult = this.validateFileResult(inputDto);
-
-      if (validateFileResult) {
-        await queryRunner.rollbackTransaction();
-        return this.appNotification.badRequest(validateFileResult);
-      }
-
       const cartoon = await this.cartoonRepository.getCartoonById(cartoonId, queryRunner);
 
       if (!cartoon) {
@@ -71,7 +67,23 @@ export class AdminUpdateCartoonCommandHandler
         });
       }
 
-      const { genres: rawGenres, releaseDate } = inputDto;
+      const validateFileResult = this.validateFileResult(inputDto, cartoon);
+
+      if (validateFileResult) {
+        await queryRunner.rollbackTransaction();
+        return this.appNotification.badRequest(validateFileResult);
+      }
+
+      const mergedInputDto: AdminUpdateCartoonInputDto = {
+        ...inputDto,
+        videUrl: inputDto.videUrl ?? cartoon.videoUrl ?? undefined,
+        backgroundContentUrl:
+          inputDto.backgroundContentUrl ?? cartoon.backgroundContentUrl ?? undefined,
+        previewUrl: inputDto.previewUrl ?? cartoon.previewUrl ?? undefined,
+        titleUrl: inputDto.titleUrl ?? cartoon.titleUrl ?? undefined,
+      };
+
+      const { genres: rawGenres, releaseDate } = mergedInputDto;
 
       const genres =
         rawGenres && rawGenres.length > 0
@@ -79,12 +91,37 @@ export class AdminUpdateCartoonCommandHandler
           : [];
 
       const updateDto: CartonUpdateDto = {
-        ...inputDto,
+        ...mergedInputDto,
         releaseDate: this.dateUtil.formatDateYyMmDd(releaseDate),
         genres,
       };
 
-      cartoon.update(updateDto);
+      let uploadFileResult: UploadedFilesUrlResult | null = null;
+      if (
+        mergedInputDto.titleFile ||
+        mergedInputDto.backgroundFile ||
+        mergedInputDto.previewFile ||
+        mergedInputDto.videoFile
+      ) {
+        uploadFileResult = await this.handleFile(
+          cartoon,
+          mergedInputDto.videoFile,
+          mergedInputDto.backgroundFile,
+          mergedInputDto.previewFile,
+          mergedInputDto.titleFile,
+        );
+
+        if (!uploadFileResult) {
+          await queryRunner.rollbackTransaction();
+          return this.appNotification.internalServerError();
+        }
+      }
+
+      if (uploadFileResult) {
+        cartoon.update(updateDto, uploadFileResult);
+      } else {
+        cartoon.update(updateDto);
+      }
 
       await this.cartoonRepository.save(cartoon, queryRunner);
       await queryRunner.commitTransaction();
@@ -98,7 +135,10 @@ export class AdminUpdateCartoonCommandHandler
     }
   }
 
-  private validateFileResult(inputDto: AdminUpdateFilmInputDto): ValidationErrorsDto | null {
+  private validateFileResult(
+    inputDto: AdminUpdateFilmInputDto,
+    cartoon: Cartoon,
+  ): ValidationErrorsDto | null {
     const errors: ValidationErrorsDto = {
       errorsMessages: [],
     };
@@ -109,11 +149,16 @@ export class AdminUpdateCartoonCommandHandler
       previewFile,
       titleFile,
 
-      videUrl,
-      backgroundContentUrl,
-      previewUrl,
-      titleUrl,
+      videUrl: incomingVideoUrl,
+      backgroundContentUrl: incomingBackgroundContentUrl,
+      previewUrl: incomingPreviewUrl,
+      titleUrl: incomingTitleUrl,
     } = inputDto;
+
+    const videUrl = incomingVideoUrl ?? cartoon.videoUrl;
+    const backgroundContentUrl = incomingBackgroundContentUrl ?? cartoon.backgroundContentUrl;
+    const previewUrl = incomingPreviewUrl ?? cartoon.previewUrl;
+    const titleUrl = incomingTitleUrl ?? cartoon.titleUrl;
 
     if (!videoFile && !videUrl)
       errors.errorsMessages.push({
@@ -144,5 +189,57 @@ export class AdminUpdateCartoonCommandHandler
       });
 
     return errors.errorsMessages.length > 0 ? errors : null;
+  }
+
+  private async handleFile(
+    cartoon: Cartoon,
+    videoFile?: Express.Multer.File,
+    backgroundFile?: Express.Multer.File,
+    previewFile?: Express.Multer.File,
+    titleFile?: Express.Multer.File,
+  ): Promise<UploadedFilesUrlResult | null> {
+    const { id } = cartoon;
+
+    let backgroundMime: string = 'image/';
+    let videoMime: string = 'image/';
+
+    if (backgroundFile) backgroundMime = backgroundFile.mimetype as 'image/' | 'video/';
+    if (videoFile) videoMime = videoFile.mimetype as 'image/' | 'video/';
+
+    const [titleUrl, previewUrl, backgroundImgUrl, videoUrl] = await Promise.all([
+      titleFile
+        ? this.moviesService.getLogoUrl(titleFile, id, MovieTypesEnum.CARTOON)
+        : Promise.resolve(null),
+      previewFile
+        ? this.moviesService.getPosterUrl(previewFile, id, MovieTypesEnum.CARTOON)
+        : Promise.resolve(null),
+      backgroundFile
+        ? this.moviesService.getBackgroundContentUrl(backgroundFile, id, MovieTypesEnum.CARTOON)
+        : Promise.resolve(null),
+      videoFile
+        ? this.moviesService.getVideoContentUrl(videoFile, id, MovieTypesEnum.CARTOON)
+        : Promise.resolve(null),
+    ]);
+
+    if (
+      (titleFile && !titleUrl) ||
+      (previewFile && !previewUrl) ||
+      (backgroundFile && backgroundMime.startsWith('image/') && !backgroundImgUrl)
+    )
+      return null;
+
+    if (
+      (backgroundFile && backgroundMime.startsWith('video/')) ||
+      (videoFile && videoMime.startsWith('video/'))
+    ) {
+      cartoon.updateHandleStatus(MovieHandleStatus.PROCESSING);
+    }
+
+    return {
+      titleUploadedUrl: titleUrl || null,
+      previewUploadedUrl: previewUrl || null,
+      backgroundUploadedUrl: backgroundImgUrl || null,
+      videoUploadedUrl: videoUrl || null,
+    };
   }
 }

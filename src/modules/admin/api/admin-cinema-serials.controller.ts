@@ -50,6 +50,8 @@ import { AdminGetSerialByIdQuery } from '@/admin/application/query-handlers/admi
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { storageUtil } from '@/common/utils/storage-big-files.util';
 import { unlink } from 'fs/promises';
+import { DownloaderServiceAdapter } from '@/common/infrastructure/rmq/downloader-service.adapter';
+import { SerialRepository } from '@/serials/infrastructure/serial.repository';
 
 @ApiTags(
   'Admin cinema - serials. Handles administrative operations for the movie theater content library.',
@@ -64,6 +66,8 @@ export class AdminCinemaSerialsController {
     private readonly commandBus: CommandBus,
     private readonly queryBus: QueryBus,
     private readonly appNotification: ApplicationNotification,
+    private readonly downloaderServiceAdapter: DownloaderServiceAdapter,
+    private readonly serialRepository: SerialRepository,
   ) {
     this.logger.setContext(AdminCinemaSerialsController.name);
   }
@@ -161,7 +165,7 @@ export class AdminCinemaSerialsController {
           await unlink(videoFile.path);
           this.logger.log(`Temp video file removed: ${videoFile.path}`);
         } catch (err) {
-          this.logger.error(`Failed to delete temp file: ${videoFile.path}`, err);
+          this.logger.error(err, this.updateSerial.name);
         }
       }
     }
@@ -181,6 +185,34 @@ export class AdminCinemaSerialsController {
     this.logger.log(result.appResult, this.removeSerial.name);
 
     this.appNotification.handleHttpResult(result);
+  }
+
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Delete(`:serialId/episodes/:episodeId`)
+  async removeSerialEpisode(
+    @Param('serialId', ParseIntPatchPipe) serialId: number,
+    @Param('episodeId', ParseIntPatchPipe) episodeId: number,
+  ): Promise<void> {
+    this.logger.log('Execute: remove serial episode by admin', this.removeSerialEpisode.name);
+
+    const serial = await this.serialRepository.getSerialById(serialId);
+    if (!serial) {
+      this.appNotification.handleHttpResult(
+        this.appNotification.badRequest([{ field: 'serialId', message: 'Serial not found' }]),
+      );
+      return;
+    }
+
+    const episode = await this.serialRepository.getSerialEpisodeById(serialId, episodeId);
+    if (!episode) {
+      this.appNotification.handleHttpResult(
+        this.appNotification.badRequest([{ field: 'episodeId', message: 'Episode not found' }]),
+      );
+      return;
+    }
+
+    await this.serialRepository.removeSerialEpisode(episode);
+    await this.serialRepository.removeSeasonIfEmpty(serialId, episode.seasonId ?? null);
   }
 
   @HttpCode(HttpStatus.CREATED)
@@ -209,5 +241,38 @@ export class AdminCinemaSerialsController {
     }
 
     this.appNotification.handleHttpResult(result);
+  }
+
+  @HttpCode(HttpStatus.CREATED)
+  @Post(`:serialId/check-updates`)
+  async checkSerialUpdates(
+    @Param('serialId', ParseIntPatchPipe) serialId: number,
+  ): Promise<{ message: string } | void> {
+    this.logger.log('Execute: check serial updates by admin', this.checkSerialUpdates.name);
+
+    const serialResult = await this.queryBus.execute<
+      AdminGetSerialByIdQuery,
+      AppNotificationResult<AdminCinemaSerialsOutputDto, ErrorFieldExceptionDto | null>
+    >(new AdminGetSerialByIdQuery(serialId));
+
+    if (serialResult.appResult !== AppNotificationResultEnum.Success || !serialResult.data?.kpId) {
+      this.appNotification.handleHttpResult(
+        this.appNotification.badRequest([
+          { field: 'serialId', message: 'Serial not found or kpId is missing' },
+        ]),
+      );
+      return;
+    }
+
+    const reconcileResult = await this.downloaderServiceAdapter.bridgeReconcileSerialByKpId(
+      serialResult.data.kpId,
+    );
+
+    if (reconcileResult.appResult !== AppNotificationResultEnum.Success || !reconcileResult.data) {
+      this.appNotification.handleHttpResult(reconcileResult);
+      return;
+    }
+
+    return reconcileResult.data;
   }
 }

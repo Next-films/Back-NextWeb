@@ -68,6 +68,12 @@ export class AdminCinemaMoviesOutputDto {
   @ApiProperty({ nullable: true })
   alternativeTitles: string | null;
 
+  @ApiProperty({ nullable: true })
+  universe: string | null;
+
+  @ApiProperty({ nullable: true })
+  studio: string | null;
+
   @ApiProperty({ enum: MovieHandleStatus })
   status: MovieHandleStatus;
 
@@ -116,6 +122,8 @@ export class AdminCinemaMoviesOutputDtoMapper {
       originalTitle,
       title,
       alternativeTitles,
+      universe,
+      studio,
     } = movie;
     return {
       id,
@@ -132,6 +140,8 @@ export class AdminCinemaMoviesOutputDtoMapper {
       releaseDate,
       originalTitle,
       alternativeTitles,
+      universe,
+      studio,
       content: this.mapContent(movie),
     };
   }

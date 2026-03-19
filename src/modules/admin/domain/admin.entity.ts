@@ -26,8 +26,20 @@ export class Admin {
   @Column()
   username: string;
 
-  @Column()
-  password: string;
+  @Column({ type: 'varchar', nullable: true })
+  password: string | null;
+
+  @Column({ default: false })
+  isOwner: boolean;
+
+  @Column({ type: 'varchar', nullable: true })
+  telegramAuthToken: string | null;
+
+  @Column({ type: 'timestamp with time zone', nullable: true })
+  telegramAuthTokenExpAt: Date | null;
+
+  @Column({ type: 'timestamp with time zone', nullable: true })
+  passwordSetupDeadlineAt: Date | null;
 
   @Column({ nullable: true })
   avatarUrl: string;
@@ -78,9 +90,12 @@ export class Admin {
   static create(
     email: string,
     username: string,
-    password: string,
+    password: string | null,
     tgId: string,
+    tgUsername: string | null,
     roles: AdminRole[],
+    passwordSetupDeadlineAt: Date | null = null,
+    isOwner = false,
   ): Admin {
     const admin = new this();
     const date = new Date();
@@ -94,13 +109,38 @@ export class Admin {
     admin.adminTelegram = adminTg;
     adminTg.createdAt = date;
     adminTg.telegramId = tgId;
+    adminTg.username = tgUsername;
     admin.roles = roles;
+    admin.passwordSetupDeadlineAt = passwordSetupDeadlineAt;
+    admin.isOwner = isOwner;
+    admin.telegramAuthToken = null;
+    admin.telegramAuthTokenExpAt = null;
 
     return admin;
   }
 
   updateTelegramInfo(username: string): void {
     this.adminTelegram.username = username;
+  }
+
+  setTelegramIdentity(telegramId: string, username?: string): void {
+    this.adminTelegram.telegramId = telegramId;
+    if (username) this.adminTelegram.username = username;
+  }
+
+  issueTelegramAuthToken(token: string, expAt: Date): void {
+    this.telegramAuthToken = token;
+    this.telegramAuthTokenExpAt = expAt;
+  }
+
+  clearTelegramAuthToken(): void {
+    this.telegramAuthToken = null;
+    this.telegramAuthTokenExpAt = null;
+  }
+
+  updatePassword(hashPassword: string): void {
+    this.password = hashPassword;
+    this.passwordSetupDeadlineAt = null;
   }
 
   deactivate(): void {

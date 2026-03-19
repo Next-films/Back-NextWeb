@@ -153,6 +153,8 @@ export class NewFilmNotificationCommandHandler
       originalName: metadata.originalName,
       genres: metadata.genres,
       alternativeName: metadata.alternativeName,
+      universe: metadata.universe,
+      studio: metadata.studio,
       country: metadata.countries,
       description: metadata.description,
       releaseDate: metadata.releaseDate,
@@ -180,6 +182,8 @@ export class NewFilmNotificationCommandHandler
       hidden: false,
       genres: metadata.genres,
       alternativeName: metadata.alternativeName,
+      universe: metadata.universe,
+      studio: metadata.studio,
       country: metadata.countries,
       description: metadata.description,
       releaseDate: metadata.releaseDate,
@@ -228,7 +232,7 @@ export class NewFilmNotificationCommandHandler
   }
 
   private publish(moderationId: number): void {
-    this.commandBus.execute(
+    void this.commandBus.execute(
       new TelegramAdminBotSendNotificationNewModerationMovieCommand(
         MovieTypesEnum.FILM,
         moderationId,

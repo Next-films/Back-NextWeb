@@ -55,13 +55,6 @@ export class AdminUpdateFilmCommandHandler
       await queryRunner.connect();
       await queryRunner.startTransaction();
 
-      const validateFileResult = this.validateFileResult(inputDto);
-
-      if (validateFileResult) {
-        await queryRunner.rollbackTransaction();
-        return this.appNotification.badRequest(validateFileResult);
-      }
-
       const film = await this.filmRepository.getFilmById(filmId, queryRunner);
 
       if (!film) {
@@ -73,6 +66,22 @@ export class AdminUpdateFilmCommandHandler
         });
       }
 
+      const validateFileResult = this.validateFileResult(inputDto, film);
+
+      if (validateFileResult) {
+        await queryRunner.rollbackTransaction();
+        return this.appNotification.badRequest(validateFileResult);
+      }
+
+      const mergedInputDto: AdminUpdateFilmInputDto = {
+        ...inputDto,
+        videUrl: inputDto.videUrl ?? film.videoUrl ?? undefined,
+        backgroundContentUrl:
+          inputDto.backgroundContentUrl ?? film.backgroundContentUrl ?? undefined,
+        previewUrl: inputDto.previewUrl ?? film.previewUrl ?? undefined,
+        titleUrl: inputDto.titleUrl ?? film.titleUrl ?? undefined,
+      };
+
       const {
         genres: rawGenres,
         releaseDate,
@@ -80,7 +89,7 @@ export class AdminUpdateFilmCommandHandler
         backgroundFile,
         previewFile,
         videoFile,
-      } = inputDto;
+      } = mergedInputDto;
 
       const genres =
         rawGenres && rawGenres.length > 0
@@ -88,7 +97,7 @@ export class AdminUpdateFilmCommandHandler
           : [];
 
       const updateDto: FilmUpdateDto = {
-        ...inputDto,
+        ...mergedInputDto,
         releaseDate: this.dateUtil.formatDateYyMmDd(releaseDate),
         genres,
       };
@@ -127,7 +136,10 @@ export class AdminUpdateFilmCommandHandler
     }
   }
 
-  private validateFileResult(inputDto: AdminUpdateFilmInputDto): ValidationErrorsDto | null {
+  private validateFileResult(
+    inputDto: AdminUpdateFilmInputDto,
+    film: Film,
+  ): ValidationErrorsDto | null {
     const errors: ValidationErrorsDto = {
       errorsMessages: [],
     };
@@ -138,11 +150,16 @@ export class AdminUpdateFilmCommandHandler
       previewFile,
       titleFile,
 
-      videUrl,
-      backgroundContentUrl,
-      previewUrl,
-      titleUrl,
+      videUrl: incomingVideoUrl,
+      backgroundContentUrl: incomingBackgroundContentUrl,
+      previewUrl: incomingPreviewUrl,
+      titleUrl: incomingTitleUrl,
     } = inputDto;
+
+    const videUrl = incomingVideoUrl ?? film.videoUrl;
+    const backgroundContentUrl = incomingBackgroundContentUrl ?? film.backgroundContentUrl;
+    const previewUrl = incomingPreviewUrl ?? film.previewUrl;
+    const titleUrl = incomingTitleUrl ?? film.titleUrl;
 
     if (!videoFile && !videUrl)
       errors.errorsMessages.push({

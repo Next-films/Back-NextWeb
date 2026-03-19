@@ -16,6 +16,7 @@ import { AdminAuthSessionRepository } from '@/admin-auth/infrastructure/admin-au
 import { JWTTokenOptions } from '@/jwt-module/domain/types';
 import { EXCEPTION_KEYS_ENUM } from '@/common/enums/exception-keys.enum';
 import { ErrorFieldExceptionDto } from '@/common/exception-filters/http/http-exception.filter';
+import { AdminAuthRepository } from '@/admin-auth/infrastructure/admin-auth.repository';
 
 export class AdminUpdateTokensCommand implements ICommand {
   constructor(public admin: AdminRefreshTokenPayload) {}
@@ -40,6 +41,7 @@ export class AdminUpdateTokensHandler
     private readonly jwtService: JwtMService,
     private readonly configService: ConfigService<ConfigurationType, true>,
     private readonly adminAuthSessionRepository: AdminAuthSessionRepository,
+    private readonly adminAuthRepository: AdminAuthRepository,
   ) {
     this.logger.setContext(AdminUpdateTokensHandler.name);
 
@@ -63,6 +65,14 @@ export class AdminUpdateTokensHandler
       const session = await this.adminAuthSessionRepository.getSessionByDeviceId(deviceId);
 
       if (!session)
+        return this.appNotification.unauthorized({
+          message: 'Unauthorized',
+          field: 'token',
+          errorKey: EXCEPTION_KEYS_ENUM.UNAUTHORIZED,
+        });
+
+      const user = await this.adminAuthRepository.getAdminById(id);
+      if (!user || !user.isActive)
         return this.appNotification.unauthorized({
           message: 'Unauthorized',
           field: 'token',
@@ -93,6 +103,7 @@ export class AdminUpdateTokensHandler
       return this.appNotification.success({
         accessToken: newAccessToken,
         refreshToken: newRefreshToken,
+        isPasswordSet: !!user.password,
       });
     } catch (e) {
       this.logger.error(e, this.execute.name);

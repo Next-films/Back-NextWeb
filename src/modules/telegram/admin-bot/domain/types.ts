@@ -11,7 +11,7 @@ export class BotCommandsDto {
 }
 
 export class BotSendMessagePayloadDto {
-  chatId: number;
+  chatId: number | string;
   template: ADMIN_BOT_TEMPLATES_NAME_ENUM;
   threadId?: number;
 }

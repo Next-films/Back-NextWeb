@@ -18,6 +18,6 @@ export class NewMovieNotificationPayloadDto {
   @Trim()
   @IsString()
   @IsNotEmpty()
-  @IsUrl()
+  @IsUrl({ require_tld: false })
   key: string;
 }

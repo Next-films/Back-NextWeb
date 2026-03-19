@@ -100,12 +100,13 @@ export class SerialQueryRepository {
     let qb = this.serialRepository.createQueryBuilder('f').leftJoinAndSelect('f.genres', 'g');
     qb = this.getSearchSerialClause(qb, searchName, searchGenreIds, status || null);
 
-    qb.leftJoin(`f.episodes`, 'e')
-      .addSelect('e.id')
-      .groupBy('f.id, g.id, e.id')
+    qb.leftJoinAndSelect('f.episodes', 'e')
+      .leftJoinAndSelect('e.season', 's')
       .skip(skip)
       .take(take)
-      .orderBy(`f.${sortField}`, sortDirection);
+      .orderBy(`f.${sortField}`, sortDirection)
+      .addOrderBy('s.seasonNumber', 'ASC')
+      .addOrderBy('e.id', 'ASC');
 
     return qb.getMany();
   }

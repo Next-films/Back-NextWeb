@@ -11,6 +11,7 @@ import {
   AdminCinemaFilmsOutputDtoMapper,
 } from '@/admin/api/dtos/output/admin-cinema-films.output.dto';
 import { FilmQueryRepository } from '@/films/infrastructure/film.query-repository';
+import { AdminMediaUrlSigningService } from '@/admin/application/services/admin-media-url-signing.service';
 
 export class AdminGetFilmByIdQuery implements IQuery {
   constructor(public filmId: number) {}
@@ -29,6 +30,7 @@ export class AdminGetFilmByIdQueryHandler
     private readonly logger: LoggerService,
     private readonly filmQueryRepository: FilmQueryRepository,
     private readonly adminCinemaFilmsOutputDtoMapper: AdminCinemaFilmsOutputDtoMapper,
+    private readonly adminMediaUrlSigningService: AdminMediaUrlSigningService,
   ) {
     this.logger.setContext(AdminGetFilmByIdQueryHandler.name);
   }
@@ -48,7 +50,10 @@ export class AdminGetFilmByIdQueryHandler
           errorKey: EXCEPTION_KEYS_ENUM.FILM_NOT_FOUND,
         });
 
-      return this.appNotification.success(this.adminCinemaFilmsOutputDtoMapper.mapMovie(film));
+      const mapped = this.adminCinemaFilmsOutputDtoMapper.mapMovie(film);
+      const signed = await this.adminMediaUrlSigningService.signMovie(mapped);
+
+      return this.appNotification.success(signed);
     } catch (e) {
       this.logger.error(e, this.execute.name);
       return this.appNotification.internalServerError();

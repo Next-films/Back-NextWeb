@@ -1,6 +1,9 @@
 export enum ADMIN_BOT_TEMPLATES_NAME_ENUM {
   WELCOME = 'welcome',
   I_DONT_KNOW_YOU = 'i_dont_know_you',
+  INVITE_ACCOUNT = 'invite_account',
+  INVITE_ACCOUNT_GROUP = 'invite_account_group',
+  LOGIN_LINK = 'login_link',
   UNDEFINED_COMMAND = 'undefined_command',
   UNKNOWN_MESSAGE = 'unknown_message',
   NEW_MOVIE_FOR_MODERATION = 'new_movie_for_moderation',

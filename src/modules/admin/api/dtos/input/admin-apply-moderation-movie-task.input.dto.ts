@@ -17,6 +17,8 @@ import { FILMS_VALIDATION_RULES } from '@/common/constants/validation-rules.cons
 import { Trim } from '@/common/decorators/transform/trim.decorator';
 import { ToArray } from '@/common/decorators/transform/array.decorator';
 
+const URL_VALIDATION_OPTIONS = { require_tld: false };
+
 export class AdminApplyModerationMovieTaskInputDto {
   @ApiProperty({ enum: MovieTypesEnum })
   @IsEnum(MovieTypesEnum)
@@ -124,14 +126,14 @@ export class AdminApplyModerationMovieTaskInputDto {
   @IsOptional()
   @Trim()
   @IsNotEmpty()
-  @IsUrl()
+  @IsUrl(URL_VALIDATION_OPTIONS)
   trailerUrl?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
   @Trim()
   @IsNotEmpty()
-  @IsUrl()
+  @IsUrl(URL_VALIDATION_OPTIONS)
   previewUrl?: string;
 
   @ApiPropertyOptional({
@@ -166,20 +168,20 @@ export class AdminApplyModerationMovieTaskInputDto {
   @IsOptional()
   @Trim()
   @IsNotEmpty()
-  @IsUrl()
+  @IsUrl(URL_VALIDATION_OPTIONS)
   videUrl?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
   @Trim()
   @IsNotEmpty()
-  @IsUrl()
+  @IsUrl(URL_VALIDATION_OPTIONS)
   backgroundContentUrl?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
   @Trim()
   @IsNotEmpty()
-  @IsUrl()
+  @IsUrl(URL_VALIDATION_OPTIONS)
   titleUrl?: string;
 }

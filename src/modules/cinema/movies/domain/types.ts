@@ -6,6 +6,8 @@ export class MovieCreateDto {
   name: string;
   originalName: string | null;
   alternativeName: string | null;
+  universe?: string | null;
+  studio?: string | null;
   country: string[] | null;
   releaseDate: string | null;
   description: string | null;
@@ -32,6 +34,8 @@ export class MovieUpdateDto {
   kpId: string;
   description: string | null;
   genres: Genre[] | null;
+  universe?: string | null;
+  studio?: string | null;
   releaseDate: string | null;
   originalName: string | null;
   alternativeName: string | null;
@@ -48,6 +52,8 @@ export class MovieKpMetadata {
   name: string | null;
   originalName: string | null;
   alternativeName: string | null;
+  universe: string | null;
+  studio: string | null;
   genres: Genre[] | null;
   countries: string[] | null;
   description: string | null;

@@ -13,6 +13,7 @@ import {
 } from '@/admin/api/dtos/output/admin-cinema-serials.output.dto';
 import { SerialQueryRepository } from '@/serials/infrastructure/serial.query-repository';
 import { AdminGetAllSerialsInputQueryDto } from '@/admin/api/dtos/input/admin-get-all-serials.input-query.dto';
+import { AdminMediaUrlSigningService } from '@/admin/application/services/admin-media-url-signing.service';
 
 export class AdminGetAllSerialsQuery implements IQuery {
   constructor(public query: AdminGetAllSerialsInputQueryDto) {}
@@ -35,6 +36,7 @@ export class AdminGetAllSerialsQueryHandler
     private readonly paginationUtil: PaginationUtil,
     private readonly serialQueryRepository: SerialQueryRepository,
     private readonly adminCinemaSerialsOutputDtoMapper: AdminCinemaSerialsOutputDtoMapper,
+    private readonly adminMediaUrlSigningService: AdminMediaUrlSigningService,
   ) {
     this.logger.setContext(AdminGetAllSerialsQueryHandler.name);
   }
@@ -79,13 +81,11 @@ export class AdminGetAllSerialsQueryHandler
         status || null,
       );
 
-      const result = this.paginationUtil.create(
-        totalCount,
-        pagesCount,
-        page,
-        size,
+      const signedSerials = await this.adminMediaUrlSigningService.signMovies(
         serials ? this.adminCinemaSerialsOutputDtoMapper.mapMovies(serials) : [],
       );
+
+      const result = this.paginationUtil.create(totalCount, pagesCount, page, size, signedSerials);
       return this.appNotification.success(result);
     } catch (e) {
       this.logger.error(e, this.execute.name);

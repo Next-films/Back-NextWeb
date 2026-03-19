@@ -37,12 +37,12 @@ export class ModerationFilmRepository {
     if (queryRunner) {
       return queryRunner.manager.findOne(this.moderationFilmEntity.target, {
         where: { id: id },
-        relations: { movie: true, admin: { adminTelegram: true } },
+        relations: { movie: { genres: true }, admin: { adminTelegram: true } },
       });
     }
     return this.moderationFilmEntity.findOne({
       where: { id },
-      relations: { movie: true, admin: { adminTelegram: true } },
+      relations: { movie: { genres: true }, admin: { adminTelegram: true } },
     });
   }
 

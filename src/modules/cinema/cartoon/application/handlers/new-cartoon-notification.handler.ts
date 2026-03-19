@@ -158,6 +158,8 @@ export class NewCartoonNotificationCommandHandler
       originalName: metadata.originalName,
       genres: metadata.genres,
       alternativeName: metadata.alternativeName,
+      universe: metadata.universe,
+      studio: metadata.studio,
       country: metadata.countries,
       description: metadata.description,
       releaseDate: metadata.releaseDate,
@@ -185,6 +187,8 @@ export class NewCartoonNotificationCommandHandler
       hidden: false,
       genres: metadata.genres,
       alternativeName: metadata.alternativeName,
+      universe: metadata.universe,
+      studio: metadata.studio,
       country: metadata.countries,
       description: metadata.description,
       releaseDate: metadata.releaseDate,
@@ -236,7 +240,7 @@ export class NewCartoonNotificationCommandHandler
   }
 
   private publish(moderationId: number): void {
-    this.commandBus.execute(
+    void this.commandBus.execute(
       new TelegramAdminBotSendNotificationNewModerationMovieCommand(
         MovieTypesEnum.CARTOON,
         moderationId,

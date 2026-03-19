@@ -1,7 +1,7 @@
 import { CommandBus, CommandHandler, ICommand, ICommandHandler } from '@nestjs/cqrs';
 import { Inject } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
-import { DataSource, QueryRunner } from 'typeorm';
+import { DataSource, QueryFailedError, QueryRunner } from 'typeorm';
 
 import {
   ApplicationNotification,
@@ -10,7 +10,6 @@ import {
 import { ErrorFieldExceptionDto } from '@/common/exception-filters/http/http-exception.filter';
 import { LoggerService } from '@/common/utils/logger/logger.service';
 import { KinopoiskService } from '@/external-api/kinopoisk/application/kinopoisk.service';
-import { EXCEPTION_KEYS_ENUM } from '@/common/enums/exception-keys.enum';
 import { MoviesService } from '@/movies/application/movies.service';
 import { MovieHandleStatus, MovieKpMetadata } from '@/movies/domain/types';
 import { MovieTypesEnum } from '@/common/types/types';
@@ -71,15 +70,12 @@ export class NewSerialNotificationCommandHandler
         this.serialRepository.getSerialByKinopoiskId(kpId, queryRunner),
       ]);
 
+      // For serials we allow repeated notifications to append missing episodes/new seasons.
       if (this.moviesService.isFilmInProductionOrModerate(existingSerial)) {
-        this.logger.warn('Serial already exist', this.execute.name);
-
-        await queryRunner.rollbackTransaction();
-        return this.appNotification.badRequest({
-          errorKey: EXCEPTION_KEYS_ENUM.SERIAL_ALREADY_EXIST,
-          message: 'Serial already exist',
-          field: 'kpId',
-        });
+        this.logger.log(
+          `Serial already exists (kpId: ${kpId}), continue in append mode`,
+          this.execute.name,
+        );
       }
 
       const metadata = await this.moviesService.extractMovieMetadata(kpMovie, queryRunner);
@@ -111,11 +107,19 @@ export class NewSerialNotificationCommandHandler
         await this.serialRepository.save(serial, queryRunner);
       }
 
+      // New serials must pass admin moderation before becoming publicly available.
+      if (!existingSerial && serial.handleStatus === MovieHandleStatus.PRODUCTION) {
+        serial.updateHandleStatus(MovieHandleStatus.MODERATE);
+        await this.serialRepository.save(serial, queryRunner);
+      }
+
       if (serial.handleStatus === MovieHandleStatus.MODERATE) {
         this.logger.log('Serial sent to moderation', this.execute.name);
         const moderationResult = await this.movieModeration(serial, queryRunner);
 
-        this.publish(moderationResult);
+        if (moderationResult.isNew) {
+          this.publish(moderationResult.id);
+        }
       }
 
       await queryRunner.commitTransaction();
@@ -138,6 +142,7 @@ export class NewSerialNotificationCommandHandler
   ): void {
     const previewUrl = serial.previewUrl || serial.backgroundContentUrl || serial.titleUrl || key;
     const releaseDate = serial.releaseDate ? new Date(serial.releaseDate) : new Date();
+    const normalizedDuration = this.normalizeDuration(duration);
 
     if (!serial.episodes) {
       serial.episodes = [];
@@ -146,8 +151,13 @@ export class NewSerialNotificationCommandHandler
       serial.seasons = [];
     }
 
-    const alreadyExists = serial.episodes.some(e => e.videoUrl === key);
-    if (alreadyExists) return;
+    const existingEpisode = serial.episodes.find(e => e.videoUrl === key);
+    if (existingEpisode) {
+      if ((existingEpisode.duration ?? 0) <= 0 && normalizedDuration > 0) {
+        existingEpisode.duration = normalizedDuration;
+      }
+      return;
+    }
 
     const season = this.getOrCreateSeason(serial, seasonNumber || 1);
     if (!season.episodes) season.episodes = [];
@@ -161,7 +171,7 @@ export class NewSerialNotificationCommandHandler
       previewUrl,
       releaseDate,
       videoUrl: key,
-      duration,
+      duration: normalizedDuration,
       season,
       seasonId: season.id || null,
     };
@@ -216,6 +226,8 @@ export class NewSerialNotificationCommandHandler
       originalName: metadata.originalName,
       genres: metadata.genres,
       alternativeName: metadata.alternativeName,
+      universe: metadata.universe,
+      studio: metadata.studio,
       country: metadata.countries,
       description: metadata.description,
       releaseDate: metadata.releaseDate,
@@ -243,6 +255,8 @@ export class NewSerialNotificationCommandHandler
       hidden: false,
       genres: metadata.genres,
       alternativeName: metadata.alternativeName,
+      universe: metadata.universe,
+      studio: metadata.studio,
       country: metadata.countries,
       description: metadata.description,
       releaseDate: metadata.releaseDate,
@@ -255,8 +269,21 @@ export class NewSerialNotificationCommandHandler
     return this.serialEntity.create(serialDto);
   }
 
-  private async movieModeration(serial: Serial, queryRunner: QueryRunner): Promise<number> {
+  private async movieModeration(
+    serial: Serial,
+    queryRunner: QueryRunner,
+  ): Promise<{ id: number; isNew: boolean }> {
     const { id } = serial;
+
+    const existingModeration = await this.moderationSerialRepository.getModerationByMovieId(
+      id,
+      queryRunner,
+    );
+
+    if (existingModeration) {
+      return { id: existingModeration.id, isNew: false };
+    }
+
     const createModerationDto: CreateModerationDto = {
       movieId: id,
     };
@@ -264,11 +291,47 @@ export class NewSerialNotificationCommandHandler
     const newModeration =
       this.moderationSerialEntity.create<ModerationSerialEntity>(createModerationDto);
 
-    const moderationResult = await this.moderationSerialRepository.save(newModeration, queryRunner);
+    let moderationResult: ModerationSerialEntity;
+    try {
+      moderationResult = await this.moderationSerialRepository.save(newModeration, queryRunner);
+    } catch (error) {
+      if (!this.isDuplicateModerationMovieIdError(error)) {
+        throw error;
+      }
+
+      const concurrentModeration = await this.moderationSerialRepository.getModerationByMovieId(
+        id,
+        queryRunner,
+      );
+
+      if (!concurrentModeration) {
+        throw error;
+      }
+
+      return { id: concurrentModeration.id, isNew: false };
+    }
 
     const { id: moderationId } = moderationResult;
 
-    return moderationId;
+    return { id: moderationId, isNew: true };
+  }
+
+  private isDuplicateModerationMovieIdError(error: unknown): boolean {
+    if (!(error instanceof QueryFailedError)) return false;
+
+    const pgCode = (error as QueryFailedError & { code?: string }).code;
+    if (pgCode === '23505') return true;
+
+    const message = (error as Error).message || '';
+    return message.includes('duplicate key value') && message.includes('movieId');
+  }
+
+  private normalizeDuration(duration: number | null | undefined): number {
+    if (typeof duration !== 'number' || !Number.isFinite(duration) || duration <= 0) {
+      return 0;
+    }
+
+    return Math.round(duration);
   }
 
   private async getContentUrlForNewSerial(
@@ -291,7 +354,7 @@ export class NewSerialNotificationCommandHandler
   }
 
   private publish(moderationId: number): void {
-    this.commandBus.execute(
+    void this.commandBus.execute(
       new TelegramAdminBotSendNotificationNewModerationMovieCommand(
         MovieTypesEnum.SERIAL,
         moderationId,
