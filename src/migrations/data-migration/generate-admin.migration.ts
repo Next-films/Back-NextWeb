@@ -127,6 +127,13 @@ export class GenerateAdminMigration implements OnModuleInit {
       if (admin.adminTelegram) {
         admin.adminTelegram.telegramId = GenerateAdminMigration.OWNER_TG_ID;
         admin.adminTelegram.username = ADMIN_TG_USERNAME || admin.adminTelegram.username;
+      } else {
+        await queryRunner.manager.save(this.adminTgRepository.target, {
+          adminId: admin.id,
+          telegramId: GenerateAdminMigration.OWNER_TG_ID,
+          username: ADMIN_TG_USERNAME || null,
+          createdAt: new Date(),
+        });
       }
 
       await queryRunner.manager.save(this.adminRepository.target, admin);

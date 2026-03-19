@@ -112,8 +112,14 @@ export class TelegramAdminBotStartCommandHandler
       .map(url => url.trim())
       .filter(Boolean);
 
+    const explicitAdminDomain = friendUrls.find(url =>
+      /(^|\/\/)web\.admin\.next-films\.ru(?=[:/]|$)/i.test(url),
+    );
+
     const preferredAdminUrl =
-      friendUrls.find(url => /(:3002|web-admin|web\.admin|admin)/i.test(url)) ?? friendUrls[0];
+      explicitAdminDomain ??
+      friendUrls.find(url => /(:3002|web-admin|web\.admin|admin)/i.test(url)) ??
+      friendUrls[0];
 
     const fallbackBase = 'http://127.0.0.1:3002';
     const adminBaseRaw = preferredAdminUrl || fallbackBase;
