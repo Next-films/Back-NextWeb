@@ -121,9 +121,9 @@ export class TelegramAdminBotStartCommandHandler
       friendUrls.find(url => /(:3002|web-admin|web\.admin|admin)/i.test(url)) ??
       friendUrls[0];
 
-    const fallbackBase = 'http://127.0.0.1:3002';
+    const fallbackBase = 'https://web.admin.next-films.ru';
     const adminBaseRaw = preferredAdminUrl || fallbackBase;
-    const adminBase = adminBaseRaw.replace('://localhost', '://127.0.0.1');
+    const adminBase = adminBaseRaw;
 
     const baseWithProtocol = /^https?:\/\//i.test(adminBase) ? adminBase : `https://${adminBase}`;
 
