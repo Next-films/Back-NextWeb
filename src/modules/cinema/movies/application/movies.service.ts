@@ -9,7 +9,10 @@ import { DateUtil } from '@/common/utils/date.util';
 import { MovieTypesEnum } from '@/common/types/types';
 import { DownloaderServiceAdapter } from '@/common/infrastructure/rmq/downloader-service.adapter';
 import { RmqResultHandlerUtil } from '@/common/utils/rmq-result-handler.util';
-import { AppNotificationResultEnum } from '@/common/utils/app-notification.util';
+import {
+  AppNotificationResult,
+  AppNotificationResultEnum,
+} from '@/common/utils/app-notification.util';
 
 const UNIVERSE_STUDIO_KEYWORDS = [
   {
@@ -269,7 +272,7 @@ export class MoviesService {
 
   private async callDownloaderOrNull<T>(
     input: string | Express.Multer.File | null,
-    action: () => Promise<{ appResult: AppNotificationResultEnum; data?: T | null }>,
+    action: () => Promise<AppNotificationResult<T, any>>,
     scope: string,
   ): Promise<T | null> {
     if (!input) return null;
