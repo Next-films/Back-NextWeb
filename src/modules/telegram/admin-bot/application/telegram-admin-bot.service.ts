@@ -178,7 +178,7 @@ export class TelegramAdminBotService implements OnModuleInit {
     return String(error);
   }
 
-  async onModuleInit(): Promise<void> {
+  private async initTelegramBot(): Promise<void> {
     this.logger.log('Bot service init.', this.onModuleInit.name);
     try {
       const bot = await this.bot.getMe();
@@ -228,6 +228,11 @@ export class TelegramAdminBotService implements OnModuleInit {
       this.systemConnectionsStatusService.markTelegramDisconnected(error);
       this.logger.error(error, this.onModuleInit.name);
     }
+  }
+
+  onModuleInit(): void {
+    // Do not block Nest app bootstrap by external Telegram API availability.
+    void this.initTelegramBot();
   }
 
   async sendTextMessage(chatId: number, message: string): Promise<void> {
@@ -298,10 +303,9 @@ export class TelegramAdminBotServiceMock extends TelegramAdminBotService {
 
     this.logger.setContext(TelegramAdminBotServiceMock.name);
   }
-  async onModuleInit(): Promise<void> {
+  onModuleInit(): void {
     this.logger.log('Telegram admin bot service module init (mock).', this.onModuleInit.name);
     this.systemConnectionsStatusService.markTelegramConnected();
-    await new Promise(res => res('OK'));
   }
 
   async sendTextMessage(chatId: number, message: string): Promise<void> {
