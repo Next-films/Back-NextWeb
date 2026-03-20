@@ -27,6 +27,10 @@ import { SystemConnectionsStatusService } from '@/common/services/system-connect
 @Injectable()
 export class TelegramAdminBotService implements OnModuleInit {
   private readonly main_telegram_group_chat_id: string;
+  private readonly initRetryDelayMs = 10_000;
+  private initRetryTimer: NodeJS.Timeout | null = null;
+  private isInitializing = false;
+  private handlersBound = false;
   constructor(
     @Inject(TELEGRAM_ADMIN_BOT) private readonly bot: TelegramBot,
     protected readonly logger: LoggerService,
@@ -178,55 +182,95 @@ export class TelegramAdminBotService implements OnModuleInit {
     return String(error);
   }
 
+  private clearInitRetryTimer(): void {
+    if (!this.initRetryTimer) return;
+
+    clearTimeout(this.initRetryTimer);
+    this.initRetryTimer = null;
+  }
+
+  private scheduleInitRetry(reason: string): void {
+    if (this.initRetryTimer) return;
+
+    this.logger.warn(
+      `Telegram bot init retry scheduled in ${this.initRetryDelayMs}ms. Reason: ${reason}`,
+      this.onModuleInit.name,
+    );
+    this.initRetryTimer = setTimeout(() => {
+      this.initRetryTimer = null;
+      void this.initTelegramBot();
+    }, this.initRetryDelayMs);
+  }
+
+  private bindBotHandlers(): void {
+    if (this.handlersBound) return;
+
+    this.bot.on('message', (msg: TelegramBot.Message): void => {
+      this.systemConnectionsStatusService.markTelegramConnected();
+      this.asyncLocalStorageService.start(() => {
+        void (async () => {
+          const store = this.asyncLocalStorageService.getStore();
+          const text = msg.text?.trim();
+
+          const isMainGroup = this.isMainGroup(msg);
+          if (isMainGroup) return;
+
+          store?.set(REQUEST_ID_KEY, this.generateRequestId());
+
+          const isCommand = !!text && text.startsWith('/');
+          const isStartCommand =
+            !!text &&
+            (text === BOT_COMMANDS_INFO.START.COMMAND ||
+              text.startsWith(`${BOT_COMMANDS_INFO.START.COMMAND} `));
+
+          if (!isStartCommand) {
+            const isAuth = await this.auth(msg);
+            if (!isAuth) return;
+          }
+
+          await (isCommand ? this.handleCommand(msg) : this.handleText(msg));
+        })();
+      });
+    });
+
+    this.bot.on('polling_error', (error: unknown): void => {
+      this.systemConnectionsStatusService.markTelegramDisconnected(error);
+      this.logger.error(
+        `Telegram polling error: ${this.formatPollingError(error)}`,
+        this.onModuleInit.name,
+      );
+      void this.bot.stopPolling().catch(stopError => {
+        this.logger.error(
+          `Telegram stopPolling failed: ${this.formatPollingError(stopError)}`,
+          this.onModuleInit.name,
+        );
+      });
+      this.scheduleInitRetry('polling_error');
+    });
+
+    this.handlersBound = true;
+  }
+
   private async initTelegramBot(): Promise<void> {
+    if (this.isInitializing) return;
+    this.isInitializing = true;
     this.logger.log('Bot service init.', this.onModuleInit.name);
     try {
       const bot = await this.bot.getMe();
 
       this.logger.log(`Bot info: ${JSON.stringify(bot)}`, this.onModuleInit.name);
       await this.setBotCommand();
-
-      this.bot.on('message', (msg: TelegramBot.Message): void => {
-        this.systemConnectionsStatusService.markTelegramConnected();
-        this.asyncLocalStorageService.start(() => {
-          void (async () => {
-            const store = this.asyncLocalStorageService.getStore();
-            const text = msg.text?.trim();
-
-            const isMainGroup = this.isMainGroup(msg);
-            if (isMainGroup) return;
-
-            store?.set(REQUEST_ID_KEY, this.generateRequestId());
-
-            const isCommand = !!text && text.startsWith('/');
-            const isStartCommand =
-              !!text &&
-              (text === BOT_COMMANDS_INFO.START.COMMAND ||
-                text.startsWith(`${BOT_COMMANDS_INFO.START.COMMAND} `));
-
-            if (!isStartCommand) {
-              const isAuth = await this.auth(msg);
-              if (!isAuth) return;
-            }
-
-            await (isCommand ? this.handleCommand(msg) : this.handleText(msg));
-          })();
-        });
-      });
-
-      this.bot.on('polling_error', (error: unknown): void => {
-        this.systemConnectionsStatusService.markTelegramDisconnected(error);
-        this.logger.error(
-          `Telegram polling error: ${this.formatPollingError(error)}`,
-          this.onModuleInit.name,
-        );
-      });
+      this.bindBotHandlers();
 
       void this.bot.startPolling();
       this.systemConnectionsStatusService.markTelegramConnected();
+      this.clearInitRetryTimer();
     } catch (error) {
       this.systemConnectionsStatusService.markTelegramDisconnected(error);
       this.logger.error(error, this.onModuleInit.name);
+      this.scheduleInitRetry(this.formatPollingError(error));
+    } finally {
+      this.isInitializing = false;
     }
   }
 
