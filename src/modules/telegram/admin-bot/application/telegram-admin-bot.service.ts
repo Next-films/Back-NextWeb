@@ -151,6 +151,33 @@ export class TelegramAdminBotService implements OnModuleInit {
     }
   }
 
+  private formatPollingError(error: unknown): string {
+    if (error instanceof Error) {
+      const errorWithCode = error as Error & { code?: string | number };
+      return JSON.stringify({
+        name: error.name,
+        message: error.message,
+        code: errorWithCode.code ?? null,
+      });
+    }
+
+    if (typeof error === 'object' && error !== null) {
+      const raw = error as {
+        code?: string | number;
+        message?: string;
+        response?: { body?: unknown };
+      };
+
+      return JSON.stringify({
+        code: raw.code ?? null,
+        message: raw.message ?? null,
+        responseBody: raw.response?.body ?? null,
+      });
+    }
+
+    return String(error);
+  }
+
   async onModuleInit(): Promise<void> {
     this.logger.log('Bot service init.', this.onModuleInit.name);
     try {
@@ -189,6 +216,10 @@ export class TelegramAdminBotService implements OnModuleInit {
 
       this.bot.on('polling_error', (error: unknown): void => {
         this.systemConnectionsStatusService.markTelegramDisconnected(error);
+        this.logger.error(
+          `Telegram polling error: ${this.formatPollingError(error)}`,
+          this.onModuleInit.name,
+        );
       });
 
       void this.bot.startPolling();
