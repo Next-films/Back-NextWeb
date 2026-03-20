@@ -82,11 +82,16 @@ jobs:
             -p 4000:4000 \
             nextfilms/cinema-app:dev
 
-          rm -f /tmp/back-health.txt
+          rm -f /tmp/back-health.txt /tmp/back-health.err
           HEALTH_CODE="000"
 
           for i in \$(seq 1 20); do
-            HEALTH_CODE=\$(curl -sS -o /tmp/back-health.txt -w "%{http_code}" "http://127.0.0.1:4000/api/admin/auth/me" || echo "000")
+            HEALTH_CODE=\$(curl -sS --connect-timeout 2 --max-time 5 \
+              -o /tmp/back-health.txt \
+              -w "%{http_code}" \
+              "http://127.0.0.1:4000/api/admin/auth/me" \
+              2>/tmp/back-health.err || true)
+            [ -n "\$HEALTH_CODE" ] || HEALTH_CODE="000"
             if [ "\$HEALTH_CODE" = "401" ] || [ "\$HEALTH_CODE" = "200" ]; then
               break
             fi
@@ -95,7 +100,12 @@ jobs:
 
           if [ "\$HEALTH_CODE" != "401" ] && [ "\$HEALTH_CODE" != "200" ]; then
             echo "Back-NextWeb health check failed. HTTP \$HEALTH_CODE"
-            cat /tmp/back-health.txt || true
+            if [ -s /tmp/back-health.txt ]; then
+              cat /tmp/back-health.txt
+            fi
+            if [ -s /tmp/back-health.err ]; then
+              cat /tmp/back-health.err
+            fi
             docker logs --tail=120 back-nextweb || true
             exit 1
           fi
