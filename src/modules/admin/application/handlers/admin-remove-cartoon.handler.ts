@@ -31,6 +31,45 @@ export class AdminRemoveCartoonCommandHandler
   ) {
     this.logger.setContext(AdminRemoveCartoonCommandHandler.name);
   }
+
+  private extractStorageKey(url: string | null | undefined): string | null {
+    if (!url || typeof url !== 'string') return null;
+
+    const value = url.trim();
+
+    if (!value) return null;
+
+    try {
+      const parsed = new URL(value);
+      const key = parsed.pathname.replace(/^\/+/, '');
+
+      return key || null;
+    } catch {
+      const key = value
+        .replace(/^https?:\/\/[^/]+\//, '')
+        .split('?')[0]
+        .replace(/^\/+/, '');
+
+      return key || null;
+    }
+  }
+
+  private async removeMediaByUrls(
+    urls: Array<string | null | undefined>,
+    scope: string,
+  ): Promise<void> {
+    const keys = Array.from(
+      new Set(urls.map(url => this.extractStorageKey(url)).filter((key): key is string => !!key)),
+    );
+
+    for (const key of keys) {
+      await this.rmqResultHandlerUtil.getRmqData(
+        () => this.downloaderServiceAdapter.removeMovie(key),
+        scope,
+      );
+    }
+  }
+
   async execute(
     command: AdminRemoveCartoonCommand,
   ): Promise<AppNotificationResult<null, ErrorFieldExceptionDto | null>> {
@@ -46,15 +85,10 @@ export class AdminRemoveCartoonCommandHandler
           errorKey: EXCEPTION_KEYS_ENUM.CARTOON_NOT_FOUND,
         });
 
-      const { videoUrl } = cartoon;
-
-      if (videoUrl) {
-        const key = videoUrl.replace(/^https?:\/\/[^/]+\//, '');
-        await this.rmqResultHandlerUtil.getRmqData(
-          () => this.downloaderServiceAdapter.removeMovie(key),
-          'Remove cartoon',
-        );
-      }
+      await this.removeMediaByUrls(
+        [cartoon.videoUrl, cartoon.previewUrl, cartoon.backgroundContentUrl, cartoon.titleUrl],
+        'Remove cartoon media',
+      );
 
       await this.cartoonRepository.remove(cartoon);
 

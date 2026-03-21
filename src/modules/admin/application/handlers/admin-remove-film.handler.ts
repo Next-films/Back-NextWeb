@@ -31,6 +31,45 @@ export class AdminRemoveFilmCommandHandler
   ) {
     this.logger.setContext(AdminRemoveFilmCommandHandler.name);
   }
+
+  private extractStorageKey(url: string | null | undefined): string | null {
+    if (!url || typeof url !== 'string') return null;
+
+    const value = url.trim();
+
+    if (!value) return null;
+
+    try {
+      const parsed = new URL(value);
+      const key = parsed.pathname.replace(/^\/+/, '');
+
+      return key || null;
+    } catch {
+      const key = value
+        .replace(/^https?:\/\/[^/]+\//, '')
+        .split('?')[0]
+        .replace(/^\/+/, '');
+
+      return key || null;
+    }
+  }
+
+  private async removeMediaByUrls(
+    urls: Array<string | null | undefined>,
+    scope: string,
+  ): Promise<void> {
+    const keys = Array.from(
+      new Set(urls.map(url => this.extractStorageKey(url)).filter((key): key is string => !!key)),
+    );
+
+    for (const key of keys) {
+      await this.rmqResultHandlerUtil.getRmqData(
+        () => this.downloaderServiceAdapter.removeMovie(key),
+        scope,
+      );
+    }
+  }
+
   async execute(
     command: AdminRemoveFilmCommand,
   ): Promise<AppNotificationResult<null, ErrorFieldExceptionDto | null>> {
@@ -46,15 +85,10 @@ export class AdminRemoveFilmCommandHandler
           errorKey: EXCEPTION_KEYS_ENUM.FILM_NOT_FOUND,
         });
 
-      const { videoUrl } = film;
-
-      if (videoUrl) {
-        const key = videoUrl.replace(/^https?:\/\/[^/]+\//, '');
-        await this.rmqResultHandlerUtil.getRmqData(
-          () => this.downloaderServiceAdapter.removeMovie(key),
-          'Remove film',
-        );
-      }
+      await this.removeMediaByUrls(
+        [film.videoUrl, film.previewUrl, film.backgroundContentUrl, film.titleUrl],
+        'Remove film media',
+      );
 
       await this.filmRepository.remove(film);
 
