@@ -1,291 +1,90 @@
-import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
-import { randomUUID } from 'node:crypto';
-import { TELEGRAM_ADMIN_BOT } from '@/common/constants/telegram-providers.constants';
-import * as TelegramBot from 'node-telegram-bot-api';
-import { LoggerService } from '@/common/utils/logger/logger.service';
-import { CommandBus } from '@nestjs/cqrs';
-import { AsyncLocalStorageService } from '@/common/utils/logger/als.service';
-import { TelegramAdminBotTemplatesService } from '@/telegram/admin-bot/application/telegram-admin-bot-templates.service';
-import { AuthAdminTgUserCommand } from '@/telegram/admin-bot/application/guards/auth-tg-user.guard';
-import { ErrorFieldExceptionDto } from '@/common/exception-filters/http/http-exception.filter';
-import {
-  AppNotificationResult,
-  AppNotificationResultEnum,
-} from '@/common/utils/app-notification.util';
-import { BotCommandsDto, BotSendMessagePayloadDto } from '@/telegram/admin-bot/domain/types';
-import { ADMIN_BOT_TEMPLATES_NAME_ENUM } from '@/telegram/admin-bot/domain/templates-name.enum';
-import {
-  ADMIN_TG_BOT_COMMAND,
-  BOT_COMMANDS_INFO,
-} from '@/common/constants/telegram-bot-commands.constants';
-import { REQUEST_ID_KEY } from '@/common/utils/logger/request-context.middleware';
+import { Injectable, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { BotSendMessagePayloadDto } from '@/telegram/admin-bot/domain/types';
+import { LoggerService } from '@/common/utils/logger/logger.service';
 import { ConfigurationType } from '@/settings/configuration';
 import { MovieTypesEnum } from '@/common/types/types';
 import { SystemConnectionsStatusService } from '@/common/services/system-connections-status.service';
 
 @Injectable()
 export class TelegramAdminBotService implements OnModuleInit {
-  private readonly main_telegram_group_chat_id: string;
-  private readonly initRetryDelayMs = 10_000;
-  private initRetryTimer: NodeJS.Timeout | null = null;
-  private isInitializing = false;
-  private handlersBound = false;
+  private readonly gatewayUrl: string;
+  private readonly gatewayToken: string;
+
   constructor(
-    @Inject(TELEGRAM_ADMIN_BOT) private readonly bot: TelegramBot,
     protected readonly logger: LoggerService,
-    private readonly commandBus: CommandBus,
-    private readonly templatesService: TelegramAdminBotTemplatesService,
-    private readonly asyncLocalStorageService: AsyncLocalStorageService,
     private readonly configService: ConfigService<ConfigurationType, true>,
     protected readonly systemConnectionsStatusService: SystemConnectionsStatusService,
   ) {
     this.logger.setContext(TelegramAdminBotService.name);
 
     const apiSettings = this.configService.get('apiSettings', { infer: true });
-    this.main_telegram_group_chat_id = apiSettings.MAIN_TELEGRAM_GROUP_CHAT_ID;
-  }
-
-  private isMainGroup(msg: TelegramBot.Message): boolean {
-    const chatId = String(msg.chat.id);
-
-    return chatId === this.main_telegram_group_chat_id;
-  }
-
-  private generateRequestId(): string {
-    return `telegram-admin-bot-${Date.now()}-${randomUUID()}`;
-  }
-
-  private async auth(msg: TelegramBot.Message): Promise<boolean> {
-    this.logger.log('Auth tg user', this.auth.name);
-
-    const result = await this.commandBus.execute<
-      AuthAdminTgUserCommand,
-      AppNotificationResult<null, ErrorFieldExceptionDto | null>
-    >(new AuthAdminTgUserCommand(msg));
-
-    this.logger.log(result.appResult, this.auth.name);
-
-    if (result.appResult !== AppNotificationResultEnum.Success) {
-      const chatId = msg.from?.id;
-
-      if (chatId) {
-        const payload: BotSendMessagePayloadDto = {
-          chatId: chatId,
-          template: ADMIN_BOT_TEMPLATES_NAME_ENUM.I_DONT_KNOW_YOU,
-        };
-
-        await this.sendHtmlMessage(payload);
-      }
-
-      return false;
-    }
-
-    return true;
-  }
-
-  private async handleCommand(msg: TelegramBot.Message): Promise<void> {
-    this.logger.log('Handle command', this.handleCommand.name);
-    const text = msg.text?.trim() ?? '';
-    const isStartCommand =
-      text === BOT_COMMANDS_INFO.START.COMMAND ||
-      text.startsWith(`${BOT_COMMANDS_INFO.START.COMMAND} `);
-    const commandKey = isStartCommand ? BOT_COMMANDS_INFO.START.COMMAND : text;
-    const Command = ADMIN_TG_BOT_COMMAND[commandKey];
-    const chatId = msg.from?.id;
-
-    if (!chatId) {
-      this.logger.debug(`Undefined chat id: ${chatId}`, this.handleCommand.name);
-
-      return;
-    }
-
-    if (!Command) {
-      this.logger.debug(`Undefined command: ${commandKey}`, this.handleCommand.name);
-      await this.sendHtmlMessage({
-        chatId,
-        template: ADMIN_BOT_TEMPLATES_NAME_ENUM.UNDEFINED_COMMAND,
-      });
-
-      return;
-    }
-
-    const payload: BotCommandsDto = {
-      tgMessage: msg,
-    };
-
-    await this.commandBus.execute(new Command(payload));
-  }
-
-  private async handleText(msg: TelegramBot.Message): Promise<void> {
-    this.logger.log('Handle text', this.handleText.name);
-    const chatId = msg.from?.id;
-
-    if (!chatId) {
-      this.logger.debug(`Undefined chat id: ${chatId}`, this.handleCommand.name);
-
-      return;
-    }
-
-    await this.sendHtmlMessage({ chatId, template: ADMIN_BOT_TEMPLATES_NAME_ENUM.UNKNOWN_MESSAGE });
-  }
-
-  private async setBotCommand(): Promise<void> {
-    const commands = Object.values(BOT_COMMANDS_INFO);
-    const botCommands: TelegramBot.BotCommand[] = [];
-
-    for (const command of commands) {
-      const { COMMAND, DESCRIPTION } = command;
-
-      if (COMMAND !== BOT_COMMANDS_INFO.START.COMMAND) {
-        botCommands.push({
-          command: COMMAND,
-          description: DESCRIPTION,
-        });
-      }
-    }
-
-    if (botCommands.length > 0) {
-      await this.bot.setMyCommands(botCommands);
-
-      this.logger.log(
-        `Added commands for telegram bot: ${JSON.stringify(botCommands)}`,
-        this.setBotCommand.name,
-      );
-    }
-  }
-
-  private formatPollingError(error: unknown): string {
-    if (error instanceof Error) {
-      const errorWithCode = error as Error & { code?: string | number };
-      return JSON.stringify({
-        name: error.name,
-        message: error.message,
-        code: errorWithCode.code ?? null,
-      });
-    }
-
-    if (typeof error === 'object' && error !== null) {
-      const raw = error as {
-        code?: string | number;
-        message?: string;
-        response?: { body?: unknown };
-      };
-
-      return JSON.stringify({
-        code: raw.code ?? null,
-        message: raw.message ?? null,
-        responseBody: raw.response?.body ?? null,
-      });
-    }
-
-    return String(error);
-  }
-
-  private clearInitRetryTimer(): void {
-    if (!this.initRetryTimer) return;
-
-    clearTimeout(this.initRetryTimer);
-    this.initRetryTimer = null;
-  }
-
-  private scheduleInitRetry(reason: string): void {
-    if (this.initRetryTimer) return;
-
-    this.logger.warn(
-      `Telegram bot init retry scheduled in ${this.initRetryDelayMs}ms. Reason: ${reason}`,
-      this.onModuleInit.name,
-    );
-    this.initRetryTimer = setTimeout(() => {
-      this.initRetryTimer = null;
-      void this.initTelegramBot();
-    }, this.initRetryDelayMs);
-  }
-
-  private bindBotHandlers(): void {
-    if (this.handlersBound) return;
-
-    this.bot.on('message', (msg: TelegramBot.Message): void => {
-      this.systemConnectionsStatusService.markTelegramConnected();
-      this.asyncLocalStorageService.start(() => {
-        void (async () => {
-          const store = this.asyncLocalStorageService.getStore();
-          const text = msg.text?.trim();
-
-          const isMainGroup = this.isMainGroup(msg);
-          if (isMainGroup) return;
-
-          store?.set(REQUEST_ID_KEY, this.generateRequestId());
-
-          const isCommand = !!text && text.startsWith('/');
-          const isStartCommand =
-            !!text &&
-            (text === BOT_COMMANDS_INFO.START.COMMAND ||
-              text.startsWith(`${BOT_COMMANDS_INFO.START.COMMAND} `));
-
-          if (!isStartCommand) {
-            const isAuth = await this.auth(msg);
-            if (!isAuth) return;
-          }
-
-          await (isCommand ? this.handleCommand(msg) : this.handleText(msg));
-        })();
-      });
-    });
-
-    this.bot.on('polling_error', (error: unknown): void => {
-      this.systemConnectionsStatusService.markTelegramDisconnected(error);
-      this.logger.error(
-        `Telegram polling error: ${this.formatPollingError(error)}`,
-        this.onModuleInit.name,
-      );
-      void this.bot.stopPolling().catch(stopError => {
-        this.logger.error(
-          `Telegram stopPolling failed: ${this.formatPollingError(stopError)}`,
-          this.onModuleInit.name,
-        );
-      });
-      this.scheduleInitRetry('polling_error');
-    });
-
-    this.handlersBound = true;
-  }
-
-  private async initTelegramBot(): Promise<void> {
-    if (this.isInitializing) return;
-    this.isInitializing = true;
-    this.logger.log('Bot service init.', this.onModuleInit.name);
-    try {
-      const bot = await this.bot.getMe();
-
-      this.logger.log(`Bot info: ${JSON.stringify(bot)}`, this.onModuleInit.name);
-      await this.setBotCommand();
-      this.bindBotHandlers();
-
-      void this.bot.startPolling();
-      this.systemConnectionsStatusService.markTelegramConnected();
-      this.clearInitRetryTimer();
-    } catch (error) {
-      this.systemConnectionsStatusService.markTelegramDisconnected(error);
-      this.logger.error(error, this.onModuleInit.name);
-      this.scheduleInitRetry(this.formatPollingError(error));
-    } finally {
-      this.isInitializing = false;
-    }
+    this.gatewayUrl = (apiSettings.TELEGRAM_GATEWAY_URL || '').trim().replace(/\/+$/, '');
+    this.gatewayToken = (apiSettings.TELEGRAM_GATEWAY_TOKEN || '').trim();
   }
 
   onModuleInit(): void {
-    // Do not block Nest app bootstrap by external Telegram API availability.
-    void this.initTelegramBot();
+    if (!this.gatewayUrl || !this.gatewayToken) {
+      this.systemConnectionsStatusService.markTelegramDisconnected(
+        'Telegram gateway is not configured',
+      );
+      this.logger.warn(
+        'Telegram gateway disabled: TELEGRAM_GATEWAY_URL or TELEGRAM_GATEWAY_TOKEN is empty',
+        this.onModuleInit.name,
+      );
+      return;
+    }
+
+    this.systemConnectionsStatusService.markTelegramConnected();
+    this.logger.log(`Telegram gateway configured: ${this.gatewayUrl}`, this.onModuleInit.name);
+  }
+
+  private async sendToGateway(payload: {
+    chatId: number | string;
+    message?: string;
+    template?: string;
+    data?: object;
+    parseMode?: 'HTML';
+    threadId?: number;
+  }): Promise<void> {
+    if (!this.gatewayUrl || !this.gatewayToken) {
+      this.logger.warn('Skip telegram send: gateway is not configured', this.sendToGateway.name);
+      return;
+    }
+
+    try {
+      const response = await fetch(`${this.gatewayUrl}/internal/send`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${this.gatewayToken}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const body = await response.text();
+        this.systemConnectionsStatusService.markTelegramDisconnected(
+          `Gateway send failed: ${response.status} ${body}`,
+        );
+        this.logger.error(
+          `Telegram gateway send failed. status=${response.status}, body=${body}`,
+          this.sendToGateway.name,
+        );
+        return;
+      }
+
+      this.systemConnectionsStatusService.markTelegramConnected();
+    } catch (error) {
+      this.systemConnectionsStatusService.markTelegramDisconnected(error);
+      this.logger.error(error, this.sendToGateway.name);
+    }
   }
 
   async sendTextMessage(chatId: number, message: string): Promise<void> {
     this.logger.log('Send text message', this.sendTextMessage.name);
-    try {
-      await this.bot.sendMessage(chatId, message);
-    } catch (error) {
-      this.logger.error(error, this.sendTextMessage.name);
-    }
+
+    await this.sendToGateway({ chatId, message });
   }
 
   async sendHtmlMessage(payload: BotSendMessagePayloadDto, data?: object): Promise<void> {
@@ -293,16 +92,12 @@ export class TelegramAdminBotService implements OnModuleInit {
     const { template: templateName, chatId, threadId } = payload;
 
     try {
-      const template = this.templatesService.getTemplateHTML(templateName, data);
-
-      if (!template) {
-        this.logger.debug('Template not found', this.sendHtmlMessage.name);
-
-        return;
-      }
-      await this.bot.sendMessage(chatId, template, {
-        parse_mode: 'HTML',
-        ...(threadId ? { message_thread_id: threadId } : {}),
+      await this.sendToGateway({
+        chatId,
+        threadId,
+        template: templateName,
+        ...(data ? { data } : {}),
+        parseMode: 'HTML',
       });
     } catch (error) {
       this.logger.error(error, this.sendHtmlMessage.name);
@@ -327,26 +122,15 @@ export class TelegramAdminBotService implements OnModuleInit {
 @Injectable()
 export class TelegramAdminBotServiceMock extends TelegramAdminBotService {
   constructor(
-    bot: TelegramBot,
     logger: LoggerService,
-    commandBus: CommandBus,
-    templatesService: TelegramAdminBotTemplatesService,
-    asyncLocalStorageService: AsyncLocalStorageService,
     configService: ConfigService<ConfigurationType, true>,
     systemConnectionsStatusService: SystemConnectionsStatusService,
   ) {
-    super(
-      bot,
-      logger,
-      commandBus,
-      templatesService,
-      asyncLocalStorageService,
-      configService,
-      systemConnectionsStatusService,
-    );
+    super(logger, configService, systemConnectionsStatusService);
 
     this.logger.setContext(TelegramAdminBotServiceMock.name);
   }
+
   onModuleInit(): void {
     this.logger.log('Telegram admin bot service module init (mock).', this.onModuleInit.name);
     this.systemConnectionsStatusService.markTelegramConnected();
@@ -357,7 +141,7 @@ export class TelegramAdminBotServiceMock extends TelegramAdminBotService {
       `Send text message, chat id: ${chatId}, message: ${message} (mock).`,
       this.sendTextMessage.name,
     );
-    await new Promise(res => res('OK'));
+    await Promise.resolve();
   }
 
   async sendHtmlMessage(payload: BotSendMessagePayloadDto, data?: object): Promise<void> {
@@ -368,6 +152,6 @@ export class TelegramAdminBotServiceMock extends TelegramAdminBotService {
       )} (mock).`,
       this.sendTextMessage.name,
     );
-    await new Promise(res => res('OK'));
+    await Promise.resolve();
   }
 }

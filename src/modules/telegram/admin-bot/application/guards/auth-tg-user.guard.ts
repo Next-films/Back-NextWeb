@@ -4,13 +4,13 @@ import {
   AppNotificationResult,
 } from '@/common/utils/app-notification.util';
 import { CommandHandler, ICommand, ICommandHandler } from '@nestjs/cqrs';
-import TelegramBot from 'node-telegram-bot-api';
 import { LoggerService } from '@/common/utils/logger/logger.service';
 import { AdminRepository } from '@/admin/infrastructure/admin.repository';
 import { EXCEPTION_KEYS_ENUM } from '@/common/enums/exception-keys.enum';
+import { TelegramIncomingMessage } from '@/telegram/admin-bot/domain/types';
 
 export class AuthAdminTgUserCommand implements ICommand {
-  constructor(public msg: TelegramBot.Message) {}
+  constructor(public msg: TelegramIncomingMessage) {}
 }
 
 @CommandHandler(AuthAdminTgUserCommand)

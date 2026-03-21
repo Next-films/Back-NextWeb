@@ -8,8 +8,8 @@ import {
   AuthAdminTgUserCommand,
   AuthAdminTgUserHandler,
 } from '@/telegram/admin-bot/application/guards/auth-tg-user.guard';
-import TelegramBot from 'node-telegram-bot-api';
 import { AppNotificationResultEnum } from '@/common/utils/app-notification.util';
+import { TelegramIncomingMessage } from '@/telegram/admin-bot/domain/types';
 
 describe('AuthAdminTgUserHandler (integration)', () => {
   let app: INestApplication;
@@ -44,7 +44,7 @@ describe('AuthAdminTgUserHandler (integration)', () => {
   });
 
   it('should successfully login', async () => {
-    const tg_msg: TelegramBot.Message = {
+    const tg_msg: TelegramIncomingMessage = {
       message_id: 123,
       date: 1234,
       chat: {
@@ -66,7 +66,7 @@ describe('AuthAdminTgUserHandler (integration)', () => {
   });
 
   it('should not login if chat id not passed', async () => {
-    const tg_msg: TelegramBot.Message = {
+    const tg_msg: TelegramIncomingMessage = {
       message_id: 123,
       date: 1234,
       chat: {
@@ -88,7 +88,7 @@ describe('AuthAdminTgUserHandler (integration)', () => {
   });
 
   it('should not login if user not found', async () => {
-    const tg_msg: TelegramBot.Message = {
+    const tg_msg: TelegramIncomingMessage = {
       message_id: 123,
       date: 1234,
       chat: {

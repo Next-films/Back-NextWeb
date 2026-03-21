@@ -1,9 +1,6 @@
 import { Module } from '@nestjs/common';
-import { TELEGRAM_ADMIN_BOT } from '@/common/constants/telegram-providers.constants';
 import { ConfigService } from '@nestjs/config';
 import { ConfigurationType } from '@/settings/configuration';
-import * as TelegramBot from 'node-telegram-bot-api';
-import { TelegramAdminBotTemplatesService } from '@/telegram/admin-bot/application/telegram-admin-bot-templates.service';
 import {
   TelegramAdminBotService,
   TelegramAdminBotServiceMock,
@@ -15,72 +12,30 @@ import { TelegramAdminBotSendNotificationNewModerationMovieCommandHandler } from
 import { TelegramAdminBotSendNotificationAdminAcceptModerationCommandHandler } from '@/telegram/admin-bot/application/handlers/bot-send-notification-admin-accept-moderation.handler';
 import { ModerationMovieModule } from '@/moderation-movie/moderation-movie.module';
 import { LoggerService } from '@/common/utils/logger/logger.service';
-import { CommandBus } from '@nestjs/cqrs';
-import { AsyncLocalStorageService } from '@/common/utils/logger/als.service';
 import { TelegramAdminBotSendNotificationAdminCancelModerationCommandHandler } from '@/telegram/admin-bot/application/handlers/bot-send-notification-admin-cancel-moderation.handler';
 import { FilmModule } from '@/films/film.module';
 import { CartoonModule } from '@/cartoons/cartoon.module';
 import { TelegramAdminBotSendNotificationAdminFinishedModerationCommandHandler } from '@/telegram/admin-bot/application/handlers/bot-send-notification-admin-finished-moderation.handler';
 import { SerialModule } from '@/serials/serial.module';
 import { SystemConnectionsStatusService } from '@/common/services/system-connections-status.service';
-
-const telegramProvider = {
-  provide: TELEGRAM_ADMIN_BOT,
-  useFactory: (configService: ConfigService<ConfigurationType, true>): TelegramBot | null => {
-    const env = configService.get('environmentSettings', { infer: true });
-
-    if (env.isTesting || env.isDevelopment) return null;
-
-    const apiSettings = configService.get('apiSettings', { infer: true });
-    const { TELEGRAM_ADMIN_BOT_TOKEN } = apiSettings;
-
-    return new TelegramBot(TELEGRAM_ADMIN_BOT_TOKEN, { polling: false });
-  },
-  inject: [ConfigService],
-};
+import { TelegramAdminBotInternalController } from '@/telegram/admin-bot/api/telegram-admin-bot-internal.controller';
+import { TelegramAdminBotStartService } from '@/telegram/admin-bot/application/telegram-admin-bot-start.service';
+import { TelegramStartInternalTokenGuard } from '@/telegram/admin-bot/application/guards/telegram-start-internal-token.guard';
 
 const telegramAdminBotServiceProvider = {
   provide: TelegramAdminBotService,
   useFactory: (
     configService: ConfigService<ConfigurationType, true>,
     logger: LoggerService,
-    bot: TelegramBot,
-    commandBus: CommandBus,
-    templatesService: TelegramAdminBotTemplatesService,
-    asyncLocalStorageService: AsyncLocalStorageService,
     systemConnectionsStatusService: SystemConnectionsStatusService,
   ) => {
     const env = configService.get('environmentSettings', { infer: true });
 
     return env.isTesting || env.isDevelopment
-      ? new TelegramAdminBotServiceMock(
-          bot,
-          logger,
-          commandBus,
-          templatesService,
-          asyncLocalStorageService,
-          configService,
-          systemConnectionsStatusService,
-        )
-      : new TelegramAdminBotService(
-          bot,
-          logger,
-          commandBus,
-          templatesService,
-          asyncLocalStorageService,
-          configService,
-          systemConnectionsStatusService,
-        );
+      ? new TelegramAdminBotServiceMock(logger, configService, systemConnectionsStatusService)
+      : new TelegramAdminBotService(logger, configService, systemConnectionsStatusService);
   },
-  inject: [
-    ConfigService,
-    LoggerService,
-    TELEGRAM_ADMIN_BOT,
-    CommandBus,
-    TelegramAdminBotTemplatesService,
-    AsyncLocalStorageService,
-    SystemConnectionsStatusService,
-  ],
+  inject: [ConfigService, LoggerService, SystemConnectionsStatusService],
 };
 
 const handlers = [
@@ -94,12 +49,12 @@ const handlers = [
 
 @Module({
   imports: [AdminModule, ModerationMovieModule, FilmModule, CartoonModule, SerialModule],
-  controllers: [],
+  controllers: [TelegramAdminBotInternalController],
   providers: [
     telegramAdminBotServiceProvider,
-    telegramProvider,
     ...handlers,
-    TelegramAdminBotTemplatesService,
+    TelegramAdminBotStartService,
+    TelegramStartInternalTokenGuard,
   ],
   exports: [TelegramAdminBotService],
 })

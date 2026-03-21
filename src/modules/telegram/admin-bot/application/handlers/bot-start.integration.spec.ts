@@ -4,12 +4,15 @@ import { GenerateAdminMigration } from '@/data-migrations/generate-admin.migrati
 import { initTestSettings } from '../../../../../test/test-init-settings';
 import { ConfigService } from '@nestjs/config';
 import { ConfigurationType } from '@/settings/configuration';
-import TelegramBot from 'node-telegram-bot-api';
 import {
   TelegramAdminBotStartCommand,
   TelegramAdminBotStartCommandHandler,
 } from '@/telegram/admin-bot/application/handlers/bot-start.handler';
-import { BotCommandsDto, BotSendMessagePayloadDto } from '@/telegram/admin-bot/domain/types';
+import {
+  BotCommandsDto,
+  BotSendMessagePayloadDto,
+  TelegramIncomingMessage,
+} from '@/telegram/admin-bot/domain/types';
 import { TelegramAdminBotService } from '@/telegram/admin-bot/application/telegram-admin-bot.service';
 import { ADMIN_BOT_TEMPLATES_NAME_ENUM } from '@/telegram/admin-bot/domain/templates-name.enum';
 import { AdminRepository } from '@/admin/infrastructure/admin.repository';
@@ -51,7 +54,7 @@ describe('TelegramAdminBotStartCommandHandler (integration)', () => {
   });
 
   it('should send welcome message', async () => {
-    const tg_msg: TelegramBot.Message = {
+    const tg_msg: TelegramIncomingMessage = {
       message_id: 123,
       date: 1234,
       chat: {
@@ -100,7 +103,7 @@ describe('TelegramAdminBotStartCommandHandler (integration)', () => {
   });
 
   it('should send welcome message and update username if admin does not has username', async () => {
-    const tg_msg: TelegramBot.Message = {
+    const tg_msg: TelegramIncomingMessage = {
       message_id: 123,
       date: 1234,
       chat: {
@@ -164,7 +167,7 @@ describe('TelegramAdminBotStartCommandHandler (integration)', () => {
   });
 
   it('should not send welcome message chat id into message not found', async () => {
-    const tg_msg: TelegramBot.Message = {
+    const tg_msg: TelegramIncomingMessage = {
       message_id: 123,
       date: 1234,
       chat: {
@@ -196,7 +199,7 @@ describe('TelegramAdminBotStartCommandHandler (integration)', () => {
   });
 
   it('should not send welcome message, user not found', async () => {
-    const tg_msg: TelegramBot.Message = {
+    const tg_msg: TelegramIncomingMessage = {
       message_id: 123,
       date: 1234,
       chat: {

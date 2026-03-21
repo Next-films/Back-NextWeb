@@ -57,7 +57,10 @@ export class ApiSettings {
   DOWNLOAD_SERVICE_TOKEN: string = this.environmentVariables.DOWNLOAD_SERVICE_TOKEN;
 
   @IsString()
-  TELEGRAM_ADMIN_BOT_TOKEN: string = this.environmentVariables.TELEGRAM_ADMIN_BOT_TOKEN;
+  TELEGRAM_GATEWAY_URL: string = this.environmentVariables.TELEGRAM_GATEWAY_URL || '';
+
+  @IsString()
+  TELEGRAM_GATEWAY_TOKEN: string = this.environmentVariables.TELEGRAM_GATEWAY_TOKEN || '';
 
   @IsString()
   MAIN_TELEGRAM_GROUP_CHAT_ID: string = this.environmentVariables.MAIN_TELEGRAM_GROUP_CHAT_ID;
