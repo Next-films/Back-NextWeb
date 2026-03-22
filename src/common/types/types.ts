@@ -136,7 +136,7 @@ export const DEFAULT_DOWNLOADER_TRIGGER_SCHEDULE: DownloaderTriggerScheduleDto =
   downloadSerials: '0 21 * * *',
 };
 
-export type DownloaderTriggerTaskStatus = 'idle' | 'running' | 'success' | 'error';
+export type DownloaderTriggerTaskStatus = 'idle' | 'running' | 'success' | 'error' | 'skipped';
 export type DownloaderTriggerTaskSource = 'manual' | 'auto';
 export type DownloaderProcessingStage =
   | 'none'
@@ -144,7 +144,8 @@ export type DownloaderProcessingStage =
   | 'convert'
   | 'upload'
   | 'notify'
-  | 'cleanup';
+  | 'cleanup'
+  | 'error';
 
 export type DownloaderTriggerTaskRuntimeItem = {
   status: DownloaderTriggerTaskStatus;
