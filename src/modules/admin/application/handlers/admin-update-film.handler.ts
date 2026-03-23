@@ -20,6 +20,26 @@ import { MovieTypesEnum } from '@/common/types/types';
 import { Film } from '@/films/domain/film.entity';
 import { MovieHandleStatus, UploadedFilesUrlResult } from '@/movies/domain/types';
 
+const VIDEO_UPLOAD_INPUT_MIME_TYPES = [
+  'video/mp4',
+  'video/webm',
+  'video/ogg',
+  'video/avi',
+  'video/mpeg',
+  'video/quicktime',
+  'video/x-matroska',
+  'video/x-ms-wmv',
+];
+
+const POSTER_UPLOAD_INPUT_MIME_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
+
+const LOGO_UPLOAD_INPUT_MIME_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
+
+const BACKGROUND_UPLOAD_INPUT_MIME_TYPES = [
+  ...VIDEO_UPLOAD_INPUT_MIME_TYPES,
+  ...POSTER_UPLOAD_INPUT_MIME_TYPES,
+];
+
 export class AdminUpdateFilmCommand implements ICommand {
   constructor(
     public filmId: number,
@@ -114,7 +134,16 @@ export class AdminUpdateFilmCommandHandler
 
         if (!uploadFileResult) {
           await queryRunner.rollbackTransaction();
-          return this.appNotification.internalServerError();
+          return this.appNotification.badRequest({
+            errorsMessages: [
+              {
+                errorKey: EXCEPTION_KEYS_ENUM.INVALID_FILE_TYPE,
+                message:
+                  'Failed to process uploaded file. Check file type/size or switch file to a supported format.',
+                field: 'uploadedFile',
+              },
+            ],
+          });
         }
       }
 
@@ -188,6 +217,59 @@ export class AdminUpdateFilmCommandHandler
         message: 'A file or a link to a file is required!',
         field: 'titleFile_titleUrl',
       });
+
+    if (
+      videoFile &&
+      (!videoFile.mimetype || !VIDEO_UPLOAD_INPUT_MIME_TYPES.includes(videoFile.mimetype))
+    ) {
+      errors.errorsMessages.push({
+        errorKey: EXCEPTION_KEYS_ENUM.INVALID_FILE_TYPE,
+        message: `Invalid file type for videoFile. Allowed: ${VIDEO_UPLOAD_INPUT_MIME_TYPES.join(
+          ', ',
+        )}`,
+        field: 'videoFile',
+      });
+    }
+
+    if (
+      previewFile &&
+      (!previewFile.mimetype || !POSTER_UPLOAD_INPUT_MIME_TYPES.includes(previewFile.mimetype))
+    ) {
+      errors.errorsMessages.push({
+        errorKey: EXCEPTION_KEYS_ENUM.INVALID_FILE_TYPE,
+        message: `Invalid file type for previewFile. Allowed: ${POSTER_UPLOAD_INPUT_MIME_TYPES.join(
+          ', ',
+        )}`,
+        field: 'previewFile',
+      });
+    }
+
+    if (
+      titleFile &&
+      (!titleFile.mimetype || !LOGO_UPLOAD_INPUT_MIME_TYPES.includes(titleFile.mimetype))
+    ) {
+      errors.errorsMessages.push({
+        errorKey: EXCEPTION_KEYS_ENUM.INVALID_FILE_TYPE,
+        message: `Invalid file type for titleFile. Allowed: ${LOGO_UPLOAD_INPUT_MIME_TYPES.join(
+          ', ',
+        )}`,
+        field: 'titleFile',
+      });
+    }
+
+    if (
+      backgroundFile &&
+      (!backgroundFile.mimetype ||
+        !BACKGROUND_UPLOAD_INPUT_MIME_TYPES.includes(backgroundFile.mimetype))
+    ) {
+      errors.errorsMessages.push({
+        errorKey: EXCEPTION_KEYS_ENUM.INVALID_FILE_TYPE,
+        message: `Invalid file type for backgroundFile. Allowed: ${BACKGROUND_UPLOAD_INPUT_MIME_TYPES.join(
+          ', ',
+        )}`,
+        field: 'backgroundFile',
+      });
+    }
 
     return errors.errorsMessages.length > 0 ? errors : null;
   }
