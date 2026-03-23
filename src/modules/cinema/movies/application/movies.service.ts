@@ -270,6 +270,54 @@ export class MoviesService {
 
   // ─── Media upload helpers ───────────────────────────────────────
 
+  private stringifyDownloaderError(errorField: unknown): string {
+    if (errorField == null) return 'unknown';
+
+    if (Array.isArray(errorField)) {
+      return errorField
+        .map(item => {
+          if (
+            item &&
+            typeof item === 'object' &&
+            'field' in item &&
+            'message' in item &&
+            typeof (item as { field?: unknown }).field === 'string' &&
+            typeof (item as { message?: unknown }).message === 'string'
+          ) {
+            const typedItem = item as { field: string; message: string };
+
+            return `${typedItem.field}: ${typedItem.message}`;
+          }
+
+          try {
+            return JSON.stringify(item);
+          } catch {
+            return '[unserializable item]';
+          }
+        })
+        .join('; ');
+    }
+
+    if (
+      errorField &&
+      typeof errorField === 'object' &&
+      'field' in errorField &&
+      'message' in errorField &&
+      typeof (errorField as { field?: unknown }).field === 'string' &&
+      typeof (errorField as { message?: unknown }).message === 'string'
+    ) {
+      const typedError = errorField as { field: string; message: string };
+
+      return `${typedError.field}: ${typedError.message}`;
+    }
+
+    try {
+      return JSON.stringify(errorField);
+    } catch {
+      return '[unserializable errorField]';
+    }
+  }
+
   private async callDownloaderOrNull<T>(
     input: string | Express.Multer.File | null,
     action: () => Promise<AppNotificationResult<T, any>>,
@@ -278,6 +326,14 @@ export class MoviesService {
     if (!input) return null;
 
     const result = await this.rmqResultHandlerUtil.getRmqData(action, scope);
+
+    if (typeof input !== 'string' && result.appResult === AppNotificationResultEnum.BadRequest) {
+      const details = this.stringifyDownloaderError(
+        (result as AppNotificationResult<T, unknown>).errorField,
+      );
+      throw new Error(`Downloader validation error (${scope}): ${details}`);
+    }
+
     return result.appResult === AppNotificationResultEnum.Success ? result.data ?? null : null;
   }
 
