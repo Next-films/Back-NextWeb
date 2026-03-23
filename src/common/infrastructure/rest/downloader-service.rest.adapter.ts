@@ -116,11 +116,12 @@ export class DownloaderServiceRestAdapter implements IDownloaderServiceAdapter {
     fields: Record<string, string>,
   ): FormData {
     const form = new FormData();
+    const contentType = file.mimetype || undefined;
 
     if (file.buffer) {
-      form.append('file', file.buffer, { filename });
+      form.append('file', file.buffer, { filename, contentType });
     } else if (file.path) {
-      form.append('file', createReadStream(file.path), { filename });
+      form.append('file', createReadStream(file.path), { filename, contentType });
     } else {
       throw new Error('Unsupported file payload: neither buffer nor path provided');
     }
