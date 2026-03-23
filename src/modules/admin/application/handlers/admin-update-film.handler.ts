@@ -124,13 +124,29 @@ export class AdminUpdateFilmCommandHandler
 
       let uploadFileResult: UploadedFilesUrlResult | null = null;
       if (titleFile || backgroundFile || previewFile || videoFile) {
-        uploadFileResult = await this.handleFile(
-          film,
-          videoFile,
-          backgroundFile,
-          previewFile,
-          titleFile,
-        );
+        try {
+          uploadFileResult = await this.handleFile(
+            film,
+            videoFile,
+            backgroundFile,
+            previewFile,
+            titleFile,
+          );
+        } catch (error) {
+          await queryRunner.rollbackTransaction();
+          const details =
+            error instanceof Error ? error.message : 'Unknown upload processing error';
+
+          return this.appNotification.badRequest({
+            errorsMessages: [
+              {
+                errorKey: EXCEPTION_KEYS_ENUM.INVALID_FILE_TYPE,
+                message: `Failed to process uploaded file: ${details}`,
+                field: 'uploadedFile',
+              },
+            ],
+          });
+        }
 
         if (!uploadFileResult) {
           await queryRunner.rollbackTransaction();
@@ -307,6 +323,7 @@ export class AdminUpdateFilmCommandHandler
     if (
       (titleFile && !titleUrl) ||
       (previewFile && !previewUrl) ||
+      (videoFile && !videoUrl) ||
       (backgroundFile && backgroundMime.startsWith('image/') && !backgroundImgUrl)
     )
       return null;
