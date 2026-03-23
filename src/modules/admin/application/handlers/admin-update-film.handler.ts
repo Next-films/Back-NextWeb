@@ -323,7 +323,6 @@ export class AdminUpdateFilmCommandHandler
     if (
       (titleFile && !titleUrl) ||
       (previewFile && !previewUrl) ||
-      (videoFile && !videoUrl) ||
       (backgroundFile && backgroundMime.startsWith('image/') && !backgroundImgUrl)
     )
       return null;

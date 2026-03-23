@@ -53,7 +53,7 @@ export class RmqResultHandlerUtil {
     const isError = this.isBaseRmqError(result.appResult);
 
     if (isError) {
-      this.logger.warn(`Retry rmq request (${scope})`, this.getRmqData.name);
+      this.logger.warn(`Retry downstream request (${scope})`, this.getRmqData.name);
       result = await fn();
 
       const retryErr = this.isBaseRmqError(result.appResult);
@@ -63,7 +63,7 @@ export class RmqResultHandlerUtil {
           (result as AppNotificationResult<T, unknown>).errorField,
         );
         throw new Error(
-          `Rmq transport error after retry. appResult=${result.appResult}, errorField=${details}`,
+          `Downloader transport error after retry (${scope}). appResult=${result.appResult}, errorField=${details}`,
         );
       }
     }

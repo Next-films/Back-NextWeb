@@ -8,6 +8,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { ConfigurationType } from '@/settings/configuration';
 import { ErrorFieldExceptionDto } from '@/common/exception-filters/http/http-exception.filter';
+import { EXCEPTION_KEYS_ENUM } from '@/common/enums/exception-keys.enum';
 import { ClearConverterLogsPayloadDto } from '@/converter-logs/domain/types';
 import { AddMovieToDownloadQueuePayloadDto, RemoveMoviePayloadDto } from '@/admin/domain/types';
 import {
@@ -65,6 +66,28 @@ export class DownloaderServiceRestAdapter implements IDownloaderServiceAdapter {
     return segments.join('/');
   }
 
+  private stringifyUnknown(input: unknown): string {
+    if (typeof input === 'string') return input;
+    if (input == null) return 'null';
+
+    try {
+      return JSON.stringify(input);
+    } catch {
+      return '[unserializable]';
+    }
+  }
+
+  private buildTransportErrorMessage(error: any): string {
+    const status = error?.response?.status ?? 'unknown';
+    const method =
+      typeof error?.config?.method === 'string' ? error.config.method.toUpperCase() : '';
+    const url = error?.config?.url ?? 'unknown-url';
+    const responseBody = this.stringifyUnknown(error?.response?.data);
+    const axiosMessage = error?.message ? `; message=${error.message}` : '';
+
+    return `HTTP bridge failed: status=${status}; method=${method}; url=${url}; response=${responseBody}${axiosMessage}`;
+  }
+
   private handleError<T = null, D = null>(error: any, scope?: string): AppNotificationResult<T, D> {
     const data: AppNotificationResult<T, D> = error?.response?.data;
 
@@ -72,8 +95,18 @@ export class DownloaderServiceRestAdapter implements IDownloaderServiceAdapter {
       return data;
     }
 
-    this.logger.error(error, scope ?? this.handleError.name);
-    return this.appNotification.internalServerError();
+    const message = this.buildTransportErrorMessage(error);
+    this.logger.error(message, scope ?? this.handleError.name);
+
+    return {
+      appResult: AppNotificationResultEnum.InternalError,
+      data: null,
+      errorField: {
+        field: 'downloaderService',
+        message,
+        errorKey: EXCEPTION_KEYS_ENUM.UNKNOWN,
+      } as D,
+    };
   }
 
   /**
