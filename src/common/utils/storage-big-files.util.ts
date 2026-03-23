@@ -3,7 +3,9 @@ import { join } from 'path';
 
 export const storageUtil = {
   _handleFile(req, file, cb) {
-    if (file.fieldname === 'videoFile') {
+    const isVideo = file.fieldname === 'videoFile' || file.mimetype?.startsWith('video/');
+
+    if (isVideo) {
       const uploadDir = './temp';
       mkdirSync(uploadDir, { recursive: true });
 
@@ -24,9 +26,10 @@ export const storageUtil = {
     } else {
       const chunks: Buffer[] = [];
       file.stream.on('data', (chunk: Buffer) => chunks.push(chunk));
-      file.stream.on('end', () =>
-        cb(null, { buffer: Buffer.concat(chunks), size: Buffer.concat(chunks).length }),
-      );
+      file.stream.on('end', () => {
+        const buffer = Buffer.concat(chunks);
+        cb(null, { buffer, size: buffer.length });
+      });
       file.stream.on('error', cb);
     }
   },

@@ -160,10 +160,14 @@ export class AdminCinemaSerialsController {
 
       this.appNotification.handleHttpResult(result);
     } finally {
-      if (videoFile?.path) {
+      const tempFiles = [videoFile, previewFile, titleFile, backgroundFile]
+        .filter(file => file?.path)
+        .map(file => file!);
+
+      for (const file of tempFiles) {
         try {
-          await unlink(videoFile.path);
-          this.logger.log(`Temp video file removed: ${videoFile.path}`);
+          await unlink(file.path);
+          this.logger.log(`Temp file removed: ${file.path}`);
         } catch (err) {
           this.logger.error(err, this.updateSerial.name);
         }

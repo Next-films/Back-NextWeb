@@ -34,6 +34,7 @@ import {
 import { AxiosRequestConfig, AxiosResponse } from 'axios';
 import * as FormData from 'form-data';
 import * as path from 'path';
+import { createReadStream } from 'fs';
 
 type Res<T> = AppNotificationResult<T, ErrorFieldExceptionDto | null>;
 
@@ -107,7 +108,7 @@ export class DownloaderServiceRestAdapter implements IDownloaderServiceAdapter {
   }
 
   /**
-   * Build a FormData with a file buffer + arbitrary string fields.
+   * Build a FormData with a file buffer/stream + arbitrary string fields.
    */
   private buildForm(
     file: Express.Multer.File,
@@ -115,7 +116,15 @@ export class DownloaderServiceRestAdapter implements IDownloaderServiceAdapter {
     fields: Record<string, string>,
   ): FormData {
     const form = new FormData();
-    form.append('file', file.buffer, { filename });
+
+    if (file.buffer) {
+      form.append('file', file.buffer, { filename });
+    } else if (file.path) {
+      form.append('file', createReadStream(file.path), { filename });
+    } else {
+      throw new Error('Unsupported file payload: neither buffer nor path provided');
+    }
+
     for (const [key, value] of Object.entries(fields)) {
       form.append(key, value);
     }
@@ -154,8 +163,9 @@ export class DownloaderServiceRestAdapter implements IDownloaderServiceAdapter {
         const payload: ResizeAndSafeLogoPayloadDto = { movieId, url: file, type };
         result = await this.httpService.axiosRef.post<Res<T>>(url, payload, this.baseAuthHeaders);
       } else {
-        const ext = path.extname(file.originalname);
-        const form = this.buildForm(file, `${filenamePrefix}.${ext}`, {
+        const ext = path.extname(file.originalname).replace(/^\./, '');
+        const filename = ext ? `${filenamePrefix}.${ext}` : filenamePrefix;
+        const form = this.buildForm(file, filename, {
           movieId: movieId.toString(),
           type,
         });
@@ -345,8 +355,9 @@ export class DownloaderServiceRestAdapter implements IDownloaderServiceAdapter {
           this.baseAuthHeaders,
         );
       } else {
-        const ext = path.extname(file.originalname);
-        const form = this.buildForm(file, `background.${ext}`, {
+        const ext = path.extname(file.originalname).replace(/^\./, '');
+        const filename = ext ? `background.${ext}` : 'background';
+        const form = this.buildForm(file, filename, {
           movieId: movieId.toString(),
           type,
         });
@@ -356,7 +367,9 @@ export class DownloaderServiceRestAdapter implements IDownloaderServiceAdapter {
           result = await this.postForm<Res<string>>(clipUrl, form);
         } else {
           // Fire-and-forget for video uploads
-          void this.postForm(clipUrl, form);
+          void this.postForm(clipUrl, form).catch(error =>
+            this.logger.error(error, this.downloadPreviewClip.name),
+          );
           result = { data: this.appNotification.success(null) } as AxiosResponse;
         }
       }
@@ -373,13 +386,17 @@ export class DownloaderServiceRestAdapter implements IDownloaderServiceAdapter {
 
   uploadFilm(movieId: number, file: Express.Multer.File, type: MovieTypesEnum): Res<null> {
     try {
-      const ext = path.extname(file.originalname);
-      const form = this.buildForm(file, `background.${ext}`, {
+      const ext = path.extname(file.originalname).replace(/^\./, '');
+      const filename = ext ? `background.${ext}` : 'background';
+      const form = this.buildForm(file, filename, {
         movieId: movieId.toString(),
         type,
       });
 
-      void this.postForm(this.url(DOWNLOADER.MAIN, DOWNLOADER.MOVIE, DOWNLOADER.UPLOAD), form);
+      void this.postForm(
+        this.url(DOWNLOADER.MAIN, DOWNLOADER.MOVIE, DOWNLOADER.UPLOAD),
+        form,
+      ).catch(error => this.logger.error(error, this.uploadFilm.name));
 
       return this.appNotification.success(null);
     } catch (error) {

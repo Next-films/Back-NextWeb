@@ -157,12 +157,16 @@ export class AdminCinemaCartoonsController {
         return cartoonResult.data!;
       }
     } finally {
-      if (videoFile?.path) {
+      const tempFiles = [videoFile, previewFile, titleFile, backgroundFile]
+        .filter(file => file?.path)
+        .map(file => file!);
+
+      for (const file of tempFiles) {
         try {
-          await unlink(videoFile.path);
-          this.logger.log(`Temp video file removed: ${videoFile.path}`);
+          await unlink(file.path);
+          this.logger.log(`Temp file removed: ${file.path}`);
         } catch (err) {
-          this.logger.error(`Failed to delete temp file: ${videoFile.path}`, err);
+          this.logger.error(`Failed to delete temp file: ${file.path}`, err);
         }
       }
     }
