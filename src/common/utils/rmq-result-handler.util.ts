@@ -39,6 +39,15 @@ export class RmqResultHandlerUtil {
     fn: () => Promise<AppNotificationResult<T, D>>,
     scope: string,
   ): Promise<AppNotificationResult<T, D>> {
+    const stringifyErrorField = (errorField: unknown): string => {
+      if (errorField == null) return 'null';
+      try {
+        return JSON.stringify(errorField);
+      } catch {
+        return '[unserializable errorField]';
+      }
+    };
+
     let result = await fn();
 
     const isError = this.isBaseRmqError(result.appResult);
@@ -49,7 +58,14 @@ export class RmqResultHandlerUtil {
 
       const retryErr = this.isBaseRmqError(result.appResult);
 
-      if (retryErr) throw new Error(`Rmq error, stop processing.`);
+      if (retryErr) {
+        const details = stringifyErrorField(
+          (result as AppNotificationResult<T, unknown>).errorField,
+        );
+        throw new Error(
+          `Rmq transport error after retry. appResult=${result.appResult}, errorField=${details}`,
+        );
+      }
     }
 
     return result;
