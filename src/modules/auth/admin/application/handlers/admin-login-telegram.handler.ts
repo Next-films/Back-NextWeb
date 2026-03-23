@@ -63,13 +63,37 @@ export class AdminTelegramLoginHandler
     this.logger.log('Telegram login admin command', this.execute.name);
 
     const { token } = command;
+    const maskedToken = `${token.slice(0, 8)}...`;
 
     try {
       await this.adminAuthRepository.deleteExpiredPasswordSetupAdmins();
 
       const admin = await this.adminAuthRepository.getAdminByAuthToken(token);
 
-      if (!admin || !admin.isActive || !admin.adminTelegram?.telegramId) {
+      if (!admin) {
+        this.logger.warn(`Telegram login rejected: reason=token_not_found, token=${maskedToken}`);
+        return this.appNotification.unauthorized({
+          field: 'token',
+          message: 'Unauthorized',
+          errorKey: EXCEPTION_KEYS_ENUM.UNAUTHORIZED,
+        });
+      }
+
+      if (!admin.isActive) {
+        this.logger.warn(
+          `Telegram login rejected: reason=admin_inactive, adminId=${admin.id}, token=${maskedToken}`,
+        );
+        return this.appNotification.unauthorized({
+          field: 'token',
+          message: 'Unauthorized',
+          errorKey: EXCEPTION_KEYS_ENUM.UNAUTHORIZED,
+        });
+      }
+
+      if (!admin.adminTelegram?.telegramId) {
+        this.logger.warn(
+          `Telegram login rejected: reason=telegram_missing, adminId=${admin.id}, token=${maskedToken}`,
+        );
         return this.appNotification.unauthorized({
           field: 'token',
           message: 'Unauthorized',
@@ -78,6 +102,11 @@ export class AdminTelegramLoginHandler
       }
 
       if (!admin.telegramAuthTokenExpAt || admin.telegramAuthTokenExpAt.getTime() <= Date.now()) {
+        this.logger.warn(
+          `Telegram login rejected: reason=token_expired, adminId=${admin.id}, expAt=${
+            admin.telegramAuthTokenExpAt?.toISOString() || 'null'
+          }, token=${maskedToken}`,
+        );
         return this.appNotification.unauthorized({
           field: 'token',
           message: 'Unauthorized',
