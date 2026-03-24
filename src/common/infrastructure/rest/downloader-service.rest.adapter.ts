@@ -35,7 +35,7 @@ import {
 import { AxiosRequestConfig, AxiosResponse } from 'axios';
 import * as FormData from 'form-data';
 import * as path from 'path';
-import { createReadStream } from 'fs';
+import { readFileSync } from 'fs';
 
 type Res<T> = AppNotificationResult<T, ErrorFieldExceptionDto | null>;
 
@@ -154,7 +154,7 @@ export class DownloaderServiceRestAdapter implements IDownloaderServiceAdapter {
     if (file.buffer) {
       form.append('file', file.buffer, { filename, contentType });
     } else if (file.path) {
-      form.append('file', createReadStream(file.path), { filename, contentType });
+      form.append('file', readFileSync(file.path), { filename, contentType });
     } else {
       throw new Error('Unsupported file payload: neither buffer nor path provided');
     }
@@ -169,9 +169,12 @@ export class DownloaderServiceRestAdapter implements IDownloaderServiceAdapter {
    * POST a FormData with proper auth headers.
    */
   private postForm<T>(url: string, form: FormData): Promise<AxiosResponse<T>> {
-    return this.httpService.axiosRef.post(url, form, {
+    const buffer = form.getBuffer();
+
+    return this.httpService.axiosRef.post(url, buffer, {
       headers: {
-        ...form.getHeaders(),
+        'Content-Type': form.getHeaders()['content-type'],
+        'Content-Length': buffer.length.toString(),
         Authorization: this.baseAuthHeaders.headers?.Authorization,
       },
       maxBodyLength: Infinity,
@@ -395,17 +398,7 @@ export class DownloaderServiceRestAdapter implements IDownloaderServiceAdapter {
           movieId: movieId.toString(),
           type,
         });
-        const mime = file.mimetype as 'image/' | 'video/';
-
-        if (mime.startsWith('image/')) {
-          result = await this.postForm<Res<string>>(clipUrl, form);
-        } else {
-          // Fire-and-forget for video uploads
-          void this.postForm(clipUrl, form).catch(error =>
-            this.logger.error(error, this.downloadPreviewClip.name),
-          );
-          result = { data: this.appNotification.success(null) } as AxiosResponse;
-        }
+        result = await this.postForm<Res<string>>(clipUrl, form);
       }
 
       if (!result?.data?.appResult) return this.appNotification.internalServerError();

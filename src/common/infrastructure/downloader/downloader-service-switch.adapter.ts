@@ -233,6 +233,12 @@ export class DownloaderServiceSwitchAdapter {
     file: string | Express.Multer.File,
     type: MovieTypesEnum,
   ): Promise<FallbackResult<string | null>> {
+    // Binary files must go through REST (multipart/form-data) —
+    // RMQ JSON serialization corrupts binary Buffer data.
+    if (typeof file !== 'string') {
+      return this.restAdapter.downloadPreviewClip(movieId, file, type);
+    }
+
     return this.executeRequestWithFallback(
       this.downloadPreviewClip.name,
       this.rmqCall(a => a.downloadPreviewClip(movieId, file, type)),
