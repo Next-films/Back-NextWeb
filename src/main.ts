@@ -6,7 +6,26 @@ import { LoggerService } from '@/common/utils/logger/logger.service';
 import { applySettings } from '@/settings/apply.settings';
 import { MicroserviceOptions, Transport } from '@nestjs/microservices';
 import { DownloaderTransportModeService } from '@/common/services/downloader-transport-mode.service';
-import express from 'express';
+import * as express from 'express';
+
+const withTimeout = async <T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  message: string,
+): Promise<T> => {
+  let timeoutId: NodeJS.Timeout | null = null;
+
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error(message)), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
+};
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule, { bufferLogs: false, bodyParser: false });
@@ -81,7 +100,11 @@ async function bootstrap(): Promise<void> {
   applySettings(app);
   if (isRmqEnabled) {
     try {
-      await app.startAllMicroservices();
+      await withTimeout(
+        app.startAllMicroservices(),
+        15_000,
+        'RMQ transport start timeout. Fallback to HTTP transport mode.',
+      );
       modeService.markRmqSuccess();
     } catch (error) {
       logger.warn('RMQ transport start failed. Fallback to HTTP transport mode.', bootstrap.name);
@@ -94,4 +117,8 @@ async function bootstrap(): Promise<void> {
   logger.setContext('App');
   logger.log(`App started on port ${PORT}`, bootstrap.name);
 }
-void bootstrap();
+bootstrap().catch(error => {
+  // Ensure CI/CD logs include the startup failure reason.
+  console.error('Fatal bootstrap error:', error);
+  process.exit(1);
+});
