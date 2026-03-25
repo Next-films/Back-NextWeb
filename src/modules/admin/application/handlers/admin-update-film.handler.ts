@@ -86,7 +86,7 @@ export class AdminUpdateFilmCommandHandler
         });
       }
 
-      const validateFileResult = this.validateFileResult(inputDto, film);
+      const validateFileResult = this.validateFileResult(inputDto);
 
       if (validateFileResult) {
         await queryRunner.rollbackTransaction();
@@ -181,58 +181,12 @@ export class AdminUpdateFilmCommandHandler
     }
   }
 
-  private validateFileResult(
-    inputDto: AdminUpdateFilmInputDto,
-    film: Film,
-  ): ValidationErrorsDto | null {
+  private validateFileResult(inputDto: AdminUpdateFilmInputDto): ValidationErrorsDto | null {
     const errors: ValidationErrorsDto = {
       errorsMessages: [],
     };
 
-    const {
-      videoFile,
-      backgroundFile,
-      previewFile,
-      titleFile,
-
-      videUrl: incomingVideoUrl,
-      backgroundContentUrl: incomingBackgroundContentUrl,
-      previewUrl: incomingPreviewUrl,
-      titleUrl: incomingTitleUrl,
-    } = inputDto;
-
-    const videUrl = incomingVideoUrl ?? film.videoUrl;
-    const backgroundContentUrl = incomingBackgroundContentUrl ?? film.backgroundContentUrl;
-    const previewUrl = incomingPreviewUrl ?? film.previewUrl;
-    const titleUrl = incomingTitleUrl ?? film.titleUrl;
-
-    if (!videoFile && !videUrl)
-      errors.errorsMessages.push({
-        errorKey: EXCEPTION_KEYS_ENUM.FILE_OR_URL_REQUIRE,
-        message: 'A file or a link to a file is required!',
-        field: 'videoFile_videUrl',
-      });
-
-    if (!backgroundFile && !backgroundContentUrl)
-      errors.errorsMessages.push({
-        errorKey: EXCEPTION_KEYS_ENUM.FILE_OR_URL_REQUIRE,
-        message: 'A file or a link to a file is required!',
-        field: 'backgroundFile_backgroundContentUrl',
-      });
-
-    if (!previewFile && !previewUrl)
-      errors.errorsMessages.push({
-        errorKey: EXCEPTION_KEYS_ENUM.FILE_OR_URL_REQUIRE,
-        message: 'A file or a link to a file is required!',
-        field: 'previewFile_previewUrl',
-      });
-
-    if (!titleFile && !titleUrl)
-      errors.errorsMessages.push({
-        errorKey: EXCEPTION_KEYS_ENUM.FILE_OR_URL_REQUIRE,
-        message: 'A file or a link to a file is required!',
-        field: 'titleFile_titleUrl',
-      });
+    const { videoFile, backgroundFile, previewFile, titleFile } = inputDto;
 
     if (
       videoFile &&

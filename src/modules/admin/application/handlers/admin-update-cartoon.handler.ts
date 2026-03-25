@@ -67,7 +67,7 @@ export class AdminUpdateCartoonCommandHandler
         });
       }
 
-      const validateFileResult = this.validateFileResult(inputDto, cartoon);
+      const validateFileResult = this.validateFileResult(inputDto);
 
       if (validateFileResult) {
         await queryRunner.rollbackTransaction();
@@ -135,60 +135,9 @@ export class AdminUpdateCartoonCommandHandler
     }
   }
 
-  private validateFileResult(
-    inputDto: AdminUpdateFilmInputDto,
-    cartoon: Cartoon,
-  ): ValidationErrorsDto | null {
-    const errors: ValidationErrorsDto = {
-      errorsMessages: [],
-    };
-
-    const {
-      videoFile,
-      backgroundFile,
-      previewFile,
-      titleFile,
-
-      videUrl: incomingVideoUrl,
-      backgroundContentUrl: incomingBackgroundContentUrl,
-      previewUrl: incomingPreviewUrl,
-      titleUrl: incomingTitleUrl,
-    } = inputDto;
-
-    const videUrl = incomingVideoUrl ?? cartoon.videoUrl;
-    const backgroundContentUrl = incomingBackgroundContentUrl ?? cartoon.backgroundContentUrl;
-    const previewUrl = incomingPreviewUrl ?? cartoon.previewUrl;
-    const titleUrl = incomingTitleUrl ?? cartoon.titleUrl;
-
-    if (!videoFile && !videUrl)
-      errors.errorsMessages.push({
-        errorKey: EXCEPTION_KEYS_ENUM.FILE_OR_URL_REQUIRE,
-        message: 'A file or a link to a file is required!',
-        field: 'videoFile_videUrl',
-      });
-
-    if (!backgroundFile && !backgroundContentUrl)
-      errors.errorsMessages.push({
-        errorKey: EXCEPTION_KEYS_ENUM.FILE_OR_URL_REQUIRE,
-        message: 'A file or a link to a file is required!',
-        field: 'backgroundFile_backgroundContentUrl',
-      });
-
-    if (!previewFile && !previewUrl)
-      errors.errorsMessages.push({
-        errorKey: EXCEPTION_KEYS_ENUM.FILE_OR_URL_REQUIRE,
-        message: 'A file or a link to a file is required!',
-        field: 'previewFile_previewUrl',
-      });
-
-    if (!titleFile && !titleUrl)
-      errors.errorsMessages.push({
-        errorKey: EXCEPTION_KEYS_ENUM.FILE_OR_URL_REQUIRE,
-        message: 'A file or a link to a file is required!',
-        field: 'titleFile_titleUrl',
-      });
-
-    return errors.errorsMessages.length > 0 ? errors : null;
+  private validateFileResult(inputDto: AdminUpdateFilmInputDto): ValidationErrorsDto | null {
+    void inputDto;
+    return null;
   }
 
   private async handleFile(
