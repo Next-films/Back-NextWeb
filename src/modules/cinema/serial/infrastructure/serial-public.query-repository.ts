@@ -85,9 +85,7 @@ export class SerialPublicQueryRepository {
     let qb = this.serialRepository.createQueryBuilder('s').leftJoinAndSelect('s.genres', 'g');
     qb = this.getSearchSerialClause(qb, searchName, searchGenreIds);
 
-    qb.leftJoin(`s.episodes`, 'e')
-      .addSelect('e.id')
-      .groupBy('s.id, g.id, e.id')
+    qb.leftJoinAndSelect('s.episodes', 'e')
       .skip(skip)
       .take(take)
       .orderBy(`s.${sortField}`, sortDirection);
