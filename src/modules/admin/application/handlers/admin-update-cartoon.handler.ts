@@ -74,11 +74,33 @@ export class AdminUpdateCartoonCommandHandler
         return this.appNotification.badRequest(validateFileResult);
       }
 
+      const uploadedBackgroundContentUrl = await this.uploadBackgroundUrlByInput(
+        cartoon,
+        inputDto.backgroundContentUrl,
+      );
+
+      if (typeof inputDto.backgroundContentUrl === 'string' && !uploadedBackgroundContentUrl) {
+        await queryRunner.rollbackTransaction();
+        return this.appNotification.badRequest({
+          errorsMessages: [
+            {
+              errorKey: EXCEPTION_KEYS_ENUM.backgroundContentUrl,
+              message:
+                'Failed to upload horizontal preview to file storage. Verify URL/file and retry.',
+              field: 'backgroundContentUrl',
+            },
+          ],
+        });
+      }
+
       const mergedInputDto: AdminUpdateCartoonInputDto = {
         ...inputDto,
         videUrl: inputDto.videUrl ?? cartoon.videoUrl ?? undefined,
         backgroundContentUrl:
-          inputDto.backgroundContentUrl ?? cartoon.backgroundContentUrl ?? undefined,
+          uploadedBackgroundContentUrl ??
+          inputDto.backgroundContentUrl ??
+          cartoon.backgroundContentUrl ??
+          undefined,
         previewUrl: inputDto.previewUrl ?? cartoon.previewUrl ?? undefined,
         titleUrl: inputDto.titleUrl ?? cartoon.titleUrl ?? undefined,
       };
@@ -190,5 +212,25 @@ export class AdminUpdateCartoonCommandHandler
       backgroundUploadedUrl: backgroundImgUrl || null,
       videoUploadedUrl: videoUrl || null,
     };
+  }
+
+  private async uploadBackgroundUrlByInput(
+    cartoon: Cartoon,
+    backgroundContentUrl?: string,
+  ): Promise<string | null | undefined> {
+    if (typeof backgroundContentUrl !== 'string') return undefined;
+
+    const normalizedBackgroundContentUrl = backgroundContentUrl.trim();
+    if (!normalizedBackgroundContentUrl) return null;
+
+    if (normalizedBackgroundContentUrl === cartoon.backgroundContentUrl) {
+      return cartoon.backgroundContentUrl;
+    }
+
+    return this.moviesService.getBackgroundContentUrl(
+      normalizedBackgroundContentUrl,
+      cartoon.id,
+      MovieTypesEnum.CARTOON,
+    );
   }
 }

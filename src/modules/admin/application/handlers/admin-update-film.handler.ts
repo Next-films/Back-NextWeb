@@ -93,11 +93,33 @@ export class AdminUpdateFilmCommandHandler
         return this.appNotification.badRequest(validateFileResult);
       }
 
+      const uploadedBackgroundContentUrl = await this.uploadBackgroundUrlByInput(
+        film,
+        inputDto.backgroundContentUrl,
+      );
+
+      if (typeof inputDto.backgroundContentUrl === 'string' && !uploadedBackgroundContentUrl) {
+        await queryRunner.rollbackTransaction();
+        return this.appNotification.badRequest({
+          errorsMessages: [
+            {
+              errorKey: EXCEPTION_KEYS_ENUM.backgroundContentUrl,
+              message:
+                'Failed to upload horizontal preview to file storage. Verify URL/file and retry.',
+              field: 'backgroundContentUrl',
+            },
+          ],
+        });
+      }
+
       const mergedInputDto: AdminUpdateFilmInputDto = {
         ...inputDto,
         videUrl: inputDto.videUrl ?? film.videoUrl ?? undefined,
         backgroundContentUrl:
-          inputDto.backgroundContentUrl ?? film.backgroundContentUrl ?? undefined,
+          uploadedBackgroundContentUrl ??
+          inputDto.backgroundContentUrl ??
+          film.backgroundContentUrl ??
+          undefined,
         previewUrl: inputDto.previewUrl ?? film.previewUrl ?? undefined,
         titleUrl: inputDto.titleUrl ?? film.titleUrl ?? undefined,
       };
@@ -294,5 +316,25 @@ export class AdminUpdateFilmCommandHandler
       backgroundUploadedUrl: backgroundImgUrl || null,
       videoUploadedUrl: videoUrl || null,
     };
+  }
+
+  private async uploadBackgroundUrlByInput(
+    film: Film,
+    backgroundContentUrl?: string,
+  ): Promise<string | null | undefined> {
+    if (typeof backgroundContentUrl !== 'string') return undefined;
+
+    const normalizedBackgroundContentUrl = backgroundContentUrl.trim();
+    if (!normalizedBackgroundContentUrl) return null;
+
+    if (normalizedBackgroundContentUrl === film.backgroundContentUrl) {
+      return film.backgroundContentUrl;
+    }
+
+    return this.moviesService.getBackgroundContentUrl(
+      normalizedBackgroundContentUrl,
+      film.id,
+      MovieTypesEnum.FILM,
+    );
   }
 }

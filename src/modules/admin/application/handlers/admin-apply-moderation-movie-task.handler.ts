@@ -157,6 +157,26 @@ export class AdminApplyModerationMovieTaskCommandHandler
       let validationResult: AppNotificationResult<null, ErrorFieldExceptionDto | null> | null =
         null;
 
+      const uploadedBackgroundContentUrl = await this.uploadBackgroundUrlByInput(
+        movie,
+        type,
+        inputDto.backgroundContentUrl,
+      );
+
+      if (typeof inputDto.backgroundContentUrl === 'string' && !uploadedBackgroundContentUrl) {
+        await queryRunner.rollbackTransaction();
+        return this.appNotification.badRequest({
+          field: 'backgroundContentUrl',
+          errorKey: EXCEPTION_KEYS_ENUM.backgroundContentUrl,
+          message:
+            'Failed to upload horizontal preview to file storage. Verify URL/file and retry.',
+        });
+      }
+
+      if (uploadedBackgroundContentUrl) {
+        inputDto.backgroundContentUrl = uploadedBackgroundContentUrl;
+      }
+
       await this.updateMovie(movie, inputDto, queryRunner);
 
       if (torrentData) {
@@ -405,5 +425,26 @@ export class AdminApplyModerationMovieTaskCommandHandler
       default:
         return null;
     }
+  }
+
+  private async uploadBackgroundUrlByInput<T extends MovieEntity>(
+    movie: T,
+    type: MovieTypesEnum,
+    backgroundContentUrl?: string,
+  ): Promise<string | null | undefined> {
+    if (typeof backgroundContentUrl !== 'string') return undefined;
+
+    const normalizedBackgroundContentUrl = backgroundContentUrl.trim();
+    if (!normalizedBackgroundContentUrl) return null;
+
+    if (normalizedBackgroundContentUrl === movie.backgroundContentUrl) {
+      return movie.backgroundContentUrl;
+    }
+
+    return this.moviesService.getBackgroundContentUrl(
+      normalizedBackgroundContentUrl,
+      movie.id,
+      type,
+    );
   }
 }
