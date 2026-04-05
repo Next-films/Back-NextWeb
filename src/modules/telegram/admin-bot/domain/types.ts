@@ -61,6 +61,12 @@ export class BotAdminFinishedModerationPayloadDto {
   type: string;
 }
 
+export class BotMovieDownloadedWithoutModerationPayloadDto {
+  title: string;
+  movieId: number;
+  type: string;
+}
+
 export interface IAdminBotNotificationCancelModerationStrategy {
   getMovie: (movieId: number) => Promise<MovieEntity | null>;
 }

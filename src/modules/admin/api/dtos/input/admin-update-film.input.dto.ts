@@ -100,6 +100,28 @@ export class AdminUpdateFilmInputDto {
   )
   alternativeName: string;
 
+  @ApiPropertyOptional({
+    minLength: FILMS_VALIDATION_RULES.NAME.LENGTH_MIN,
+    maxLength: FILMS_VALIDATION_RULES.NAME.LENGTH_MAX,
+  })
+  @IsOptional()
+  @Trim()
+  @IsNotEmpty()
+  @IsString()
+  @Length(FILMS_VALIDATION_RULES.NAME.LENGTH_MIN, FILMS_VALIDATION_RULES.NAME.LENGTH_MAX)
+  universe?: string;
+
+  @ApiPropertyOptional({
+    minLength: FILMS_VALIDATION_RULES.NAME.LENGTH_MIN,
+    maxLength: FILMS_VALIDATION_RULES.NAME.LENGTH_MAX,
+  })
+  @IsOptional()
+  @Trim()
+  @IsNotEmpty()
+  @IsString()
+  @Length(FILMS_VALIDATION_RULES.NAME.LENGTH_MIN, FILMS_VALIDATION_RULES.NAME.LENGTH_MAX)
+  studio?: string;
+
   @ApiProperty({
     minimum: FILMS_VALIDATION_RULES.DURATION.LENGTH_MIN,
     maximum: FILMS_VALIDATION_RULES.DURATION.LENGTH_MAX,

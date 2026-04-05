@@ -46,6 +46,8 @@ export interface IAcceptModerationMovieTaskByIdStrategy {
 export interface ICancelModerationMovieTaskByIdStrategy {
   getTask: (taskId: number) => Promise<ModerationMovieEntity | null>;
 
+  saveTask?: (task: ModerationMovieEntity) => Promise<ModerationMovieEntity>;
+
   removeTask(task: ModerationMovieEntity): Promise<void>;
 
   saveMovie(movie: MovieEntity): Promise<MovieEntity>;

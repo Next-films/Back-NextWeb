@@ -61,6 +61,7 @@ export class MovieKpMetadata {
 
   trailerUrl: string | null;
   posterUrl: string | null;
+  backdropUrl: string | null;
   titleUrl: string | null;
 }
 

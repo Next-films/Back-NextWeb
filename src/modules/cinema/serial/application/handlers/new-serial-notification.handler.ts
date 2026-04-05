@@ -15,6 +15,7 @@ import { MovieHandleStatus, MovieKpMetadata } from '@/movies/domain/types';
 import { MovieTypesEnum } from '@/common/types/types';
 import { CreateModerationDto } from '@/moderation-movie/domain/types';
 import { TelegramAdminBotSendNotificationNewModerationMovieCommand } from '@/telegram/admin-bot/application/handlers/bot-send-notification-new-moderation-movie.handler';
+import { TelegramAdminBotSendNotificationMovieDownloadedWithoutModerationCommand } from '@/telegram/admin-bot/application/handlers/bot-send-notification-movie-downloaded-without-moderation.handler';
 
 import { Serial } from '@/serials/domain/serial.entity';
 import { SerialCreateDto, SerialUpdateDto } from '@/serials/domain/types';
@@ -79,6 +80,7 @@ export class NewSerialNotificationCommandHandler
       }
 
       const metadata = await this.moviesService.extractMovieMetadata(kpMovie, queryRunner);
+      const previousHandleStatus = existingSerial?.handleStatus ?? null;
 
       const serial = existingSerial
         ? await this.updateExistingSerial(existingSerial, metadata, key, duration || 0, kpId)
@@ -94,6 +96,7 @@ export class NewSerialNotificationCommandHandler
         const { titleUrl, posterUrl, backgroundContentUrl } = await this.getContentUrlForNewSerial(
           savedSerial.id,
           metadata.trailerUrl,
+          metadata.backdropUrl,
           metadata.titleUrl,
           metadata.posterUrl,
         );
@@ -120,6 +123,11 @@ export class NewSerialNotificationCommandHandler
         if (moderationResult.isNew) {
           this.publish(moderationResult.id);
         }
+      } else if (
+        serial.handleStatus === MovieHandleStatus.PRODUCTION &&
+        previousHandleStatus !== MovieHandleStatus.PRODUCTION
+      ) {
+        this.publishWithoutModeration(serial.id);
       }
 
       await queryRunner.commitTransaction();
@@ -204,13 +212,14 @@ export class NewSerialNotificationCommandHandler
     kpId: string,
   ): Promise<Serial> {
     const { id } = serial;
+    const backgroundSourceUrl = metadata.backdropUrl || metadata.trailerUrl;
     const [previewUrl, backgroundContentUrl, titleUrl] = await Promise.all([
       !serial.previewUrl
         ? this.moviesService.getPosterUrl(metadata.posterUrl, id, MovieTypesEnum.SERIAL)
         : Promise.resolve(null),
 
       !serial.backgroundContentUrl
-        ? this.moviesService.getBackgroundContentUrl(metadata.trailerUrl, id, MovieTypesEnum.SERIAL)
+        ? this.moviesService.getBackgroundContentUrl(backgroundSourceUrl, id, MovieTypesEnum.SERIAL)
         : Promise.resolve(null),
 
       !serial.titleUrl
@@ -337,11 +346,17 @@ export class NewSerialNotificationCommandHandler
   private async getContentUrlForNewSerial(
     serialId: number,
     trailerUrl: string | null,
+    backdropUrl: string | null,
     logoUrl: string | null,
     previewUrl: string | null,
   ) {
+    const backgroundSourceUrl = backdropUrl || trailerUrl;
     const [backgroundContentUrl, posterUrl, titleUrl] = await Promise.all([
-      this.moviesService.getBackgroundContentUrl(trailerUrl, serialId, MovieTypesEnum.SERIAL),
+      this.moviesService.getBackgroundContentUrl(
+        backgroundSourceUrl,
+        serialId,
+        MovieTypesEnum.SERIAL,
+      ),
       this.moviesService.getPosterUrl(previewUrl, serialId, MovieTypesEnum.SERIAL),
       this.moviesService.getLogoUrl(logoUrl, serialId, MovieTypesEnum.SERIAL),
     ]);
@@ -358,6 +373,15 @@ export class NewSerialNotificationCommandHandler
       new TelegramAdminBotSendNotificationNewModerationMovieCommand(
         MovieTypesEnum.SERIAL,
         moderationId,
+      ),
+    );
+  }
+
+  private publishWithoutModeration(movieId: number): void {
+    void this.commandBus.execute(
+      new TelegramAdminBotSendNotificationMovieDownloadedWithoutModerationCommand(
+        MovieTypesEnum.SERIAL,
+        movieId,
       ),
     );
   }

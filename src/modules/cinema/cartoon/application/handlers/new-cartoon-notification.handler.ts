@@ -21,6 +21,7 @@ import { ModerationCartoonEntity } from '@/moderation-movie/domain/moderation-ca
 import { CreateModerationDto } from '@/moderation-movie/domain/types';
 import { TelegramAdminBotSendNotificationNewModerationMovieCommand } from '@/telegram/admin-bot/application/handlers/bot-send-notification-new-moderation-movie.handler';
 import { MovieTypesEnum } from '@/common/types/types';
+import { TelegramAdminBotSendNotificationMovieDownloadedWithoutModerationCommand } from '@/telegram/admin-bot/application/handlers/bot-send-notification-movie-downloaded-without-moderation.handler';
 
 export class NewCartoonNotificationCommand implements ICommand {
   constructor(public inputDto: NewCartoonNotificationPayloadDto) {}
@@ -79,6 +80,7 @@ export class NewCartoonNotificationCommandHandler
       }
 
       const metadata = await this.moviesService.extractMovieMetadata(kpMovie, queryRunner);
+      const previousHandleStatus = existingCartoon?.handleStatus ?? null;
 
       const cartoon = existingCartoon
         ? await this.updateExistingCartoon(existingCartoon, metadata, key, duration || 0, kpId)
@@ -92,6 +94,7 @@ export class NewCartoonNotificationCommandHandler
         const { titleUrl, posterUrl, backgroundContentUrl } = await this.getContentUrlForNewCartoon(
           savedCartoon.id,
           metadata.trailerUrl,
+          metadata.backdropUrl,
           metadata.titleUrl,
           metadata.posterUrl,
         );
@@ -111,6 +114,11 @@ export class NewCartoonNotificationCommandHandler
         const moderationResult = await this.movieModeration(cartoon, queryRunner);
 
         this.publish(moderationResult);
+      } else if (
+        cartoon.handleStatus === MovieHandleStatus.PRODUCTION &&
+        previousHandleStatus !== MovieHandleStatus.PRODUCTION
+      ) {
+        this.publishWithoutModeration(cartoon.id);
       }
 
       await queryRunner.commitTransaction();
@@ -132,6 +140,7 @@ export class NewCartoonNotificationCommandHandler
     kpId: string,
   ): Promise<Cartoon> {
     const { id } = cartoon;
+    const backgroundSourceUrl = metadata.backdropUrl || metadata.trailerUrl;
     const [previewUrl, backgroundContentUrl, titleUrl] = await Promise.all([
       !cartoon.previewUrl
         ? this.moviesService.getPosterUrl(metadata.posterUrl, id, MovieTypesEnum.CARTOON)
@@ -139,7 +148,7 @@ export class NewCartoonNotificationCommandHandler
 
       !cartoon.backgroundContentUrl
         ? this.moviesService.getBackgroundContentUrl(
-            metadata.trailerUrl,
+            backgroundSourceUrl,
             id,
             MovieTypesEnum.CARTOON,
           )
@@ -223,11 +232,17 @@ export class NewCartoonNotificationCommandHandler
   private async getContentUrlForNewCartoon(
     cartoonId: number,
     trailerUrl: string | null,
+    backdropUrl: string | null,
     logoUrl: string | null,
     previewUrl: string | null,
   ) {
+    const backgroundSourceUrl = backdropUrl || trailerUrl;
     const [backgroundContentUrl, posterUrl, titleUrl] = await Promise.all([
-      this.moviesService.getBackgroundContentUrl(trailerUrl, cartoonId, MovieTypesEnum.CARTOON),
+      this.moviesService.getBackgroundContentUrl(
+        backgroundSourceUrl,
+        cartoonId,
+        MovieTypesEnum.CARTOON,
+      ),
       this.moviesService.getPosterUrl(previewUrl, cartoonId, MovieTypesEnum.CARTOON),
       this.moviesService.getLogoUrl(logoUrl, cartoonId, MovieTypesEnum.CARTOON),
     ]);
@@ -244,6 +259,15 @@ export class NewCartoonNotificationCommandHandler
       new TelegramAdminBotSendNotificationNewModerationMovieCommand(
         MovieTypesEnum.CARTOON,
         moderationId,
+      ),
+    );
+  }
+
+  private publishWithoutModeration(movieId: number): void {
+    void this.commandBus.execute(
+      new TelegramAdminBotSendNotificationMovieDownloadedWithoutModerationCommand(
+        MovieTypesEnum.CARTOON,
+        movieId,
       ),
     );
   }

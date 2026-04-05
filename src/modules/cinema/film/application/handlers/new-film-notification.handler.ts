@@ -19,6 +19,7 @@ import { ModerationFilmRepository } from '@/moderation-movie/infrastructure/mode
 import { ModerationFilmEntity } from '@/moderation-movie/domain/moderation-film.entity';
 import { MovieTypesEnum } from '@/common/types/types';
 import { TelegramAdminBotSendNotificationNewModerationMovieCommand } from '@/telegram/admin-bot/application/handlers/bot-send-notification-new-moderation-movie.handler';
+import { TelegramAdminBotSendNotificationMovieDownloadedWithoutModerationCommand } from '@/telegram/admin-bot/application/handlers/bot-send-notification-movie-downloaded-without-moderation.handler';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource, QueryRunner } from 'typeorm';
 
@@ -79,6 +80,7 @@ export class NewFilmNotificationCommandHandler
       }
 
       const metadata = await this.moviesService.extractMovieMetadata(kpMovie, queryRunner);
+      const previousHandleStatus = existingFilm?.handleStatus ?? null;
 
       const film = existingFilm
         ? await this.updateExistingFilm(existingFilm, metadata, key, duration || 0, kpId)
@@ -92,6 +94,7 @@ export class NewFilmNotificationCommandHandler
         const { titleUrl, posterUrl, backgroundContentUrl } = await this.getContentUrlForNewFilm(
           savedFilm.id,
           metadata.trailerUrl,
+          metadata.backdropUrl,
           metadata.titleUrl,
           metadata.posterUrl,
         );
@@ -110,6 +113,11 @@ export class NewFilmNotificationCommandHandler
         const moderationResult = await this.movieModeration(film, queryRunner);
 
         this.publish(moderationResult);
+      } else if (
+        film.handleStatus === MovieHandleStatus.PRODUCTION &&
+        previousHandleStatus !== MovieHandleStatus.PRODUCTION
+      ) {
+        this.publishWithoutModeration(film.id);
       }
 
       await queryRunner.commitTransaction();
@@ -131,13 +139,14 @@ export class NewFilmNotificationCommandHandler
     kpId: string,
   ): Promise<Film> {
     const { id } = film;
+    const backgroundSourceUrl = metadata.backdropUrl || metadata.trailerUrl;
     const [previewUrl, backgroundContentUrl, titleUrl] = await Promise.all([
       !film.previewUrl
         ? this.moviesService.getPosterUrl(metadata.posterUrl, id, MovieTypesEnum.FILM)
         : Promise.resolve(null),
 
       !film.backgroundContentUrl
-        ? this.moviesService.getBackgroundContentUrl(metadata.trailerUrl, id, MovieTypesEnum.FILM)
+        ? this.moviesService.getBackgroundContentUrl(backgroundSourceUrl, id, MovieTypesEnum.FILM)
         : Promise.resolve(null),
 
       !film.titleUrl
@@ -215,13 +224,15 @@ export class NewFilmNotificationCommandHandler
   private async getContentUrlForNewFilm(
     filmId: number,
     trailerUrl: string | null,
+    backdropUrl: string | null,
     logoUrl: string | null,
     previewUrl: string | null,
   ) {
+    const backgroundSourceUrl = backdropUrl || trailerUrl;
     const [backgroundContentUrl, posterUrl, titleUrl] = await Promise.all([
-      this.moviesService.getBackgroundContentUrl(trailerUrl, filmId, MovieTypesEnum.CARTOON),
-      this.moviesService.getPosterUrl(previewUrl, filmId, MovieTypesEnum.CARTOON),
-      this.moviesService.getLogoUrl(logoUrl, filmId, MovieTypesEnum.CARTOON),
+      this.moviesService.getBackgroundContentUrl(backgroundSourceUrl, filmId, MovieTypesEnum.FILM),
+      this.moviesService.getPosterUrl(previewUrl, filmId, MovieTypesEnum.FILM),
+      this.moviesService.getLogoUrl(logoUrl, filmId, MovieTypesEnum.FILM),
     ]);
 
     return {
@@ -236,6 +247,15 @@ export class NewFilmNotificationCommandHandler
       new TelegramAdminBotSendNotificationNewModerationMovieCommand(
         MovieTypesEnum.FILM,
         moderationId,
+      ),
+    );
+  }
+
+  private publishWithoutModeration(movieId: number): void {
+    void this.commandBus.execute(
+      new TelegramAdminBotSendNotificationMovieDownloadedWithoutModerationCommand(
+        MovieTypesEnum.FILM,
+        movieId,
       ),
     );
   }

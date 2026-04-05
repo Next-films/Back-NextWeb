@@ -156,6 +156,7 @@ export class MoviesService {
         description: null,
         releaseDate: null,
         posterUrl: null,
+        backdropUrl: null,
         titleUrl: null,
         trailerUrl: null,
       };
@@ -171,6 +172,7 @@ export class MoviesService {
       description,
       genres: rawGenres,
       poster,
+      backdrop,
       logo,
       videos,
     } = kpMovie;
@@ -197,6 +199,7 @@ export class MoviesService {
       description: description || null,
       releaseDate: worldReleaseDate ? this.dateUtil.formatDateYyMmDd(worldReleaseDate) : null,
       posterUrl: poster?.url || null,
+      backdropUrl: backdrop?.url || backdrop?.previewUrl || null,
       trailerUrl: videos?.trailers?.find(t => t.site === 'youtube')?.url || null,
       titleUrl: logo?.url || null,
     };

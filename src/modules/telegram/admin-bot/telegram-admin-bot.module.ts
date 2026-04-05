@@ -16,6 +16,7 @@ import { TelegramAdminBotSendNotificationAdminCancelModerationCommandHandler } f
 import { FilmModule } from '@/films/film.module';
 import { CartoonModule } from '@/cartoons/cartoon.module';
 import { TelegramAdminBotSendNotificationAdminFinishedModerationCommandHandler } from '@/telegram/admin-bot/application/handlers/bot-send-notification-admin-finished-moderation.handler';
+import { TelegramAdminBotSendNotificationMovieDownloadedWithoutModerationCommandHandler } from '@/telegram/admin-bot/application/handlers/bot-send-notification-movie-downloaded-without-moderation.handler';
 import { SerialModule } from '@/serials/serial.module';
 import { SystemConnectionsStatusService } from '@/common/services/system-connections-status.service';
 import { TelegramAdminBotInternalController } from '@/telegram/admin-bot/api/telegram-admin-bot-internal.controller';
@@ -45,6 +46,7 @@ const handlers = [
   TelegramAdminBotSendNotificationAdminAcceptModerationCommandHandler,
   TelegramAdminBotSendNotificationAdminCancelModerationCommandHandler,
   TelegramAdminBotSendNotificationAdminFinishedModerationCommandHandler,
+  TelegramAdminBotSendNotificationMovieDownloadedWithoutModerationCommandHandler,
 ];
 
 @Module({

@@ -40,6 +40,8 @@ import { FilmUpdateDto } from '@/films/domain/types';
 import { DateUtil } from '@/common/utils/date.util';
 import { MovieEntity } from '@/movies/domain/movie.entity';
 import { MovieHandleStatus } from '@/movies/domain/types';
+import { AdminRepository } from '@/admin/infrastructure/admin.repository';
+import { TelegramAdminBotSendNotificationAdminAcceptModerationCommand } from '@/telegram/admin-bot/application/handlers/bot-send-notification-admin-accept-moderation.handler';
 
 export class AdminApplyModerationMovieTaskCommand implements ICommand {
   constructor(
@@ -65,6 +67,7 @@ export class AdminApplyModerationMovieTaskCommandHandler
     private readonly moderationCartoonRepository: ModerationCartoonRepository,
     private readonly moderationSerialRepository: ModerationSerialRepository,
     private readonly filmRepository: FilmRepository,
+    private readonly adminRepository: AdminRepository,
     private readonly finishedTorrentModerationRepository: FinishedTorrentModerationRepository,
     private readonly cartoonRepository: CartoonRepository,
     private readonly serialRepository: SerialRepository,
@@ -114,13 +117,29 @@ export class AdminApplyModerationMovieTaskCommandHandler
       const { admin: attachedAdmin, torrentData, movie } = task;
 
       if (!attachedAdmin) {
-        await queryRunner.rollbackTransaction();
+        const admin = await this.adminRepository.getAdminById(adminId, queryRunner);
+        if (!admin) {
+          await queryRunner.rollbackTransaction();
 
-        return this.appNotification.badRequest({
-          message: 'The task not been accepted',
-          errorKey: EXCEPTION_KEYS_ENUM.MODERATION_TASK_NOT_ACCEPTED,
-          field: 'taskId',
-        });
+          return this.appNotification.unauthorized({
+            field: 'token',
+            errorKey: EXCEPTION_KEYS_ENUM.UNAUTHORIZED,
+            message: 'Unauthorized',
+          });
+        }
+
+        task.attachAdmin(admin);
+        if (!strategy.saveTask) {
+          await queryRunner.rollbackTransaction();
+
+          return this.appNotification.internalServerError();
+        }
+        await strategy.saveTask(task);
+
+        this.publishAccepted(type, taskId);
+
+        await queryRunner.commitTransaction();
+        return this.appNotification.success(null);
       }
 
       const { id: attachedAdminId } = attachedAdmin;
@@ -331,6 +350,12 @@ export class AdminApplyModerationMovieTaskCommandHandler
     );
   }
 
+  private publishAccepted(type: MovieTypesEnum, taskId: number): void {
+    void this.commandBus.execute(
+      new TelegramAdminBotSendNotificationAdminAcceptModerationCommand(type, taskId),
+    );
+  }
+
   private getStrategyByType(
     type: MovieTypesEnum,
     queryRunner: QueryRunner,
@@ -343,6 +368,8 @@ export class AdminApplyModerationMovieTaskCommandHandler
               ...args,
               queryRunner,
             ),
+          saveTask: (task: ModerationFilmEntity) =>
+            this.moderationFilmRepository.save(task, queryRunner),
           removeTask: (task: ModerationFilmEntity) =>
             this.moderationFilmRepository.removeTask(task, queryRunner),
           saveMovie: (movie: Film) => this.filmRepository.save(movie, queryRunner),
@@ -355,6 +382,8 @@ export class AdminApplyModerationMovieTaskCommandHandler
               ...args,
               queryRunner,
             ),
+          saveTask: (task: ModerationCartoonEntity) =>
+            this.moderationCartoonRepository.save(task, queryRunner),
           removeTask: (task: ModerationCartoonEntity) =>
             this.moderationCartoonRepository.removeTask(task, queryRunner),
           saveMovie: (movie: Cartoon) => this.cartoonRepository.save(movie, queryRunner),
@@ -367,6 +396,8 @@ export class AdminApplyModerationMovieTaskCommandHandler
               ...args,
               queryRunner,
             ),
+          saveTask: (task: ModerationSerialEntity) =>
+            this.moderationSerialRepository.save(task, queryRunner),
           removeTask: (task: ModerationSerialEntity) =>
             this.moderationSerialRepository.removeTask(task, queryRunner),
           saveMovie: (movie: Serial) => this.serialRepository.save(movie, queryRunner),
