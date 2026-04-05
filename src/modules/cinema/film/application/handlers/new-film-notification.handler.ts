@@ -91,16 +91,18 @@ export class NewFilmNotificationCommandHandler
       const savedFilm = await this.filmRepository.save(film, queryRunner);
 
       if (!existingFilm) {
-        const { titleUrl, posterUrl, backgroundContentUrl } = await this.getContentUrlForNewFilm(
-          savedFilm.id,
-          metadata.trailerUrl,
-          metadata.backdropUrl,
-          metadata.titleUrl,
-          metadata.posterUrl,
-        );
+        const { titleUrl, posterUrl, backgroundContentUrl, horizontalPreviewUrl } =
+          await this.getContentUrlForNewFilm(
+            savedFilm.id,
+            metadata.trailerUrl,
+            metadata.backdropUrl,
+            metadata.titleUrl,
+            metadata.posterUrl,
+          );
 
         film.updateBackgroundUrl(backgroundContentUrl);
         film.updatePosterUrl(posterUrl);
+        film.updateHorizontalPreviewUrl(horizontalPreviewUrl);
         film.updateTitleUrl(titleUrl);
 
         this.moviesService.setHandleProductionStatus(film);
@@ -140,9 +142,13 @@ export class NewFilmNotificationCommandHandler
   ): Promise<Film> {
     const { id } = film;
     const backgroundSourceUrl = metadata.backdropUrl || metadata.trailerUrl;
-    const [previewUrl, backgroundContentUrl, titleUrl] = await Promise.all([
+    const [previewUrl, horizontalPreviewUrl, backgroundContentUrl, titleUrl] = await Promise.all([
       !film.previewUrl
         ? this.moviesService.getPosterUrl(metadata.posterUrl, id, MovieTypesEnum.FILM)
+        : Promise.resolve(null),
+
+      !film.horizontalPreviewUrl
+        ? this.moviesService.getBackgroundContentUrl(metadata.backdropUrl, id, MovieTypesEnum.FILM)
         : Promise.resolve(null),
 
       !film.backgroundContentUrl
@@ -168,6 +174,7 @@ export class NewFilmNotificationCommandHandler
       description: metadata.description,
       releaseDate: metadata.releaseDate,
       previewUrl: film.previewUrl || previewUrl || null,
+      horizontalPreviewUrl: film.horizontalPreviewUrl || horizontalPreviewUrl || null,
       backgroundContentUrl: film.backgroundContentUrl || backgroundContentUrl || null,
       trailerUrl: film.trailerUrl || metadata.trailerUrl,
       titleUrl: film.titleUrl || titleUrl || null,
@@ -198,6 +205,7 @@ export class NewFilmNotificationCommandHandler
       releaseDate: metadata.releaseDate,
       handleStatus: MovieHandleStatus.PROCESSING,
       previewUrl: null,
+      horizontalPreviewUrl: null,
       backgroundContentUrl: null,
       trailerUrl: metadata.trailerUrl,
       titleUrl: null,
@@ -229,14 +237,16 @@ export class NewFilmNotificationCommandHandler
     previewUrl: string | null,
   ) {
     const backgroundSourceUrl = backdropUrl || trailerUrl;
-    const [backgroundContentUrl, posterUrl, titleUrl] = await Promise.all([
+    const [backgroundContentUrl, horizontalPreviewUrl, posterUrl, titleUrl] = await Promise.all([
       this.moviesService.getBackgroundContentUrl(backgroundSourceUrl, filmId, MovieTypesEnum.FILM),
+      this.moviesService.getBackgroundContentUrl(backdropUrl, filmId, MovieTypesEnum.FILM),
       this.moviesService.getPosterUrl(previewUrl, filmId, MovieTypesEnum.FILM),
       this.moviesService.getLogoUrl(logoUrl, filmId, MovieTypesEnum.FILM),
     ]);
 
     return {
       backgroundContentUrl,
+      horizontalPreviewUrl,
       posterUrl,
       titleUrl,
     };

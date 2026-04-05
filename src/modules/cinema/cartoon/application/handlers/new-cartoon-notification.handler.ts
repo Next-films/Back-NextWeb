@@ -91,16 +91,18 @@ export class NewCartoonNotificationCommandHandler
       const savedCartoon = await this.cartoonRepository.save(cartoon, queryRunner);
 
       if (!existingCartoon) {
-        const { titleUrl, posterUrl, backgroundContentUrl } = await this.getContentUrlForNewCartoon(
-          savedCartoon.id,
-          metadata.trailerUrl,
-          metadata.backdropUrl,
-          metadata.titleUrl,
-          metadata.posterUrl,
-        );
+        const { titleUrl, posterUrl, backgroundContentUrl, horizontalPreviewUrl } =
+          await this.getContentUrlForNewCartoon(
+            savedCartoon.id,
+            metadata.trailerUrl,
+            metadata.backdropUrl,
+            metadata.titleUrl,
+            metadata.posterUrl,
+          );
 
         cartoon.updateBackgroundUrl(backgroundContentUrl);
         cartoon.updatePosterUrl(posterUrl);
+        cartoon.updateHorizontalPreviewUrl(horizontalPreviewUrl);
         cartoon.updateTitleUrl(titleUrl);
 
         this.moviesService.setHandleProductionStatus(cartoon);
@@ -141,9 +143,17 @@ export class NewCartoonNotificationCommandHandler
   ): Promise<Cartoon> {
     const { id } = cartoon;
     const backgroundSourceUrl = metadata.backdropUrl || metadata.trailerUrl;
-    const [previewUrl, backgroundContentUrl, titleUrl] = await Promise.all([
+    const [previewUrl, horizontalPreviewUrl, backgroundContentUrl, titleUrl] = await Promise.all([
       !cartoon.previewUrl
         ? this.moviesService.getPosterUrl(metadata.posterUrl, id, MovieTypesEnum.CARTOON)
+        : Promise.resolve(null),
+
+      !cartoon.horizontalPreviewUrl
+        ? this.moviesService.getBackgroundContentUrl(
+            metadata.backdropUrl,
+            id,
+            MovieTypesEnum.CARTOON,
+          )
         : Promise.resolve(null),
 
       !cartoon.backgroundContentUrl
@@ -174,6 +184,7 @@ export class NewCartoonNotificationCommandHandler
       releaseDate: metadata.releaseDate,
       titleUrl: cartoon.titleUrl || titleUrl || null,
       previewUrl: cartoon.previewUrl || previewUrl || null,
+      horizontalPreviewUrl: cartoon.horizontalPreviewUrl || horizontalPreviewUrl || null,
       trailerUrl: metadata.trailerUrl,
       backgroundContentUrl: cartoon.backgroundContentUrl || backgroundContentUrl || null,
     };
@@ -204,6 +215,7 @@ export class NewCartoonNotificationCommandHandler
       handleStatus: MovieHandleStatus.PROCESSING,
       titleUrl: null,
       previewUrl: null,
+      horizontalPreviewUrl: null,
       trailerUrl: metadata.trailerUrl,
       backgroundContentUrl: null,
     };
@@ -237,18 +249,20 @@ export class NewCartoonNotificationCommandHandler
     previewUrl: string | null,
   ) {
     const backgroundSourceUrl = backdropUrl || trailerUrl;
-    const [backgroundContentUrl, posterUrl, titleUrl] = await Promise.all([
+    const [backgroundContentUrl, horizontalPreviewUrl, posterUrl, titleUrl] = await Promise.all([
       this.moviesService.getBackgroundContentUrl(
         backgroundSourceUrl,
         cartoonId,
         MovieTypesEnum.CARTOON,
       ),
+      this.moviesService.getBackgroundContentUrl(backdropUrl, cartoonId, MovieTypesEnum.CARTOON),
       this.moviesService.getPosterUrl(previewUrl, cartoonId, MovieTypesEnum.CARTOON),
       this.moviesService.getLogoUrl(logoUrl, cartoonId, MovieTypesEnum.CARTOON),
     ]);
 
     return {
       backgroundContentUrl,
+      horizontalPreviewUrl,
       posterUrl,
       titleUrl,
     };

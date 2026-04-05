@@ -102,6 +102,7 @@ export class NewFilmIsHandleNotificationCommandHandler
       titleUrl: null,
       trailerUrl: null,
       previewUrl: null,
+      horizontalPreviewUrl: null,
       backgroundContentUrl: null,
     };
 

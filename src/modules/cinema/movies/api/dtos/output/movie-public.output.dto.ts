@@ -23,6 +23,9 @@ class MoviePublicContentOutputDto {
   previewUrl: string | null;
 
   @ApiProperty({ nullable: true })
+  horizontalPreviewUrl: string | null;
+
+  @ApiProperty({ nullable: true })
   backgroundUrl: string | null;
 
   @ApiProperty({ nullable: true })
@@ -43,6 +46,9 @@ export class MoviesPublicOutputDto {
 
   @ApiProperty({ nullable: true })
   previewUrl: string | null;
+
+  @ApiProperty({ nullable: true })
+  cardImg: string | null;
 
   @ApiProperty({ nullable: true })
   releaseDate: string | null;
@@ -129,6 +135,7 @@ export class MoviePublicOutputDtoMapper {
       description,
       backgroundContentUrl,
       previewUrl,
+      horizontalPreviewUrl,
       trailerUrl,
       country,
       duration,
@@ -146,6 +153,7 @@ export class MoviePublicOutputDtoMapper {
         movieUrl: videoUrl,
         backgroundUrl: backgroundContentUrl,
         previewUrl,
+        horizontalPreviewUrl,
         titleUrl,
         trailerUrl: trailerUrl,
       },
@@ -172,11 +180,13 @@ export class MoviePublicOutputDtoMapper {
    *
    */
   mapAllPublicMovie(movie: MovieEntity): MoviesPublicOutputDto {
-    const { id, title, releaseDate, previewUrl, genres, universe, studio } = movie;
+    const { id, title, releaseDate, previewUrl, horizontalPreviewUrl, genres, universe, studio } =
+      movie;
     return {
       id,
       name: title,
       previewUrl,
+      cardImg: horizontalPreviewUrl || previewUrl,
       releaseDate,
       genres: this.mapMovieGenres(genres),
       universe,

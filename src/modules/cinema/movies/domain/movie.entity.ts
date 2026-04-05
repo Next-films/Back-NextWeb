@@ -55,6 +55,9 @@ export class MovieEntity {
   previewUrl: string | null;
 
   @Column({ type: 'varchar', nullable: true })
+  horizontalPreviewUrl: string | null;
+
+  @Column({ type: 'varchar', nullable: true })
   titleUrl: string | null; // Movie name in the picture png
 
   @Column({ enum: MovieHandleStatus, default: MovieHandleStatus.PROCESSING })
@@ -89,6 +92,7 @@ export class MovieEntity {
       releaseDate,
       handleStatus,
       previewUrl,
+      horizontalPreviewUrl,
       trailerUrl,
       titleUrl,
       backgroundContentUrl,
@@ -115,6 +119,7 @@ export class MovieEntity {
     instance.trailerUrl = trailerUrl;
     instance.backgroundContentUrl = backgroundContentUrl;
     instance.previewUrl = previewUrl;
+    instance.horizontalPreviewUrl = horizontalPreviewUrl;
     instance.titleUrl = titleUrl;
 
     if (genres && genres.length > 0) {
@@ -131,6 +136,7 @@ export class MovieEntity {
       trailerUrl,
       titleUrl,
       previewUrl,
+      horizontalPreviewUrl,
       country,
       duration,
       releaseDate,
@@ -162,16 +168,23 @@ export class MovieEntity {
     this.trailerUrl = trailerUrl;
 
     if (uploadFileResult) {
-      const { videoUploadedUrl, titleUploadedUrl, previewUploadedUrl, backgroundUploadedUrl } =
-        uploadFileResult;
+      const {
+        videoUploadedUrl,
+        titleUploadedUrl,
+        previewUploadedUrl,
+        backgroundUploadedUrl,
+        horizontalPreviewUploadedUrl,
+      } = uploadFileResult;
       this.videoUrl = videoUploadedUrl || videUrl;
       this.backgroundContentUrl = backgroundUploadedUrl || backgroundContentUrl;
       this.previewUrl = previewUploadedUrl || previewUrl;
+      this.horizontalPreviewUrl = horizontalPreviewUploadedUrl || horizontalPreviewUrl;
       this.titleUrl = titleUploadedUrl || titleUrl;
     } else {
       this.videoUrl = videUrl;
       this.backgroundContentUrl = backgroundContentUrl;
       this.previewUrl = previewUrl;
+      this.horizontalPreviewUrl = horizontalPreviewUrl;
       this.titleUrl = titleUrl;
     }
 
@@ -207,6 +220,10 @@ export class MovieEntity {
 
   updatePosterUrl(url: string | null): void {
     if (url) this.previewUrl = url;
+  }
+
+  updateHorizontalPreviewUrl(url: string | null): void {
+    if (url) this.horizontalPreviewUrl = url;
   }
 
   updateTitleUrl(url: string | null): void {

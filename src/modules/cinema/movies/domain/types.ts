@@ -19,6 +19,7 @@ export class MovieCreateDto {
 
   trailerUrl: string | null;
   backgroundContentUrl: string | null;
+  horizontalPreviewUrl: string | null;
   previewUrl: string | null;
   titleUrl: string | null;
 }
@@ -44,6 +45,7 @@ export class MovieUpdateDto {
   videUrl: string | null;
   trailerUrl: string | null;
   backgroundContentUrl: string | null;
+  horizontalPreviewUrl: string | null;
   previewUrl: string | null;
   titleUrl: string | null;
 }
@@ -68,6 +70,7 @@ export class MovieKpMetadata {
 export class UploadedFilesUrlResult {
   videoUploadedUrl: string | null;
   backgroundUploadedUrl: string | null;
+  horizontalPreviewUploadedUrl: string | null;
   previewUploadedUrl: string | null;
   titleUploadedUrl: string | null;
 }

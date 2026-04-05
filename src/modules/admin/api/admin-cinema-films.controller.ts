@@ -109,6 +109,7 @@ export class AdminCinemaFilmsController {
         { name: 'previewFile', maxCount: 1 },
         { name: 'titleFile', maxCount: 1 },
         { name: 'backgroundFile', maxCount: 1 },
+        { name: 'horizontalPreviewFile', maxCount: 1 },
       ],
       { storage: storageUtil },
     ),
@@ -122,6 +123,7 @@ export class AdminCinemaFilmsController {
       previewFile?: Express.Multer.File[];
       titleFile?: Express.Multer.File[];
       backgroundFile?: Express.Multer.File[];
+      horizontalPreviewFile?: Express.Multer.File[];
     },
   ): Promise<AdminCinemaFilmsOutputDto | void> {
     this.logger.log('Execute: update film by admin', this.updateFilm.name);
@@ -129,6 +131,7 @@ export class AdminCinemaFilmsController {
     const previewFile = files?.previewFile?.[0];
     const titleFile = files?.titleFile?.[0];
     const backgroundFile = files?.backgroundFile?.[0];
+    const horizontalPreviewFile = files?.horizontalPreviewFile?.[0];
     try {
       const result = await this.commandBus.execute<
         AdminUpdateFilmCommand,
@@ -140,6 +143,7 @@ export class AdminCinemaFilmsController {
           videoFile,
           titleFile,
           backgroundFile,
+          horizontalPreviewFile,
         }),
       );
 
@@ -156,7 +160,7 @@ export class AdminCinemaFilmsController {
 
       this.appNotification.handleHttpResult(result);
     } finally {
-      const tempFiles = [videoFile, previewFile, titleFile, backgroundFile]
+      const tempFiles = [videoFile, previewFile, titleFile, backgroundFile, horizontalPreviewFile]
         .filter(file => file?.path)
         .map(file => file!);
 

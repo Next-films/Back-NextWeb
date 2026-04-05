@@ -259,6 +259,7 @@ export class AdminApplyModerationMovieTaskCommandHandler
       duration: duration ?? movie.duration ?? 0,
       videUrl: videUrl ?? movie.videoUrl ?? null,
       backgroundContentUrl: backgroundContentUrl ?? movie.backgroundContentUrl ?? null,
+      horizontalPreviewUrl: movie.horizontalPreviewUrl ?? null,
       titleUrl: titleUrl ?? movie.titleUrl ?? null,
       previewUrl: previewUrl ?? movie.previewUrl ?? null,
       description: description ?? movie.description ?? null,

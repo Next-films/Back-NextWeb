@@ -50,6 +50,9 @@ class AdminModerationMovieTaskMovieByIdContentOutputDto {
   previewUrl: string | null;
 
   @ApiProperty({ nullable: true })
+  horizontalPreviewUrl: string | null;
+
+  @ApiProperty({ nullable: true })
   trailerUrl: string | null;
 
   @ApiProperty({ nullable: true })
@@ -257,12 +260,20 @@ export class AdminModerationMovieTaskOutputDtoMapper {
   private mapMovieByIdContent<T extends MovieEntity>(
     movie: T,
   ): AdminModerationMovieTaskMovieByIdContentOutputDto {
-    const { titleUrl, backgroundContentUrl, previewUrl, trailerUrl, videoUrl } = movie;
+    const {
+      titleUrl,
+      backgroundContentUrl,
+      previewUrl,
+      horizontalPreviewUrl,
+      trailerUrl,
+      videoUrl,
+    } = movie;
 
     return {
       titleUrl,
       backgroundContentUrl,
       previewUrl,
+      horizontalPreviewUrl,
       trailerUrl,
       videoUrl,
     };

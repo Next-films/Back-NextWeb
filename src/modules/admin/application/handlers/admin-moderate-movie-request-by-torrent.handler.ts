@@ -132,6 +132,7 @@ export class AdminModerateRequestByTorrentCommandHandler
         backgroundContentUrl: null,
         trailerUrl: null,
         previewUrl: null,
+        horizontalPreviewUrl: null,
         titleUrl: null,
       };
 

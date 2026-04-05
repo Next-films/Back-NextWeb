@@ -102,6 +102,7 @@ export class NewCartoonIsHandleNotificationCommandHandler
       titleUrl: null,
       trailerUrl: null,
       previewUrl: null,
+      horizontalPreviewUrl: null,
       backgroundContentUrl: null,
     };
 

@@ -105,6 +105,7 @@ export class NewSerialIsHandleNotificationCommandHandler
       titleUrl: null,
       trailerUrl: null,
       previewUrl: null,
+      horizontalPreviewUrl: null,
       backgroundContentUrl: null,
     };
 

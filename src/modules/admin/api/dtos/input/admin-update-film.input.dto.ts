@@ -174,6 +174,13 @@ export class AdminUpdateFilmInputDto {
   @Trim()
   @IsNotEmpty()
   @IsUrl(URL_VALIDATION_OPTIONS)
+  horizontalPreviewUrl: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Trim()
+  @IsNotEmpty()
+  @IsUrl(URL_VALIDATION_OPTIONS)
   previewUrl: string;
 
   @ApiPropertyOptional()
@@ -214,4 +221,12 @@ export class AdminUpdateFilmInputDto {
   })
   @IsOptional()
   backgroundFile?: Express.Multer.File;
+
+  @ApiPropertyOptional({
+    type: 'string',
+    format: 'binary',
+    required: false,
+  })
+  @IsOptional()
+  horizontalPreviewFile?: Express.Multer.File;
 }

@@ -93,16 +93,18 @@ export class NewSerialNotificationCommandHandler
       const savedSerial = await this.serialRepository.save(serial, queryRunner);
 
       if (!existingSerial) {
-        const { titleUrl, posterUrl, backgroundContentUrl } = await this.getContentUrlForNewSerial(
-          savedSerial.id,
-          metadata.trailerUrl,
-          metadata.backdropUrl,
-          metadata.titleUrl,
-          metadata.posterUrl,
-        );
+        const { titleUrl, posterUrl, backgroundContentUrl, horizontalPreviewUrl } =
+          await this.getContentUrlForNewSerial(
+            savedSerial.id,
+            metadata.trailerUrl,
+            metadata.backdropUrl,
+            metadata.titleUrl,
+            metadata.posterUrl,
+          );
 
         serial.updateBackgroundUrl(backgroundContentUrl);
         serial.updatePosterUrl(posterUrl);
+        serial.updateHorizontalPreviewUrl(horizontalPreviewUrl);
         serial.updateTitleUrl(titleUrl);
 
         this.moviesService.setHandleProductionStatus(serial);
@@ -213,9 +215,17 @@ export class NewSerialNotificationCommandHandler
   ): Promise<Serial> {
     const { id } = serial;
     const backgroundSourceUrl = metadata.backdropUrl || metadata.trailerUrl;
-    const [previewUrl, backgroundContentUrl, titleUrl] = await Promise.all([
+    const [previewUrl, horizontalPreviewUrl, backgroundContentUrl, titleUrl] = await Promise.all([
       !serial.previewUrl
         ? this.moviesService.getPosterUrl(metadata.posterUrl, id, MovieTypesEnum.SERIAL)
+        : Promise.resolve(null),
+
+      !serial.horizontalPreviewUrl
+        ? this.moviesService.getBackgroundContentUrl(
+            metadata.backdropUrl,
+            id,
+            MovieTypesEnum.SERIAL,
+          )
         : Promise.resolve(null),
 
       !serial.backgroundContentUrl
@@ -241,6 +251,7 @@ export class NewSerialNotificationCommandHandler
       description: metadata.description,
       releaseDate: metadata.releaseDate,
       previewUrl: serial.previewUrl || previewUrl || null,
+      horizontalPreviewUrl: serial.horizontalPreviewUrl || horizontalPreviewUrl || null,
       backgroundContentUrl: serial.backgroundContentUrl || backgroundContentUrl || null,
       trailerUrl: serial.trailerUrl || metadata.trailerUrl,
       titleUrl: serial.titleUrl || titleUrl || null,
@@ -271,6 +282,7 @@ export class NewSerialNotificationCommandHandler
       releaseDate: metadata.releaseDate,
       handleStatus: MovieHandleStatus.PROCESSING,
       previewUrl: null,
+      horizontalPreviewUrl: null,
       backgroundContentUrl: null,
       trailerUrl: metadata.trailerUrl,
       titleUrl: null,
@@ -351,18 +363,20 @@ export class NewSerialNotificationCommandHandler
     previewUrl: string | null,
   ) {
     const backgroundSourceUrl = backdropUrl || trailerUrl;
-    const [backgroundContentUrl, posterUrl, titleUrl] = await Promise.all([
+    const [backgroundContentUrl, horizontalPreviewUrl, posterUrl, titleUrl] = await Promise.all([
       this.moviesService.getBackgroundContentUrl(
         backgroundSourceUrl,
         serialId,
         MovieTypesEnum.SERIAL,
       ),
+      this.moviesService.getBackgroundContentUrl(backdropUrl, serialId, MovieTypesEnum.SERIAL),
       this.moviesService.getPosterUrl(previewUrl, serialId, MovieTypesEnum.SERIAL),
       this.moviesService.getLogoUrl(logoUrl, serialId, MovieTypesEnum.SERIAL),
     ]);
 
     return {
       backgroundContentUrl,
+      horizontalPreviewUrl,
       posterUrl,
       titleUrl,
     };
