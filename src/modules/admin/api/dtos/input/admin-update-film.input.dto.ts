@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Transform } from 'class-transformer';
 import {
   IsArray,
   IsDate,
@@ -17,6 +18,11 @@ import { ToArray } from '@/common/decorators/transform/array.decorator';
 import { FILMS_VALIDATION_RULES } from '@/common/constants/validation-rules.constants';
 
 const URL_VALIDATION_OPTIONS = { require_tld: false };
+const trimAndEmptyToNull = ({ value }: { value: unknown }) => {
+  if (typeof value !== 'string') return value;
+  const normalized = value.trim();
+  return normalized.length > 0 ? normalized : null;
+};
 
 export class AdminUpdateFilmInputDto {
   @ApiProperty({
@@ -105,7 +111,7 @@ export class AdminUpdateFilmInputDto {
     maxLength: FILMS_VALIDATION_RULES.NAME.LENGTH_MAX,
   })
   @IsOptional()
-  @Trim()
+  @Transform(trimAndEmptyToNull)
   @IsNotEmpty()
   @IsString()
   @Length(FILMS_VALIDATION_RULES.NAME.LENGTH_MIN, FILMS_VALIDATION_RULES.NAME.LENGTH_MAX)
@@ -116,7 +122,7 @@ export class AdminUpdateFilmInputDto {
     maxLength: FILMS_VALIDATION_RULES.NAME.LENGTH_MAX,
   })
   @IsOptional()
-  @Trim()
+  @Transform(trimAndEmptyToNull)
   @IsNotEmpty()
   @IsString()
   @Length(FILMS_VALIDATION_RULES.NAME.LENGTH_MIN, FILMS_VALIDATION_RULES.NAME.LENGTH_MAX)
