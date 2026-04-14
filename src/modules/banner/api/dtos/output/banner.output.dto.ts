@@ -4,6 +4,8 @@ export class BannerOutputDto {
   id: number;
   imageUrl: string;
   linkUrl: string | null;
+  buttonImageUrl: string | null;
+  buttonHoverVideoUrl: string | null;
   openInNewTab: boolean;
   sortOrder: number;
   isActive: boolean;
@@ -15,6 +17,8 @@ export class BannerOutputDto {
     dto.id = banner.id;
     dto.imageUrl = banner.imageUrl;
     dto.linkUrl = banner.linkUrl;
+    dto.buttonImageUrl = banner.buttonImageUrl;
+    dto.buttonHoverVideoUrl = banner.buttonHoverVideoUrl;
     dto.openInNewTab = banner.openInNewTab;
     dto.sortOrder = banner.sortOrder;
     dto.isActive = banner.isActive;

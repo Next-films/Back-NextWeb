@@ -36,4 +36,20 @@ export class UpdateBannerInputDto {
   @StringToBoolean()
   @IsBoolean()
   isActive?: boolean;
+
+  @ApiPropertyOptional({
+    type: 'string',
+    format: 'binary',
+    description: 'Button image file (will be converted to webp)',
+  })
+  @IsOptional()
+  buttonImageFile?: Express.Multer.File;
+
+  @ApiPropertyOptional({
+    type: 'string',
+    format: 'binary',
+    description: 'Button hover video file (will be converted to webm)',
+  })
+  @IsOptional()
+  buttonHoverVideoFile?: Express.Multer.File;
 }
