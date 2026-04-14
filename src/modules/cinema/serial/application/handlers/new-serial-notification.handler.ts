@@ -232,6 +232,7 @@ export class NewSerialNotificationCommandHandler
             metadata.backdropUrl,
             id,
             MovieTypesEnum.SERIAL,
+            'horizontal-posters',
           )
         : Promise.resolve(null),
 
@@ -378,7 +379,12 @@ export class NewSerialNotificationCommandHandler
         serialId,
         MovieTypesEnum.SERIAL,
       ),
-      this.moviesService.getBackgroundContentUrl(backdropUrl, serialId, MovieTypesEnum.SERIAL),
+      this.moviesService.getBackgroundContentUrl(
+        backdropUrl,
+        serialId,
+        MovieTypesEnum.SERIAL,
+        'horizontal-posters',
+      ),
       this.moviesService.getPosterUrl(previewUrl, serialId, MovieTypesEnum.SERIAL),
       this.moviesService.getLogoUrl(logoUrl, serialId, MovieTypesEnum.SERIAL),
     ]);

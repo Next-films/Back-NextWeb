@@ -155,7 +155,12 @@ export class NewFilmNotificationCommandHandler
         : Promise.resolve(null),
 
       shouldRefreshHorizontalPreview && !!metadata.backdropUrl
-        ? this.moviesService.getBackgroundContentUrl(metadata.backdropUrl, id, MovieTypesEnum.FILM)
+        ? this.moviesService.getBackgroundContentUrl(
+            metadata.backdropUrl,
+            id,
+            MovieTypesEnum.FILM,
+            'horizontal-posters',
+          )
         : Promise.resolve(null),
 
       !film.backgroundContentUrl
@@ -248,7 +253,12 @@ export class NewFilmNotificationCommandHandler
     const backgroundSourceUrl = backdropUrl || trailerUrl;
     const [backgroundContentUrl, horizontalPreviewUrl, posterUrl, titleUrl] = await Promise.all([
       this.moviesService.getBackgroundContentUrl(backgroundSourceUrl, filmId, MovieTypesEnum.FILM),
-      this.moviesService.getBackgroundContentUrl(backdropUrl, filmId, MovieTypesEnum.FILM),
+      this.moviesService.getBackgroundContentUrl(
+        backdropUrl,
+        filmId,
+        MovieTypesEnum.FILM,
+        'horizontal-posters',
+      ),
       this.moviesService.getPosterUrl(previewUrl, filmId, MovieTypesEnum.FILM),
       this.moviesService.getLogoUrl(logoUrl, filmId, MovieTypesEnum.FILM),
     ]);

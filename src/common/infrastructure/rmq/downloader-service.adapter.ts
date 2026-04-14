@@ -240,10 +240,12 @@ export class DownloaderServiceAdapter implements IDownloaderServiceAdapter {
     movieId: number,
     file: string | Express.Multer.File,
     type: MovieTypesEnum,
+    s3KeyPrefix?: string,
   ): Promise<Res<string | null>> {
     const payload: DownloadPreviewYtClipPayloadDto = {
       movieId,
       type,
+      s3KeyPrefix,
       ...buildFileOrUrlFields(file),
     };
     return this.sendCommand(DOWNLOAD_YT_CLIP_CMD, payload, this.downloadPreviewClip.name, 180_000);
@@ -430,10 +432,13 @@ export class DownloaderServiceAdapterMock implements IDownloaderServiceAdapter {
     movieId: number,
     file: string | Express.Multer.File,
     type: MovieTypesEnum,
+    s3KeyPrefix?: string,
   ): Promise<Res<string | null>> {
     const fileData = typeof file === 'string' ? `url: ${file}` : `file: ${file.originalname}`;
     this.mockLog(
-      `Execute: download yt clip (mock). Movie id: ${movieId}, type: ${type}, ${fileData}`,
+      `Execute: download yt clip (mock). Movie id: ${movieId}, type: ${type}, s3KeyPrefix: ${
+        s3KeyPrefix ?? 'preview-clip'
+      }, ${fileData}`,
       this.downloadPreviewClip.name,
     );
     return Promise.resolve(this.mockSuccess('mock'));

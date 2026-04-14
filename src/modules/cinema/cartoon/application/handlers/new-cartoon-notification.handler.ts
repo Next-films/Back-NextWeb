@@ -160,6 +160,7 @@ export class NewCartoonNotificationCommandHandler
             metadata.backdropUrl,
             id,
             MovieTypesEnum.CARTOON,
+            'horizontal-posters',
           )
         : Promise.resolve(null),
 
@@ -264,7 +265,12 @@ export class NewCartoonNotificationCommandHandler
         cartoonId,
         MovieTypesEnum.CARTOON,
       ),
-      this.moviesService.getBackgroundContentUrl(backdropUrl, cartoonId, MovieTypesEnum.CARTOON),
+      this.moviesService.getBackgroundContentUrl(
+        backdropUrl,
+        cartoonId,
+        MovieTypesEnum.CARTOON,
+        'horizontal-posters',
+      ),
       this.moviesService.getPosterUrl(previewUrl, cartoonId, MovieTypesEnum.CARTOON),
       this.moviesService.getLogoUrl(logoUrl, cartoonId, MovieTypesEnum.CARTOON),
     ]);

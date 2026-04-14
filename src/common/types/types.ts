@@ -231,6 +231,7 @@ export class UploadFilmPayloadDto {
 export class DownloadPreviewYtClipPayloadDto {
   type: MovieTypesEnum;
   movieId: number;
+  s3KeyPrefix?: string;
   url?: string;
   file?: Express.Multer.File;
 }

@@ -356,10 +356,12 @@ export class MoviesService {
     file: string | Express.Multer.File | null,
     movieId: number,
     movieType: MovieTypesEnum,
+    s3KeyPrefix?: string,
   ): Promise<string | null> {
     return this.callDownloaderOrNull(
       file,
-      () => this.downloaderServiceAdapter.downloadPreviewClip(movieId, file!, movieType),
+      () =>
+        this.downloaderServiceAdapter.downloadPreviewClip(movieId, file!, movieType, s3KeyPrefix),
       this.getBackgroundContentUrl.name,
     );
   }

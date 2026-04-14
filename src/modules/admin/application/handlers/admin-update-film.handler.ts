@@ -337,6 +337,7 @@ export class AdminUpdateFilmCommandHandler
               horizontalPreviewFile,
               id,
               MovieTypesEnum.FILM,
+              'horizontal-posters',
             )
           : Promise.resolve(null),
         backgroundFile
@@ -410,6 +411,7 @@ export class AdminUpdateFilmCommandHandler
       normalizedHorizontalPreviewUrl,
       film.id,
       MovieTypesEnum.FILM,
+      'horizontal-posters',
     );
   }
 

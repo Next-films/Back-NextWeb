@@ -310,6 +310,7 @@ export class AdminUpdateCartoonCommandHandler
               horizontalPreviewFile,
               id,
               MovieTypesEnum.CARTOON,
+              'horizontal-posters',
             )
           : Promise.resolve(null),
         backgroundFile
@@ -383,6 +384,7 @@ export class AdminUpdateCartoonCommandHandler
       normalizedHorizontalPreviewUrl,
       cartoon.id,
       MovieTypesEnum.CARTOON,
+      'horizontal-posters',
     );
   }
 

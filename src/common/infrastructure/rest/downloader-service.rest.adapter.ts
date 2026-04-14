@@ -378,6 +378,7 @@ export class DownloaderServiceRestAdapter implements IDownloaderServiceAdapter {
     movieId: number,
     file: string | Express.Multer.File,
     type: MovieTypesEnum,
+    s3KeyPrefix?: string,
   ): Promise<Res<string>> {
     const clipUrl = this.url(DOWNLOADER.MAIN, DOWNLOADER.YT_CLIP, DOWNLOADER.DOWNLOAD);
 
@@ -385,7 +386,12 @@ export class DownloaderServiceRestAdapter implements IDownloaderServiceAdapter {
       let result: AxiosResponse<Res<string>> | null = null;
 
       if (typeof file === 'string') {
-        const payload: DownloadPreviewYtClipPayloadDto = { movieId, url: file, type };
+        const payload: DownloadPreviewYtClipPayloadDto = {
+          movieId,
+          url: file,
+          type,
+          s3KeyPrefix,
+        };
         result = await this.httpService.axiosRef.post<Res<string>>(
           clipUrl,
           payload,
@@ -397,6 +403,7 @@ export class DownloaderServiceRestAdapter implements IDownloaderServiceAdapter {
         const form = this.buildForm(file, filename, {
           movieId: movieId.toString(),
           type,
+          ...(s3KeyPrefix ? { s3KeyPrefix } : {}),
         });
         result = await this.postForm<Res<string>>(clipUrl, form);
       }

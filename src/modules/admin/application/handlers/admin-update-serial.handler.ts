@@ -312,6 +312,7 @@ export class AdminUpdateSerialCommandHandler
               horizontalPreviewFile,
               id,
               MovieTypesEnum.SERIAL,
+              'horizontal-posters',
             )
           : Promise.resolve(null),
         backgroundFile
@@ -385,6 +386,7 @@ export class AdminUpdateSerialCommandHandler
       normalizedHorizontalPreviewUrl,
       serial.id,
       MovieTypesEnum.SERIAL,
+      'horizontal-posters',
     );
   }
 
