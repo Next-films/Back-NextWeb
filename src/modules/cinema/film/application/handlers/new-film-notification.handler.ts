@@ -142,9 +142,13 @@ export class NewFilmNotificationCommandHandler
   ): Promise<Film> {
     const { id } = film;
     const backgroundSourceUrl = metadata.backdropUrl || metadata.trailerUrl;
+    const isBackfilledHorizontalPreview =
+      !!film.previewUrl && film.horizontalPreviewUrl === film.previewUrl;
     const shouldRefreshHorizontalPreview =
-      !film.horizontalPreviewUrl ||
-      (!!film.previewUrl && film.horizontalPreviewUrl === film.previewUrl);
+      !film.horizontalPreviewUrl || isBackfilledHorizontalPreview;
+    const normalizedExistingHorizontalPreviewUrl = isBackfilledHorizontalPreview
+      ? null
+      : film.horizontalPreviewUrl;
     const [previewUrl, horizontalPreviewUrl, backgroundContentUrl, titleUrl] = await Promise.all([
       !film.previewUrl
         ? this.moviesService.getPosterUrl(metadata.posterUrl, id, MovieTypesEnum.FILM)
@@ -178,7 +182,7 @@ export class NewFilmNotificationCommandHandler
       releaseDate: metadata.releaseDate,
       previewUrl: film.previewUrl || previewUrl || null,
       horizontalPreviewUrl: shouldRefreshHorizontalPreview
-        ? horizontalPreviewUrl || film.horizontalPreviewUrl || null
+        ? horizontalPreviewUrl || normalizedExistingHorizontalPreviewUrl || null
         : film.horizontalPreviewUrl || horizontalPreviewUrl || null,
       backgroundContentUrl: film.backgroundContentUrl || backgroundContentUrl || null,
       trailerUrl: film.trailerUrl || metadata.trailerUrl,

@@ -215,9 +215,13 @@ export class NewSerialNotificationCommandHandler
   ): Promise<Serial> {
     const { id } = serial;
     const backgroundSourceUrl = metadata.backdropUrl || metadata.trailerUrl;
+    const isBackfilledHorizontalPreview =
+      !!serial.previewUrl && serial.horizontalPreviewUrl === serial.previewUrl;
     const shouldRefreshHorizontalPreview =
-      !serial.horizontalPreviewUrl ||
-      (!!serial.previewUrl && serial.horizontalPreviewUrl === serial.previewUrl);
+      !serial.horizontalPreviewUrl || isBackfilledHorizontalPreview;
+    const normalizedExistingHorizontalPreviewUrl = isBackfilledHorizontalPreview
+      ? null
+      : serial.horizontalPreviewUrl;
     const [previewUrl, horizontalPreviewUrl, backgroundContentUrl, titleUrl] = await Promise.all([
       !serial.previewUrl
         ? this.moviesService.getPosterUrl(metadata.posterUrl, id, MovieTypesEnum.SERIAL)
@@ -255,7 +259,7 @@ export class NewSerialNotificationCommandHandler
       releaseDate: metadata.releaseDate,
       previewUrl: serial.previewUrl || previewUrl || null,
       horizontalPreviewUrl: shouldRefreshHorizontalPreview
-        ? horizontalPreviewUrl || serial.horizontalPreviewUrl || null
+        ? horizontalPreviewUrl || normalizedExistingHorizontalPreviewUrl || null
         : serial.horizontalPreviewUrl || horizontalPreviewUrl || null,
       backgroundContentUrl: serial.backgroundContentUrl || backgroundContentUrl || null,
       trailerUrl: serial.trailerUrl || metadata.trailerUrl,

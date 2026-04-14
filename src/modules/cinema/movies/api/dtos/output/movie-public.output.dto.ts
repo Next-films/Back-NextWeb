@@ -186,7 +186,7 @@ export class MoviePublicOutputDtoMapper {
       id,
       name: title,
       previewUrl,
-      cardImg: horizontalPreviewUrl || previewUrl,
+      cardImg: horizontalPreviewUrl,
       releaseDate,
       genres: this.mapMovieGenres(genres),
       universe,
