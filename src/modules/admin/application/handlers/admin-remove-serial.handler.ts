@@ -93,6 +93,7 @@ export class AdminRemoveSerialCommandHandler
         [
           serial.videoUrl,
           serial.previewUrl,
+          serial.horizontalPreviewUrl,
           serial.backgroundContentUrl,
           serial.titleUrl,
           ...episodeUrls,

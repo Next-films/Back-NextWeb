@@ -86,7 +86,13 @@ export class AdminRemoveFilmCommandHandler
         });
 
       await this.removeMediaByUrls(
-        [film.videoUrl, film.previewUrl, film.backgroundContentUrl, film.titleUrl],
+        [
+          film.videoUrl,
+          film.previewUrl,
+          film.horizontalPreviewUrl,
+          film.backgroundContentUrl,
+          film.titleUrl,
+        ],
         'Remove film media',
       );
 

@@ -86,7 +86,13 @@ export class AdminRemoveCartoonCommandHandler
         });
 
       await this.removeMediaByUrls(
-        [cartoon.videoUrl, cartoon.previewUrl, cartoon.backgroundContentUrl, cartoon.titleUrl],
+        [
+          cartoon.videoUrl,
+          cartoon.previewUrl,
+          cartoon.horizontalPreviewUrl,
+          cartoon.backgroundContentUrl,
+          cartoon.titleUrl,
+        ],
         'Remove cartoon media',
       );
 
