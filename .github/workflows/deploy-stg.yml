@@ -57,6 +57,22 @@ jobs:
 
           docker build -t nextfilms/cinema-app:dev .
 
+          if [ -f .env.staging ]; then
+            ENV_FILE=.env.staging
+          elif [ -f .env ]; then
+            ENV_FILE=.env
+          else
+            cp .env.example .env.staging
+            ENV_FILE=.env.staging
+          fi
+
+          echo "Applying database migrations..."
+          docker run --rm \
+            --env-file "\$ENV_FILE" \
+            -e ENV=STAGING \
+            nextfilms/cinema-app:dev \
+            yarn apply-migration
+
           BACK_CONTAINERS=\$(docker ps -a --format '{{.ID}} {{.Names}}' | awk '\$2 ~ /back-nextweb|cinema-app/ {print \$1}')
           if [ -n "\$BACK_CONTAINERS" ]; then
             docker rm -f \$BACK_CONTAINERS || true
@@ -65,15 +81,6 @@ jobs:
           CONTAINERS_ON_4000=\$(docker ps -a --format '{{.ID}} {{.Ports}}' | awk '\$0 ~ /:4000->/ {print \$1}')
           if [ -n "\$CONTAINERS_ON_4000" ]; then
             docker rm -f \$CONTAINERS_ON_4000 || true
-          fi
-
-          if [ -f .env.staging ]; then
-            ENV_FILE=.env.staging
-          elif [ -f .env ]; then
-            ENV_FILE=.env
-          else
-            cp .env.example .env.staging
-            ENV_FILE=.env.staging
           fi
 
           docker run -d --name back-nextweb --restart unless-stopped \

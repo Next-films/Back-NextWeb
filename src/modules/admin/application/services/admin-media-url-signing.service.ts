@@ -29,17 +29,21 @@ export class AdminMediaUrlSigningService {
   }
 
   private async signContent(content: AdminCinemaMoviesOutputDto['content']) {
-    const [movieUrl, previewUrl, backgroundUrl, titleUrl] = await Promise.all([
-      this.signUrl(content.movieUrl),
-      this.signUrl(content.previewUrl),
-      this.signUrl(content.backgroundUrl),
-      this.signUrl(content.titleUrl),
-    ]);
+    const [movieUrl, previewUrl, horizontalPreviewUrl, backgroundUrl, titleUrl] = await Promise.all(
+      [
+        this.signUrl(content.movieUrl),
+        this.signUrl(content.previewUrl),
+        this.signUrl(content.horizontalPreviewUrl),
+        this.signUrl(content.backgroundUrl),
+        this.signUrl(content.titleUrl),
+      ],
+    );
 
     return {
       ...content,
       movieUrl,
       previewUrl,
+      horizontalPreviewUrl,
       backgroundUrl,
       titleUrl,
     };
