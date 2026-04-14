@@ -16,6 +16,7 @@ import { TelegramAdminBotModule } from '@/telegram/admin-bot/telegram-admin-bot.
 import { ExternalApiConfigModule } from '@/external-api-config/external-api-config.module';
 import { AnalyticsModule } from '@/analytics/analytics.module';
 import { BannerModule } from '@/banner/banner.module';
+import { ViewerButtonModule } from '@/viewer-button/viewer-button.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { BannerModule } from '@/banner/banner.module';
     ExternalApiConfigModule,
     AnalyticsModule,
     BannerModule,
+    ViewerButtonModule,
   ],
   controllers: [],
   providers: [AsyncLocalStorageService],

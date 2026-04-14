@@ -63,6 +63,14 @@ export const BANNER_ROUTE = {
   MAIN: `banners`,
 };
 
+export const ADMIN_VIEWER_BUTTON_ROUTE = {
+  MAIN: `${ADMIN_PREFIX}/viewer-buttons`,
+};
+
+export const VIEWER_BUTTON_ROUTE = {
+  MAIN: `viewer-buttons`,
+};
+
 export const ADMIN_PRIVATE_CINEMA_ROUTE = {
   MAIN: `${ADMIN_PREFIX}/private/cinema`,
   FILMS: `films`,
