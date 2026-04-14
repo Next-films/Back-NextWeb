@@ -143,12 +143,15 @@ export class NewCartoonNotificationCommandHandler
   ): Promise<Cartoon> {
     const { id } = cartoon;
     const backgroundSourceUrl = metadata.backdropUrl || metadata.trailerUrl;
+    const shouldRefreshHorizontalPreview =
+      !cartoon.horizontalPreviewUrl ||
+      (!!cartoon.previewUrl && cartoon.horizontalPreviewUrl === cartoon.previewUrl);
     const [previewUrl, horizontalPreviewUrl, backgroundContentUrl, titleUrl] = await Promise.all([
       !cartoon.previewUrl
         ? this.moviesService.getPosterUrl(metadata.posterUrl, id, MovieTypesEnum.CARTOON)
         : Promise.resolve(null),
 
-      !cartoon.horizontalPreviewUrl
+      shouldRefreshHorizontalPreview && !!metadata.backdropUrl
         ? this.moviesService.getBackgroundContentUrl(
             metadata.backdropUrl,
             id,
@@ -184,7 +187,9 @@ export class NewCartoonNotificationCommandHandler
       releaseDate: metadata.releaseDate,
       titleUrl: cartoon.titleUrl || titleUrl || null,
       previewUrl: cartoon.previewUrl || previewUrl || null,
-      horizontalPreviewUrl: cartoon.horizontalPreviewUrl || horizontalPreviewUrl || null,
+      horizontalPreviewUrl: shouldRefreshHorizontalPreview
+        ? horizontalPreviewUrl || cartoon.horizontalPreviewUrl || null
+        : cartoon.horizontalPreviewUrl || horizontalPreviewUrl || null,
       trailerUrl: metadata.trailerUrl,
       backgroundContentUrl: cartoon.backgroundContentUrl || backgroundContentUrl || null,
     };
