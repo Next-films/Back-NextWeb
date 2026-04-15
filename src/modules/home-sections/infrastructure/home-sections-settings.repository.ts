@@ -11,7 +11,11 @@ export class HomeSectionsSettingsRepository {
   ) {}
 
   async findFirst(): Promise<HomeSectionsSettings | null> {
-    return this.repo.findOne({ order: { id: 'ASC' } });
+    const entities = await this.repo.find({
+      order: { id: 'ASC' },
+      take: 1,
+    });
+    return entities[0] ?? null;
   }
 
   async getOrCreateDefault(): Promise<HomeSectionsSettings> {
