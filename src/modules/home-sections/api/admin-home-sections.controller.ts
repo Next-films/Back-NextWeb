@@ -5,7 +5,6 @@ import { ADMIN_AUTH_JWT_SCHEMA_NAME } from '@/common/constants/auth-jwt-schema-n
 import { ADMIN_HOME_SECTIONS_ROUTE } from '@/common/constants/route.constants';
 import { LoggerService } from '@/common/utils/logger/logger.service';
 import { HomeSectionsSettingsOutputDto } from '@/home-sections/api/dtos/output/home-sections-settings.output.dto';
-import { UpdateHomeSectionsSettingsInputDto } from '@/home-sections/api/dtos/input/update-home-sections-settings.input.dto';
 import { HomeSectionsSettingsRepository } from '@/home-sections/infrastructure/home-sections-settings.repository';
 
 @ApiTags('Admin - home sections settings')
@@ -51,7 +50,7 @@ export class AdminHomeSectionsController {
   @HttpCode(HttpStatus.OK)
   @Put()
   async updateSettings(
-    @Body() body: UpdateHomeSectionsSettingsInputDto,
+    @Body() body: Record<string, unknown>,
   ): Promise<HomeSectionsSettingsOutputDto> {
     this.logger.log('Execute: update home sections settings for admin', this.updateSettings.name);
     const settings = await this.homeSectionsSettingsRepository.getOrCreateDefault();
