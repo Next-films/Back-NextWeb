@@ -67,8 +67,12 @@ export class CartoonPublicQueryRepository {
     take: number,
     searchName: string | null,
     searchGenreIds: number[] | null,
+    includeGenres = true,
   ): Promise<Cartoon[] | null> {
-    let qb = this.cartoonRepository.createQueryBuilder('f').leftJoinAndSelect('f.genres', 'g');
+    let qb = this.cartoonRepository.createQueryBuilder('f');
+    if (includeGenres) {
+      qb = qb.leftJoinAndSelect('f.genres', 'g');
+    }
     qb = this.getSearchCartoonClause(qb, searchName, searchGenreIds);
 
     qb.skip(skip).take(take).orderBy(`f.${sortField}`, sortDirection);

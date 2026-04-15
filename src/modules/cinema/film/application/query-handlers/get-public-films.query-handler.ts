@@ -57,6 +57,7 @@ export class GetPublicFilmsQueryHandler
           normalizedSize,
           null,
           null,
+          false,
         );
 
         const result = this.paginationUtil.create(

@@ -82,8 +82,12 @@ export class SerialPublicQueryRepository {
     searchName: string | null,
     searchGenreIds: number[] | null,
     includeEpisodes = true,
+    includeGenres = true,
   ): Promise<Serial[] | null> {
-    let qb = this.serialRepository.createQueryBuilder('s').leftJoinAndSelect('s.genres', 'g');
+    let qb = this.serialRepository.createQueryBuilder('s');
+    if (includeGenres) {
+      qb = qb.leftJoinAndSelect('s.genres', 'g');
+    }
     qb = this.getSearchSerialClause(qb, searchName, searchGenreIds);
 
     if (includeEpisodes) {

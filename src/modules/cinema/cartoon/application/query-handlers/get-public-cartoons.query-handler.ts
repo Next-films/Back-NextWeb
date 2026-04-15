@@ -62,6 +62,7 @@ export class GetPublicCartoonsQueryHandler
           normalizedSize,
           null,
           null,
+          false,
         );
 
         const result = this.paginationUtil.create(

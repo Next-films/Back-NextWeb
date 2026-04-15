@@ -60,6 +60,7 @@ export class GetSerialsQueryHandler
           null,
           null,
           false,
+          false,
         );
 
         const result = this.paginationUtil.create(

@@ -67,8 +67,12 @@ export class FilmPublicQueryRepository {
     take: number,
     searchName: string | null,
     searchGenreIds: number[] | null,
+    includeGenres = true,
   ): Promise<Film[] | null> {
-    let qb = this.filmRepository.createQueryBuilder('f').leftJoinAndSelect('f.genres', 'g');
+    let qb = this.filmRepository.createQueryBuilder('f');
+    if (includeGenres) {
+      qb = qb.leftJoinAndSelect('f.genres', 'g');
+    }
     qb = this.getSearchFilmClause(qb, searchName, searchGenreIds);
 
     qb.orderBy(`f.${sortField}`, sortDirection).skip(skip).take(take);
