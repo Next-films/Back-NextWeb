@@ -21,6 +21,26 @@ export class AdminHomeSectionsController {
     this.logger.setContext(AdminHomeSectionsController.name);
   }
 
+  private normalizeOptionalBoolean(value: unknown): boolean | undefined {
+    if (value === true || value === false) {
+      return value;
+    }
+
+    if (typeof value === 'number') {
+      if (value === 1) return true;
+      if (value === 0) return false;
+      return undefined;
+    }
+
+    if (typeof value === 'string') {
+      const normalized = value.trim().toLowerCase();
+      if (['true', '1', 'on', 'yes'].includes(normalized)) return true;
+      if (['false', '0', 'off', 'no'].includes(normalized)) return false;
+    }
+
+    return undefined;
+  }
+
   @Get()
   async getSettings(): Promise<HomeSectionsSettingsOutputDto> {
     this.logger.log('Execute: get home sections settings for admin', this.getSettings.name);
@@ -35,7 +55,11 @@ export class AdminHomeSectionsController {
   ): Promise<HomeSectionsSettingsOutputDto> {
     this.logger.log('Execute: update home sections settings for admin', this.updateSettings.name);
     const settings = await this.homeSectionsSettingsRepository.getOrCreateDefault();
-    settings.update(body.showFilms, body.showSerials, body.showCartoons);
+    settings.update(
+      this.normalizeOptionalBoolean(body.showFilms),
+      this.normalizeOptionalBoolean(body.showSerials),
+      this.normalizeOptionalBoolean(body.showCartoons),
+    );
     const saved = await this.homeSectionsSettingsRepository.save(settings);
     return HomeSectionsSettingsOutputDto.fromEntity(saved);
   }
