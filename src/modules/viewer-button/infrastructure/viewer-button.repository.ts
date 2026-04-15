@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { ViewerButton } from '@/viewer-button/domain/viewer-button.entity';
+import { ViewerButton, ViewerButtonCategory } from '@/viewer-button/domain/viewer-button.entity';
 
 @Injectable()
 export class ViewerButtonRepository {
@@ -23,6 +23,10 @@ export class ViewerButtonRepository {
 
   async findById(id: number): Promise<ViewerButton | null> {
     return this.repo.findOne({ where: { id } });
+  }
+
+  async findByCategory(category: ViewerButtonCategory): Promise<ViewerButton | null> {
+    return this.repo.findOne({ where: { category } });
   }
 
   async save(entity: ViewerButton): Promise<ViewerButton> {

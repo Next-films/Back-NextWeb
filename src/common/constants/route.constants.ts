@@ -71,6 +71,14 @@ export const VIEWER_BUTTON_ROUTE = {
   MAIN: `viewer-buttons`,
 };
 
+export const ADMIN_HOME_SECTIONS_ROUTE = {
+  MAIN: `${ADMIN_PREFIX}/home-sections`,
+};
+
+export const HOME_SECTIONS_ROUTE = {
+  MAIN: `home-sections`,
+};
+
 export const ADMIN_PRIVATE_CINEMA_ROUTE = {
   MAIN: `${ADMIN_PREFIX}/private/cinema`,
   FILMS: `films`,

@@ -26,15 +26,13 @@ import { MoviesService } from '@/movies/application/movies.service';
 import { CreateViewerButtonInputDto } from '@/viewer-button/api/dtos/input/create-viewer-button.input.dto';
 import { UpdateViewerButtonInputDto } from '@/viewer-button/api/dtos/input/update-viewer-button.input.dto';
 import { ViewerButtonOutputDto } from '@/viewer-button/api/dtos/output/viewer-button.output.dto';
-import { ViewerButton } from '@/viewer-button/domain/viewer-button.entity';
+import { ViewerButton, ViewerButtonCategory } from '@/viewer-button/domain/viewer-button.entity';
 import { ViewerButtonRepository } from '@/viewer-button/infrastructure/viewer-button.repository';
 
 type ViewerButtonUploadFiles = {
-  imageFile?: Express.Multer.File[];
   hoverVideoFile?: Express.Multer.File[];
 };
 
-const IMAGE_UPLOAD_INPUT_MIME_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
 const VIDEO_UPLOAD_INPUT_MIME_TYPES = [
   'video/mp4',
   'video/webm',
@@ -47,7 +45,7 @@ const VIDEO_UPLOAD_INPUT_MIME_TYPES = [
 ];
 
 const VIEWER_BUTTONS_S3_PREFIX = 'viewer-buttons';
-const MAX_VIEWER_BUTTONS = 4;
+const MAX_VIEWER_BUTTONS = 3;
 
 @ApiTags('Admin - viewer buttons. Manage homepage ALL cards.')
 @ApiBearerAuth(ADMIN_AUTH_JWT_SCHEMA_NAME)
@@ -71,30 +69,8 @@ export class AdminViewerButtonController {
     return files?.[field]?.[0];
   }
 
-  private validateUploadFiles(files: {
-    imageFile?: Express.Multer.File;
-    hoverVideoFile?: Express.Multer.File;
-  }): void {
-    const { imageFile, hoverVideoFile } = files;
-
-    if (
-      imageFile &&
-      (!imageFile.mimetype || !IMAGE_UPLOAD_INPUT_MIME_TYPES.includes(imageFile.mimetype))
-    ) {
-      this.appNotification.handleHttpResult(
-        this.appNotification.badRequest({
-          errorsMessages: [
-            {
-              field: imageFile.fieldname || 'imageFile',
-              message: `Invalid image mime type. Allowed: ${IMAGE_UPLOAD_INPUT_MIME_TYPES.join(
-                ', ',
-              )}`,
-              errorKey: 'INVALID_FILE_TYPE',
-            },
-          ],
-        }),
-      );
-    }
+  private validateUploadFiles(files: { hoverVideoFile?: Express.Multer.File }): void {
+    const { hoverVideoFile } = files;
 
     if (
       hoverVideoFile &&
@@ -127,13 +103,7 @@ export class AdminViewerButtonController {
   @Post()
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(
-    FileFieldsInterceptor(
-      [
-        { name: 'imageFile', maxCount: 1 },
-        { name: 'hoverVideoFile', maxCount: 1 },
-      ],
-      { storage: storageUtil },
-    ),
+    FileFieldsInterceptor([{ name: 'hoverVideoFile', maxCount: 1 }], { storage: storageUtil }),
   )
   async create(
     @Body() body: CreateViewerButtonInputDto,
@@ -141,20 +111,22 @@ export class AdminViewerButtonController {
   ): Promise<ViewerButtonOutputDto> {
     this.logger.log('Execute: create viewer button', this.create.name);
 
-    const imageFile = this.pickFile(files, 'imageFile');
     const hoverVideoFile = this.pickFile(files, 'hoverVideoFile');
 
-    if (!imageFile) {
+    if (!hoverVideoFile) {
       this.appNotification.handleHttpResult(
         this.appNotification.badRequest({
           errorsMessages: [
-            { field: 'imageFile', message: 'Image file is required', errorKey: 'FILE_REQUIRED' },
+            {
+              field: 'hoverVideoFile',
+              message: 'Hover video file is required',
+              errorKey: 'FILE_REQUIRED',
+            },
           ],
         }),
       );
     }
-
-    this.validateUploadFiles({ imageFile, hoverVideoFile });
+    this.validateUploadFiles({ hoverVideoFile });
 
     const totalButtons = await this.viewerButtonRepository.getCount();
     if (totalButtons >= MAX_VIEWER_BUTTONS) {
@@ -171,8 +143,24 @@ export class AdminViewerButtonController {
       );
     }
 
+    const existingByCategory = await this.viewerButtonRepository.findByCategory(body.category);
+    if (existingByCategory) {
+      this.appNotification.handleHttpResult(
+        this.appNotification.badRequest({
+          errorsMessages: [
+            {
+              field: 'category',
+              message: `ALL button for category "${body.category}" already exists`,
+              errorKey: 'VIEWER_BUTTON_CATEGORY_CONFLICT',
+            },
+          ],
+        }),
+      );
+    }
+
     const sortOrder = body.sortOrder ?? (await this.viewerButtonRepository.getMaxSortOrder()) + 1;
     const entity = ViewerButton.create(
+      body.category,
       '',
       null,
       body.linkUrl ?? null,
@@ -181,35 +169,21 @@ export class AdminViewerButtonController {
     );
     const savedEntity = await this.viewerButtonRepository.save(entity);
 
-    const [imageUrl, hoverVideoUrl] = await Promise.all([
-      this.moviesService.getBackgroundContentUrl(
-        imageFile!,
-        savedEntity.id,
-        MovieTypesEnum.BANNER,
-        VIEWER_BUTTONS_S3_PREFIX,
-      ),
-      hoverVideoFile
-        ? this.moviesService.getBackgroundContentUrl(
-            hoverVideoFile,
-            savedEntity.id,
-            MovieTypesEnum.BANNER,
-            VIEWER_BUTTONS_S3_PREFIX,
-          )
-        : Promise.resolve(null),
-    ]);
+    const hoverVideoUrl = await this.moviesService.getBackgroundContentUrl(
+      hoverVideoFile!,
+      savedEntity.id,
+      MovieTypesEnum.BANNER,
+      VIEWER_BUTTONS_S3_PREFIX,
+    );
 
-    if (!imageUrl) {
-      await this.viewerButtonRepository.remove(savedEntity);
-      this.appNotification.handleHttpResult(this.appNotification.internalServerError());
-    }
-
-    if (hoverVideoFile && !hoverVideoUrl) {
+    if (!hoverVideoUrl) {
       await this.viewerButtonRepository.remove(savedEntity);
       this.appNotification.handleHttpResult(this.appNotification.internalServerError());
     }
 
     savedEntity.update(
-      imageUrl ?? undefined,
+      body.category,
+      undefined,
       hoverVideoUrl,
       body.linkUrl ?? null,
       sortOrder,
@@ -224,13 +198,7 @@ export class AdminViewerButtonController {
   @Put(':buttonId')
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(
-    FileFieldsInterceptor(
-      [
-        { name: 'imageFile', maxCount: 1 },
-        { name: 'hoverVideoFile', maxCount: 1 },
-      ],
-      { storage: storageUtil },
-    ),
+    FileFieldsInterceptor([{ name: 'hoverVideoFile', maxCount: 1 }], { storage: storageUtil }),
   )
   async update(
     @Param('buttonId', ParseIntPatchPipe) buttonId: number,
@@ -239,9 +207,8 @@ export class AdminViewerButtonController {
   ): Promise<ViewerButtonOutputDto> {
     this.logger.log(`Execute: update viewer button ${buttonId}`, this.update.name);
 
-    const imageFile = this.pickFile(files, 'imageFile');
     const hoverVideoFile = this.pickFile(files, 'hoverVideoFile');
-    this.validateUploadFiles({ imageFile, hoverVideoFile });
+    this.validateUploadFiles({ hoverVideoFile });
 
     const entity = await this.viewerButtonRepository.findById(buttonId);
     if (!entity) {
@@ -254,19 +221,7 @@ export class AdminViewerButtonController {
       );
     }
 
-    let newImageUrl: string | undefined;
     let newHoverVideoUrl: string | undefined;
-
-    if (imageFile) {
-      const url = await this.moviesService.getBackgroundContentUrl(
-        imageFile,
-        entity!.id,
-        MovieTypesEnum.BANNER,
-        VIEWER_BUTTONS_S3_PREFIX,
-      );
-      if (url) newImageUrl = url;
-      else this.appNotification.handleHttpResult(this.appNotification.internalServerError());
-    }
 
     if (hoverVideoFile) {
       const url = await this.moviesService.getBackgroundContentUrl(
@@ -279,7 +234,32 @@ export class AdminViewerButtonController {
       else this.appNotification.handleHttpResult(this.appNotification.internalServerError());
     }
 
-    entity!.update(newImageUrl, newHoverVideoUrl, body.linkUrl, body.sortOrder, body.openInNewTab);
+    const nextCategory: ViewerButtonCategory | undefined = body.category;
+    if (nextCategory && nextCategory !== entity!.category) {
+      const existingByCategory = await this.viewerButtonRepository.findByCategory(nextCategory);
+      if (existingByCategory && existingByCategory.id !== entity!.id) {
+        this.appNotification.handleHttpResult(
+          this.appNotification.badRequest({
+            errorsMessages: [
+              {
+                field: 'category',
+                message: `ALL button for category "${nextCategory}" already exists`,
+                errorKey: 'VIEWER_BUTTON_CATEGORY_CONFLICT',
+              },
+            ],
+          }),
+        );
+      }
+    }
+
+    entity!.update(
+      nextCategory,
+      undefined,
+      newHoverVideoUrl,
+      body.linkUrl,
+      body.sortOrder,
+      body.openInNewTab,
+    );
 
     if (body.isActive !== undefined) {
       entity!.toggleActive(body.isActive);

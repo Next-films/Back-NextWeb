@@ -5,8 +5,6 @@ import { LoggerService } from '@/common/utils/logger/logger.service';
 import { ViewerButtonOutputDto } from '@/viewer-button/api/dtos/output/viewer-button.output.dto';
 import { ViewerButtonRepository } from '@/viewer-button/infrastructure/viewer-button.repository';
 
-const MAX_PUBLIC_VIEWER_BUTTONS = 4;
-
 @ApiTags('Public - viewer buttons')
 @Controller(VIEWER_BUTTON_ROUTE.MAIN)
 export class PublicViewerButtonController {
@@ -21,8 +19,6 @@ export class PublicViewerButtonController {
   async getActiveViewerButtons(): Promise<ViewerButtonOutputDto[]> {
     this.logger.log('Execute: get active viewer buttons', this.getActiveViewerButtons.name);
     const entities = await this.viewerButtonRepository.findAllActive();
-    return entities
-      .slice(0, MAX_PUBLIC_VIEWER_BUTTONS)
-      .map(entity => ViewerButtonOutputDto.fromEntity(entity));
+    return entities.map(entity => ViewerButtonOutputDto.fromEntity(entity));
   }
 }

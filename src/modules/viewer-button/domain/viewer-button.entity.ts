@@ -1,9 +1,18 @@
 import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
 
+export enum ViewerButtonCategory {
+  FILMS = 'films',
+  SERIALS = 'serials',
+  CARTOONS = 'cartoons',
+}
+
 @Entity('viewer_buttons')
 export class ViewerButton {
   @PrimaryGeneratedColumn()
   id: number;
+
+  @Column({ type: 'varchar' })
+  category: ViewerButtonCategory;
 
   @Column({ type: 'varchar' })
   imageUrl: string;
@@ -30,6 +39,7 @@ export class ViewerButton {
   updatedAt: Date;
 
   static create(
+    category: ViewerButtonCategory,
     imageUrl: string,
     hoverVideoUrl: string | null,
     linkUrl: string | null,
@@ -37,6 +47,7 @@ export class ViewerButton {
     openInNewTab: boolean = true,
   ): ViewerButton {
     const entity = new ViewerButton();
+    entity.category = category;
     entity.imageUrl = imageUrl;
     entity.hoverVideoUrl = hoverVideoUrl;
     entity.linkUrl = linkUrl;
@@ -49,12 +60,14 @@ export class ViewerButton {
   }
 
   update(
+    category?: ViewerButtonCategory,
     imageUrl?: string,
     hoverVideoUrl?: string | null,
     linkUrl?: string | null,
     sortOrder?: number,
     openInNewTab?: boolean,
   ): void {
+    if (category !== undefined) this.category = category;
     if (imageUrl !== undefined) this.imageUrl = imageUrl;
     if (hoverVideoUrl !== undefined) this.hoverVideoUrl = hoverVideoUrl;
     if (linkUrl !== undefined) this.linkUrl = linkUrl;

@@ -1,7 +1,9 @@
 import { ViewerButton } from '@/viewer-button/domain/viewer-button.entity';
+import { ViewerButtonCategory } from '@/viewer-button/domain/viewer-button.entity';
 
 export class ViewerButtonOutputDto {
   id: number;
+  category: ViewerButtonCategory;
   imageUrl: string;
   hoverVideoUrl: string | null;
   linkUrl: string | null;
@@ -14,6 +16,7 @@ export class ViewerButtonOutputDto {
   static fromEntity(entity: ViewerButton): ViewerButtonOutputDto {
     const dto = new ViewerButtonOutputDto();
     dto.id = entity.id;
+    dto.category = entity.category;
     dto.imageUrl = entity.imageUrl;
     dto.hoverVideoUrl = entity.hoverVideoUrl;
     dto.linkUrl = entity.linkUrl;

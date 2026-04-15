@@ -17,6 +17,7 @@ import { ExternalApiConfigModule } from '@/external-api-config/external-api-conf
 import { AnalyticsModule } from '@/analytics/analytics.module';
 import { BannerModule } from '@/banner/banner.module';
 import { ViewerButtonModule } from '@/viewer-button/viewer-button.module';
+import { HomeSectionsModule } from '@/home-sections/home-sections.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { ViewerButtonModule } from '@/viewer-button/viewer-button.module';
     AnalyticsModule,
     BannerModule,
     ViewerButtonModule,
+    HomeSectionsModule,
   ],
   controllers: [],
   providers: [AsyncLocalStorageService],

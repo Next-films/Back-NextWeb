@@ -1,6 +1,7 @@
 import { Transform, Type } from 'class-transformer';
-import { IsBoolean, IsInt, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsEnum, IsInt, IsOptional, IsString } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
+import { ViewerButtonCategory } from '@/viewer-button/domain/viewer-button.entity';
 
 const StringToBoolean = () =>
   Transform(({ value }) => {
@@ -14,6 +15,14 @@ const StringToBoolean = () =>
   });
 
 export class UpdateViewerButtonInputDto {
+  @ApiPropertyOptional({
+    enum: ViewerButtonCategory,
+    description: 'Target content row for the ALL card',
+  })
+  @IsOptional()
+  @IsEnum(ViewerButtonCategory)
+  category?: ViewerButtonCategory;
+
   @ApiPropertyOptional({ description: 'Link URL that opens on card click' })
   @IsOptional()
   @IsString()
@@ -36,14 +45,6 @@ export class UpdateViewerButtonInputDto {
   @StringToBoolean()
   @IsBoolean()
   isActive?: boolean;
-
-  @ApiPropertyOptional({
-    type: 'string',
-    format: 'binary',
-    description: 'Card image file (will be converted to webp)',
-  })
-  @IsOptional()
-  imageFile?: Express.Multer.File;
 
   @ApiPropertyOptional({
     type: 'string',

@@ -37,7 +37,8 @@
       "@/telegram/*": ["modules/telegram/*"],
       "@/telegram-admin-bot/*": ["modules/telegram/admin-bot/*"],
       "@/banner/*": ["modules/banner/*"],
-      "@/viewer-button/*": ["modules/viewer-button/*"]
+      "@/viewer-button/*": ["modules/viewer-button/*"],
+      "@/home-sections/*": ["modules/home-sections/*"]
     }
   }
 }
