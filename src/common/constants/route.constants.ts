@@ -72,7 +72,7 @@ export const VIEWER_BUTTON_ROUTE = {
 };
 
 export const ADMIN_HOME_SECTIONS_ROUTE = {
-  MAIN: `${ADMIN_PREFIX}/home-sections`,
+  MAIN: `${ADMIN_PREFIX}/cinema/home-sections`,
 };
 
 export const HOME_SECTIONS_ROUTE = {

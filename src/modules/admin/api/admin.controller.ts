@@ -117,7 +117,7 @@ export class AdminController {
   }
 
   @HttpCode(HttpStatus.CREATED)
-  @Put(`:id(\\d+)`)
+  @Put(`:id`)
   @SwaggerDecoratorAdminUpdate()
   async updateAdmin(
     @Param('id', ParseIntPatchPipe) id: number,
@@ -204,7 +204,7 @@ export class AdminController {
   }
 
   @HttpCode(HttpStatus.NO_CONTENT)
-  @Delete(':id(\\d+)')
+  @Delete(':id')
   @SwaggerDecoratorAdminDeactivateAdmin()
   async deactivateAdmin(
     @Param('id', ParseIntPatchPipe) id: number,
@@ -241,7 +241,7 @@ export class AdminController {
   }
 
   @HttpCode(HttpStatus.NO_CONTENT)
-  @Patch(':id(\\d+)')
+  @Patch(':id')
   @SwaggerDecoratorAdminActivateAdmin()
   async activateAdmin(
     @Param('id', ParseIntPatchPipe) id: number,
