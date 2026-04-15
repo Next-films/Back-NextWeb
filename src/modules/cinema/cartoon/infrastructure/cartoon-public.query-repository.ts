@@ -79,7 +79,7 @@ export class CartoonPublicQueryRepository {
     searchName: string | null,
     searchGenreIds: number[] | null,
   ): Promise<number> {
-    let qb = this.cartoonRepository.createQueryBuilder('f').leftJoinAndSelect('f.genres', 'g');
+    let qb = this.cartoonRepository.createQueryBuilder('f');
     qb = this.getSearchCartoonClause(qb, searchName, searchGenreIds);
     const result = await qb.getCount();
     return result || 0;

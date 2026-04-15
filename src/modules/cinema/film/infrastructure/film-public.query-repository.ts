@@ -77,7 +77,7 @@ export class FilmPublicQueryRepository {
   }
 
   async getFilmsCount(searchName: string | null, searchGenreIds: number[] | null): Promise<number> {
-    let qb = this.filmRepository.createQueryBuilder('f').leftJoinAndSelect('f.genres', 'g');
+    let qb = this.filmRepository.createQueryBuilder('f');
     qb = this.getSearchFilmClause(qb, searchName, searchGenreIds);
     const result = await qb.getCount();
     return result || 0;

@@ -40,15 +40,45 @@ export class GetPublicFilmsQueryHandler
     AppNotificationResult<PaginationUtil<MoviesPublicOutputDto[]>, ErrorFieldExceptionDto | null>
   > {
     const { page, size, sortField, sortDirection, searchName, searchGenreIds } = query.query;
+    const normalizedPage = typeof page === 'number' && Number.isFinite(page) ? page : 1;
+    const normalizedSize = typeof size === 'number' && Number.isFinite(size) ? size : 50;
+    const isFastHomeQuery =
+      normalizedPage === 1 &&
+      normalizedSize <= 12 &&
+      !searchName &&
+      (!searchGenreIds || searchGenreIds.length === 0);
     this.logger.log(`Get films command`, this.execute.name);
     try {
+      if (isFastHomeQuery) {
+        const films = await this.filmPublicQueryRepository.getFilms(
+          sortField,
+          sortDirection,
+          0,
+          normalizedSize,
+          null,
+          null,
+        );
+
+        const result = this.paginationUtil.create(
+          films?.length || 0,
+          1,
+          normalizedPage,
+          normalizedSize,
+          films && films.length > 0
+            ? this.filmsPublicOutputDtoMapper.mapAllPublicMovies(films)
+            : [],
+        );
+
+        return this.appNotification.success(result);
+      }
+
       const totalCount = await this.filmPublicQueryRepository.getFilmsCount(
         searchName || null,
         searchGenreIds || null,
       );
-      const pagesCount = this.paginationUtil.calculatePageCount(totalCount, size);
+      const pagesCount = this.paginationUtil.calculatePageCount(totalCount, normalizedSize);
 
-      const isValidPage = this.paginationUtil.isValidPage(page, pagesCount, totalCount);
+      const isValidPage = this.paginationUtil.isValidPage(normalizedPage, pagesCount, totalCount);
 
       if (!isValidPage)
         return this.appNotification.badRequest({
@@ -57,13 +87,13 @@ export class GetPublicFilmsQueryHandler
           errorKey: EXCEPTION_KEYS_ENUM.INCORRECT_PAGE,
         });
 
-      const skip = this.paginationUtil.calculatePaginationSkip(page, size);
+      const skip = this.paginationUtil.calculatePaginationSkip(normalizedPage, normalizedSize);
 
       const films = await this.filmPublicQueryRepository.getFilms(
         sortField,
         sortDirection,
         skip,
-        size,
+        normalizedSize,
         searchName || null,
         searchGenreIds || null,
       );
@@ -71,8 +101,8 @@ export class GetPublicFilmsQueryHandler
       const result = this.paginationUtil.create(
         totalCount,
         pagesCount,
-        page,
-        size,
+        normalizedPage,
+        normalizedSize,
         films && films.length > 0 ? this.filmsPublicOutputDtoMapper.mapAllPublicMovies(films) : [],
       );
 

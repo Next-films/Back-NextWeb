@@ -45,15 +45,45 @@ export class GetPublicCartoonsQueryHandler
     AppNotificationResult<PaginationUtil<CartoonsPublicOutputDto[]>, ErrorFieldExceptionDto | null>
   > {
     const { page, size, sortField, sortDirection, searchName, searchGenreIds } = query.query;
+    const normalizedPage = typeof page === 'number' && Number.isFinite(page) ? page : 1;
+    const normalizedSize = typeof size === 'number' && Number.isFinite(size) ? size : 50;
+    const isFastHomeQuery =
+      normalizedPage === 1 &&
+      normalizedSize <= 12 &&
+      !searchName &&
+      (!searchGenreIds || searchGenreIds.length === 0);
     this.logger.log(`Get cartoons command`, this.execute.name);
     try {
+      if (isFastHomeQuery) {
+        const cartoons = await this.cartoonPublicQueryRepository.getCartoons(
+          sortField,
+          sortDirection,
+          0,
+          normalizedSize,
+          null,
+          null,
+        );
+
+        const result = this.paginationUtil.create(
+          cartoons?.length || 0,
+          1,
+          normalizedPage,
+          normalizedSize,
+          cartoons && cartoons.length > 0
+            ? this.cartoonsPublicOutputDtoMapper.mapAllPublicMovies(cartoons)
+            : [],
+        );
+
+        return this.appNotification.success(result);
+      }
+
       const totalCount = await this.cartoonPublicQueryRepository.getCartoonCount(
         searchName || null,
         searchGenreIds || null,
       );
-      const pagesCount = this.paginationUtil.calculatePageCount(totalCount, size);
+      const pagesCount = this.paginationUtil.calculatePageCount(totalCount, normalizedSize);
 
-      const isValidPage = this.paginationUtil.isValidPage(page, pagesCount, totalCount);
+      const isValidPage = this.paginationUtil.isValidPage(normalizedPage, pagesCount, totalCount);
 
       if (!isValidPage)
         return this.appNotification.badRequest({
@@ -62,13 +92,13 @@ export class GetPublicCartoonsQueryHandler
           errorKey: EXCEPTION_KEYS_ENUM.INCORRECT_PAGE,
         });
 
-      const skip = this.paginationUtil.calculatePaginationSkip(page, size);
+      const skip = this.paginationUtil.calculatePaginationSkip(normalizedPage, normalizedSize);
 
       const cartoons = await this.cartoonPublicQueryRepository.getCartoons(
         sortField,
         sortDirection,
         skip,
-        size,
+        normalizedSize,
         searchName || null,
         searchGenreIds || null,
       );
@@ -76,8 +106,8 @@ export class GetPublicCartoonsQueryHandler
       const result = this.paginationUtil.create(
         totalCount,
         pagesCount,
-        page,
-        size,
+        normalizedPage,
+        normalizedSize,
         cartoons && cartoons.length > 0
           ? this.cartoonsPublicOutputDtoMapper.mapAllPublicMovies(cartoons)
           : [],

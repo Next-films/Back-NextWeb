@@ -107,7 +107,8 @@ export class SerialsOutputDtoMapper extends MoviePublicOutputDtoMapper {
 
   mapSerial(serial: Serial): SerialsOutputDto {
     const genres = serial.genres ?? [];
-    const episodeCount = serial.episodes?.length || 0;
+    const relationEpisodeCount = (serial as unknown as { episodesCount?: number }).episodesCount;
+    const episodeCount = relationEpisodeCount ?? (serial.episodes?.length || 0);
     return {
       id: serial.id,
       title: serial.title,

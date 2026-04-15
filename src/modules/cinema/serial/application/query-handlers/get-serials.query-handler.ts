@@ -42,15 +42,44 @@ export class GetSerialsQueryHandler
     AppNotificationResult<PaginationUtil<SerialsOutputDto[]>, ErrorFieldExceptionDto | null>
   > {
     const { page, size, sortField, sortDirection, searchName, searchGenreIds } = query.query;
+    const normalizedPage = typeof page === 'number' && Number.isFinite(page) ? page : 1;
+    const normalizedSize = typeof size === 'number' && Number.isFinite(size) ? size : 50;
+    const isFastHomeQuery =
+      normalizedPage === 1 &&
+      normalizedSize <= 12 &&
+      !searchName &&
+      (!searchGenreIds || searchGenreIds.length === 0);
     this.logger.log(`Get serials command`, this.execute.name);
     try {
+      if (isFastHomeQuery) {
+        const serials = await this.serialQueryRepository.getSerials(
+          sortField,
+          sortDirection,
+          0,
+          normalizedSize,
+          null,
+          null,
+          false,
+        );
+
+        const result = this.paginationUtil.create(
+          serials?.length || 0,
+          1,
+          normalizedPage,
+          normalizedSize,
+          serials && serials.length > 0 ? this.serialsOutputDtoMapper.mapSerials(serials) : [],
+        );
+
+        return this.appNotification.success(result);
+      }
+
       const totalCount = await this.serialQueryRepository.getSerialCount(
         searchName || null,
         searchGenreIds || null,
       );
-      const pagesCount = this.paginationUtil.calculatePageCount(totalCount, size);
+      const pagesCount = this.paginationUtil.calculatePageCount(totalCount, normalizedSize);
 
-      const isValidPage = this.paginationUtil.isValidPage(page, pagesCount, totalCount);
+      const isValidPage = this.paginationUtil.isValidPage(normalizedPage, pagesCount, totalCount);
 
       if (!isValidPage)
         return this.appNotification.badRequest({
@@ -59,13 +88,13 @@ export class GetSerialsQueryHandler
           errorKey: EXCEPTION_KEYS_ENUM.INCORRECT_PAGE,
         });
 
-      const skip = this.paginationUtil.calculatePaginationSkip(page, size);
+      const skip = this.paginationUtil.calculatePaginationSkip(normalizedPage, normalizedSize);
 
       const serials = await this.serialQueryRepository.getSerials(
         sortField,
         sortDirection,
         skip,
-        size,
+        normalizedSize,
         searchName || null,
         searchGenreIds || null,
       );
@@ -73,8 +102,8 @@ export class GetSerialsQueryHandler
       const result = this.paginationUtil.create(
         totalCount,
         pagesCount,
-        page,
-        size,
+        normalizedPage,
+        normalizedSize,
         serials && serials.length > 0 ? this.serialsOutputDtoMapper.mapSerials(serials) : [],
       );
 

@@ -81,14 +81,18 @@ export class SerialPublicQueryRepository {
     take: number,
     searchName: string | null,
     searchGenreIds: number[] | null,
+    includeEpisodes = true,
   ): Promise<Serial[] | null> {
     let qb = this.serialRepository.createQueryBuilder('s').leftJoinAndSelect('s.genres', 'g');
     qb = this.getSearchSerialClause(qb, searchName, searchGenreIds);
 
-    qb.leftJoinAndSelect('s.episodes', 'e')
-      .skip(skip)
-      .take(take)
-      .orderBy(`s.${sortField}`, sortDirection);
+    if (includeEpisodes) {
+      qb.leftJoinAndSelect('s.episodes', 'e');
+    } else {
+      qb.loadRelationCountAndMap('s.episodesCount', 's.episodes');
+    }
+
+    qb.skip(skip).take(take).orderBy(`s.${sortField}`, sortDirection);
 
     return qb.getMany();
   }
@@ -97,7 +101,7 @@ export class SerialPublicQueryRepository {
     searchName: string | null,
     searchGenreIds: number[] | null,
   ): Promise<number> {
-    let qb = this.serialRepository.createQueryBuilder('s').leftJoinAndSelect('s.genres', 'g');
+    let qb = this.serialRepository.createQueryBuilder('s');
     qb = this.getSearchSerialClause(qb, searchName, searchGenreIds);
     return (await qb.getCount()) || 0;
   }
