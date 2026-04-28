@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Between, In, Repository } from 'typeorm';
 import {
@@ -17,6 +17,8 @@ type TopRow = { contentType: AnalyticsContentType; contentId: string; views: str
 
 @Injectable()
 export class AnalyticsService {
+  private readonly logger = new Logger(AnalyticsService.name);
+
   constructor(
     @InjectRepository(AnalyticsEventEntity)
     private readonly analyticsEventRepository: Repository<AnalyticsEventEntity>,
@@ -158,33 +160,39 @@ export class AnalyticsService {
 
   async getTopContentAllTime(limit = 10) {
     const safeLimit = Math.min(Math.max(Number(limit) || 10, 1), 50);
+    try {
+      const rows = await this.analyticsEventRepository
+        .createQueryBuilder('e')
+        .select('e.contentType', 'contentType')
+        .addSelect('e.contentId', 'contentId')
+        .addSelect('COUNT(*)', 'views')
+        .where('e.type = :type', { type: AnalyticsEventType.VIEW })
+        .andWhere('e.contentType IS NOT NULL')
+        .andWhere('e.contentId IS NOT NULL')
+        .groupBy('e.contentType')
+        .addGroupBy('e.contentId')
+        .orderBy('views', 'DESC')
+        .limit(safeLimit)
+        .getRawMany<TopRow>();
 
-    const rows = await this.analyticsEventRepository
-      .createQueryBuilder('e')
-      .select('e.contentType', 'contentType')
-      .addSelect('e.contentId', 'contentId')
-      .addSelect('COUNT(*)', 'views')
-      .where('e.type = :type', { type: AnalyticsEventType.VIEW })
-      .andWhere('e.contentType IS NOT NULL')
-      .andWhere('e.contentId IS NOT NULL')
-      .groupBy('e.contentType')
-      .addGroupBy('e.contentId')
-      .orderBy('views', 'DESC')
-      .limit(safeLimit)
-      .getRawMany<TopRow>();
+      const topList = rows.map(row => ({
+        contentType: row.contentType,
+        contentId: Number(row.contentId),
+        views: Number(row.views),
+      }));
 
-    const topList = rows.map(row => ({
-      contentType: row.contentType,
-      contentId: Number(row.contentId),
-      views: Number(row.views),
-    }));
+      const resolved = await this.resolveTopItems(topList);
 
-    const resolved = await this.resolveTopItems(topList);
+      if (resolved.length >= safeLimit) return resolved.slice(0, safeLimit);
 
-    if (resolved.length >= safeLimit) return resolved.slice(0, safeLimit);
-
-    const filled = await this.fillWithRandomItems(resolved, safeLimit);
-    return filled.slice(0, safeLimit);
+      const filled = await this.fillWithRandomItems(resolved, safeLimit);
+      return filled.slice(0, safeLimit);
+    } catch (error) {
+      const trace = error instanceof Error ? error.stack : String(error);
+      this.logger.error('Failed to fetch analytics top content, using fallback list', trace);
+      const fallback = await this.fillWithRandomItems([], safeLimit);
+      return fallback.slice(0, safeLimit);
+    }
   }
 
   private async resolveTopItems(

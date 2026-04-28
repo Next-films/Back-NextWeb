@@ -9,7 +9,9 @@ import { DOWNLOADER_HTTP_SERVICE } from '@/common/constants/downloader-service.r
     HttpModule.registerAsync({
       inject: [ConfigService],
       useFactory: (configService: ConfigService<ConfigurationType, true>) => {
-        const rawBaseURL = configService.get('apiSettings', { infer: true }).DOWNLOAD_SERVICE_HTTP_URL;
+        const rawBaseURL = configService.get('apiSettings', {
+          infer: true,
+        }).DOWNLOAD_SERVICE_HTTP_URL;
         const normalizedBaseURL = rawBaseURL.replace(/\/+$/, '');
         const baseURL = normalizedBaseURL.endsWith('/api')
           ? normalizedBaseURL

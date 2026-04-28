@@ -22,7 +22,7 @@ export const initTestSettings = async (): Promise<ITestSettings> => {
   const testingAppModule: TestingModule = await testingModuleBuilder.compile();
   const app: INestApplication = testingAppModule.createNestApplication();
 
-  await applySettings(app);
+  applySettings(app);
 
   await app.init();
   const dataSource = app.get<DataSource>(DataSource);

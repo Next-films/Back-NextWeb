@@ -1,12 +1,8 @@
 import { INestApplication } from '@nestjs/common';
 import { TestService } from '../../test.service';
-import { AdminLoginInputModel } from '@/admin-auth/api/dtos/input/admin-login.input.model';
 import { AdminLoginOutputDto } from '@/admin-auth/domain/types';
 import { initTestSettings } from '../../test-init-settings';
-import { ConfigService } from '@nestjs/config';
-import { ConfigurationType } from '@/settings/configuration';
-import { ADMIN_AUTH_ROUTES, ADMIN_CINEMA_ROUTE } from '@/common/constants/route.constants';
-import { adminLogin } from '../../utils/auth/admin-login';
+import { ADMIN_CINEMA_ROUTE } from '@/common/constants/route.constants';
 import { GenerateAdminMigration } from '@/data-migrations/generate-admin.migration';
 import * as request from 'supertest';
 import { MovieHandleStatus } from '@/movies/domain/types';
@@ -18,32 +14,21 @@ import {
 } from '../../data/admin-cinema.test.data';
 import { CommandBus } from '@nestjs/cqrs';
 import { KinopoiskService } from '@/external-api/kinopoisk/application/kinopoisk.service';
-import { KinopoiskMovie } from '@/external-api/kinopoisk/domain/types';
-import {
-  AppNotificationResult,
-  AppNotificationResultEnum,
-} from '@/common/utils/app-notification.util';
-import { ErrorFieldExceptionDto } from '@/common/exception-filters/http/http-exception.filter';
 import {
   AdminGetFilmsSortFieldEnum,
   AdminGetFilmsStatusEnum,
 } from '@/admin/api/dtos/input/admin-get-all-films.input-query.dto';
-import { NewMovieIsHandleNotificationPayloadDto } from '@/movies/api/dtos/input/new-movie-is-handle-notification.input.dto';
 import { EXCEPTION_KEYS_ENUM } from '@/common/enums/exception-keys.enum';
 import { TelegramAdminBotService } from '@/telegram/admin-bot/application/telegram-admin-bot.service';
-import { NewCartoonNotificationPayloadDto } from '@/cartoons/api/dtos/input/new-cartoon-notification.input.dto';
 import { NewCartoonNotificationCommand } from '@/cartoons/application/handlers/new-cartoon-notification.handler';
 import { NewCartoonIsHandleNotificationCommand } from '@/cartoons/application/handlers/new-cartoon-is-handle-notification.handler';
 import { ModerationCartoonRepository } from '@/moderation-movie/infrastructure/moderation-cartoon.repository';
+import { createAdminCinemaMovieFactory } from '../admin-cinema-movie-factory.util';
+import { createMainAdminLogin } from '../../utils/auth/main-admin-login.util';
 
 describe('Admin cinema - cartoons', () => {
   let app: INestApplication;
   let testService: TestService;
-  let baseUri: string;
-  const mainAdminLoginData: AdminLoginInputModel = {
-    email: '',
-    password: '',
-  };
   let loginByMainAdmin: () => Promise<AdminLoginOutputDto>;
   let adminCinemaCartoonsUrl: string;
   let commandBus: CommandBus;
@@ -57,24 +42,14 @@ describe('Admin cinema - cartoons', () => {
     app = createApp.app;
     testService = createApp.testService;
     const appUri = createApp.baseUri;
-
-    const apiSettings = app
-      .get(ConfigService<ConfigurationType, true>)
-      .get('apiSettings', { infer: true });
-
-    mainAdminLoginData.email = apiSettings.ADMIN_EMAIL;
-    mainAdminLoginData.password = apiSettings.ADMIN_PASSWORD;
-
-    baseUri = appUri + ADMIN_AUTH_ROUTES.MAIN;
+    const mainAdmin = createMainAdminLogin(app, appUri);
 
     adminCinemaCartoonsUrl = appUri + `${ADMIN_CINEMA_ROUTE.MAIN}/${ADMIN_CINEMA_ROUTE.CARTOONS}`;
     kinopoiskService = app.get(KinopoiskService);
     commandBus = app.get(CommandBus);
     moderationCartoonRepository = app.get(ModerationCartoonRepository);
     telegramAdminBotService = app.get(TelegramAdminBotService);
-
-    loginByMainAdmin = () =>
-      adminLogin(app, `${baseUri}/${ADMIN_AUTH_ROUTES.LOGIN}`, mainAdminLoginData);
+    loginByMainAdmin = mainAdmin.loginByMainAdmin;
   });
 
   beforeEach(async () => {
@@ -88,115 +63,20 @@ describe('Admin cinema - cartoons', () => {
     await app.close();
   });
 
-  const createMovie = async (
-    kpId: number,
-    duration: number,
-    resolvedValues: KinopoiskMovie,
-  ): Promise<void> => {
-    const kinopoiskSpy = jest.spyOn(kinopoiskService, 'getMovieById');
-
-    kinopoiskSpy.mockResolvedValue(resolvedValues);
-
-    const payload: NewCartoonNotificationPayloadDto = {
-      key: `https://video.com/${kpId}`,
-      kpId: String(kpId),
-      duration,
-    };
-
-    const result = await commandBus.execute<
-      NewCartoonNotificationCommand,
-      AppNotificationResult<null, ErrorFieldExceptionDto | null>
-    >(new NewCartoonNotificationCommand(payload));
-
-    kinopoiskSpy.mockRestore();
-
-    expect(result.appResult).toBe(AppNotificationResultEnum.Success);
-  };
-
-  const createProductionMovie = async (
-    kpId: number,
-    movieName: string,
-    genres: string[] = ['Боевик', 'Кримина'],
-    releaseDate: string = new Date('01.01.2025').toISOString(),
-    duration: number = 1000,
-    countries: string[] = ['Беларусь', 'Сша'],
-  ): Promise<void> => {
-    const resolvedValues: KinopoiskMovie = {
-      id: kpId,
-      name: `${movieName} ${kpId}`,
-      alternativeName: `Alt name ${kpId}`,
-      enName: `En name ${kpId}`,
-      year: Number(releaseDate.split('.')[0]),
-      description: `Desc ${kpId}`,
-
-      logo: {
-        url: `http://logo.com/${kpId}`,
-      },
-      poster: {
-        url: `http://poster.com/${kpId}`,
-      },
-      videos: {
-        trailers: [{ site: 'youtube', url: `https://trailer.com/${kpId}` }],
-      },
-
-      premiere: {
-        world: releaseDate,
-      },
-      genres: genres.map(g => ({ name: g })),
-      countries: countries.map(c => ({ name: c })),
-    };
-
-    await createMovie(kpId, duration, resolvedValues);
-  };
-
-  const createModerationMovie = async (
-    kpId: number,
-    movieName: string,
-    duration: number = 1000,
-  ): Promise<void> => {
-    const resolvedValues: KinopoiskMovie = {
-      id: kpId,
-      name: `${movieName} ${kpId}`,
-      alternativeName: `Alt name ${kpId}`,
-      enName: `En name ${kpId}`,
-      description: `Desc ${kpId}`,
-    };
-
-    await createMovie(kpId, duration, resolvedValues);
-  };
-
-  const createProcessingMovies = async (kpIds: string[], movieNames: string[]): Promise<void> => {
-    const kinopoiskSpy = jest.spyOn(kinopoiskService, 'getMovieById');
-
-    let callIndex = 0;
-
-    // eslint-disable-next-line @typescript-eslint/require-await
-    kinopoiskSpy.mockImplementation(async () => {
-      const name = movieNames[callIndex] ?? '';
-      callIndex++;
-      return { name } as KinopoiskMovie;
+  const movieFactory = () =>
+    createAdminCinemaMovieFactory({
+      commandBus,
+      kinopoiskService,
+      createNotificationCommand: payload => new NewCartoonNotificationCommand(payload),
+      createIsHandleCommand: payload => new NewCartoonIsHandleNotificationCommand(payload),
     });
-
-    const payload: NewMovieIsHandleNotificationPayloadDto = {
-      kpIds,
-    };
-
-    const result = await commandBus.execute<
-      NewCartoonIsHandleNotificationCommand,
-      AppNotificationResult<null, ErrorFieldExceptionDto | null>
-    >(new NewCartoonIsHandleNotificationCommand(payload));
-
-    kinopoiskSpy.mockRestore();
-
-    expect(result.appResult).toBe(AppNotificationResultEnum.Success);
-  };
 
   describe('Admin cinema - cartoons => Get all', () => {
     it('Admin should get all cartoons, with correct data', async () => {
       const { accessToken } = await loginByMainAdmin();
 
-      await createProductionMovie(1, 'Movie 1');
-      await createProductionMovie(
+      await movieFactory().createProductionMovie(1, 'Movie 1');
+      await movieFactory().createProductionMovie(
         2,
         'Movie 2',
         ['Драмма', 'Фантастика'],
@@ -204,10 +84,10 @@ describe('Admin cinema - cartoons', () => {
         3000,
         ['Германия', 'Франция'],
       );
-      await createModerationMovie(3, 'Movie 3');
-      await createModerationMovie(4, 'Movie 4');
-      await createModerationMovie(5, 'Movie 5');
-      await createProcessingMovies(['6'], ['Movie 6']);
+      await movieFactory().createModerationMovie(3, 'Movie 3');
+      await movieFactory().createModerationMovie(4, 'Movie 4');
+      await movieFactory().createModerationMovie(5, 'Movie 5');
+      await movieFactory().createProcessingMovies(['6'], ['Movie 6']);
 
       const result = await request(app.getHttpServer())
         .get(`${adminCinemaCartoonsUrl}`)
@@ -525,7 +405,7 @@ describe('Admin cinema - cartoons', () => {
     it('Admin should not get all cartoons, bad page', async () => {
       const { accessToken } = await loginByMainAdmin();
 
-      await createProductionMovie(1, 'Film');
+      await movieFactory().createProductionMovie(1, 'Film');
 
       const result = await request(app.getHttpServer())
         .get(`${adminCinemaCartoonsUrl}`)
@@ -826,7 +706,7 @@ describe('Admin cinema - cartoons', () => {
     it('Admin should remove cartoon by id', async () => {
       const { accessToken } = await loginByMainAdmin();
 
-      await createProductionMovie(1, 'Film');
+      await movieFactory().createProductionMovie(1, 'Film');
 
       const result = await request(app.getHttpServer())
         .get(`${adminCinemaCartoonsUrl}`)
@@ -886,7 +766,7 @@ describe('Admin cinema - cartoons', () => {
     it('Admin should not remove cartoon by id, film not found', async () => {
       const { accessToken } = await loginByMainAdmin();
 
-      await createProductionMovie(1, 'Film');
+      await movieFactory().createProductionMovie(1, 'Film');
 
       const result = await request(app.getHttpServer())
         .get(`${adminCinemaCartoonsUrl}`)
@@ -944,7 +824,7 @@ describe('Admin cinema - cartoons', () => {
     it('Admin should not remove cartoon by id, bad input data', async () => {
       const { accessToken } = await loginByMainAdmin();
 
-      await createProductionMovie(1, 'Film');
+      await movieFactory().createProductionMovie(1, 'Film');
 
       const result = await request(app.getHttpServer())
         .get(`${adminCinemaCartoonsUrl}`)
@@ -999,7 +879,7 @@ describe('Admin cinema - cartoons', () => {
     it('Admin should hide then show cartoon then hide cartoon and create moderation request', async () => {
       const { accessToken } = await loginByMainAdmin();
 
-      await createProductionMovie(1, 'Film');
+      await movieFactory().createProductionMovie(1, 'Film');
 
       const result = await request(app.getHttpServer())
         .get(`${adminCinemaCartoonsUrl}`)
@@ -1155,7 +1035,7 @@ describe('Admin cinema - cartoons', () => {
     it('Admin should hide cartoon then remove cartoon and should not show cartoon again, cartoon not found', async () => {
       const { accessToken } = await loginByMainAdmin();
 
-      await createProductionMovie(1, 'Film');
+      await movieFactory().createProductionMovie(1, 'Film');
 
       const result = await request(app.getHttpServer())
         .get(`${adminCinemaCartoonsUrl}`)
@@ -1229,7 +1109,7 @@ describe('Admin cinema - cartoons', () => {
     it('Admin should hide or show cartoon, bad input data', async () => {
       const { accessToken } = await loginByMainAdmin();
 
-      await createProductionMovie(1, 'Film');
+      await movieFactory().createProductionMovie(1, 'Film');
 
       const result = await request(app.getHttpServer())
         .get(`${adminCinemaCartoonsUrl}`)
@@ -1382,7 +1262,7 @@ describe('Admin cinema - cartoons', () => {
     it('Admin should hide cartoon with moderation then should not hide with moderation again, cartoon under moderation', async () => {
       const { accessToken } = await loginByMainAdmin();
 
-      await createProductionMovie(1, 'Film');
+      await movieFactory().createProductionMovie(1, 'Film');
 
       const result = await request(app.getHttpServer())
         .get(`${adminCinemaCartoonsUrl}`)
@@ -1495,7 +1375,7 @@ describe('Admin cinema - cartoons', () => {
     it('Admin should update cartoon', async () => {
       const { accessToken } = await loginByMainAdmin();
 
-      await createProductionMovie(1, 'Film');
+      await movieFactory().createProductionMovie(1, 'Film');
 
       const result = await request(app.getHttpServer())
         .get(`${adminCinemaCartoonsUrl}`)
@@ -1574,7 +1454,7 @@ describe('Admin cinema - cartoons', () => {
     it('Admin should not update cartoon, cartoon not found', async () => {
       const { accessToken } = await loginByMainAdmin();
 
-      await createProductionMovie(1, 'Film');
+      await movieFactory().createProductionMovie(1, 'Film');
 
       const result = await request(app.getHttpServer())
         .get(`${adminCinemaCartoonsUrl}`)
@@ -1620,7 +1500,7 @@ describe('Admin cinema - cartoons', () => {
     it('Admin should not update, bad input data', async () => {
       const { accessToken } = await loginByMainAdmin();
 
-      await createProductionMovie(1, 'Film');
+      await movieFactory().createProductionMovie(1, 'Film');
 
       const result = await request(app.getHttpServer())
         .get(`${adminCinemaCartoonsUrl}`)

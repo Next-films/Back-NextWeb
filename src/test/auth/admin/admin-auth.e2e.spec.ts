@@ -1,11 +1,8 @@
 import { INestApplication } from '@nestjs/common';
 import { TestService } from '../../test.service';
-import { AdminLoginInputModel } from '@/admin-auth/api/dtos/input/admin-login.input.model';
 import { AdminAuthSessionRepository } from '@/admin-auth/infrastructure/admin-auth-session.repository';
 import { AdminLoginOutputDto } from '@/admin-auth/domain/types';
 import { initTestSettings } from '../../test-init-settings';
-import { ConfigService } from '@nestjs/config';
-import { ConfigurationType } from '@/settings/configuration';
 import { ADMIN_AUTH_ROUTES } from '@/common/constants/route.constants';
 import { adminLogin } from '../../utils/auth/admin-login';
 import { GenerateAdminMigration } from '@/data-migrations/generate-admin.migration';
@@ -15,15 +12,13 @@ import { registerNewAdmin } from '../../utils/auth/register-new-admin';
 import { TEST_ADMIN_LOGIN_DATA, TEST_ADMIN_REG_DATA } from '../../data/admin-auth.test.data';
 import { EXCEPTION_KEYS_ENUM } from '@/common/enums/exception-keys.enum';
 import { AdminSession } from '@/admin-auth/domain/admin-session.entity';
+import { createMainAdminLogin } from '../../utils/auth/main-admin-login.util';
 
 describe('Admin auth', () => {
   let app: INestApplication;
   let testService: TestService;
   let baseUri: string;
-  const mainAdminLoginData: AdminLoginInputModel = {
-    email: '',
-    password: '',
-  };
+  let mainAdminLoginData: Record<string, unknown>;
   let adminAuthSessionRepository: AdminAuthSessionRepository;
   let loginByMainAdmin: () => Promise<AdminLoginOutputDto>;
 
@@ -33,19 +28,11 @@ describe('Admin auth', () => {
     app = createApp.app;
     testService = createApp.testService;
     const appUri = createApp.baseUri;
-
-    const apiSettings = app
-      .get(ConfigService<ConfigurationType, true>)
-      .get('apiSettings', { infer: true });
-
-    mainAdminLoginData.email = apiSettings.ADMIN_EMAIL;
-    mainAdminLoginData.password = apiSettings.ADMIN_PASSWORD;
+    const mainAdmin = createMainAdminLogin(app, appUri);
+    mainAdminLoginData = mainAdmin.loginData as unknown as Record<string, unknown>;
     adminAuthSessionRepository = app.get(AdminAuthSessionRepository);
-
-    baseUri = appUri + ADMIN_AUTH_ROUTES.MAIN;
-
-    loginByMainAdmin = () =>
-      adminLogin(app, `${baseUri}/${ADMIN_AUTH_ROUTES.LOGIN}`, mainAdminLoginData);
+    baseUri = mainAdmin.baseUri;
+    loginByMainAdmin = mainAdmin.loginByMainAdmin;
   });
 
   beforeEach(async () => {
