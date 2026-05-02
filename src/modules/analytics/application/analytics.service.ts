@@ -11,9 +11,18 @@ import { Film } from '@/films/domain/film.entity';
 import { Serial } from '@/serials/domain/serial.entity';
 import { Cartoon } from '@/cartoons/domain/cartoon.entity';
 import { MovieHandleStatus } from '@/movies/domain/types';
+import { DownloaderServiceAdapter } from '@/common/infrastructure/rmq/downloader-service.adapter';
 
 type RangeDates = { start: Date; end: Date };
 type TopRow = { contentType: AnalyticsContentType; contentId: string; views: string };
+type TopContentItem = {
+  id: number;
+  title: string;
+  previewUrl: string | null;
+  cardImg: string | null;
+  contentType: AnalyticsContentType;
+  views: number;
+};
 
 @Injectable()
 export class AnalyticsService {
@@ -28,6 +37,7 @@ export class AnalyticsService {
     private readonly serialRepository: Repository<Serial>,
     @InjectRepository(Cartoon)
     private readonly cartoonRepository: Repository<Cartoon>,
+    private readonly downloaderServiceAdapter: DownloaderServiceAdapter,
   ) {}
 
   async trackEvent(
@@ -183,21 +193,23 @@ export class AnalyticsService {
 
       const resolved = await this.resolveTopItems(topList);
 
-      if (resolved.length >= safeLimit) return resolved.slice(0, safeLimit);
+      if (resolved.length >= safeLimit) {
+        return this.signTopItemsMedia(resolved.slice(0, safeLimit));
+      }
 
       const filled = await this.fillWithRandomItems(resolved, safeLimit);
-      return filled.slice(0, safeLimit);
+      return this.signTopItemsMedia(filled.slice(0, safeLimit));
     } catch (error) {
       const trace = error instanceof Error ? error.stack : String(error);
       this.logger.error('Failed to fetch analytics top content, using fallback list', trace);
       const fallback = await this.fillWithRandomItems([], safeLimit);
-      return fallback.slice(0, safeLimit);
+      return this.signTopItemsMedia(fallback.slice(0, safeLimit));
     }
   }
 
   private async resolveTopItems(
     items: { contentType: AnalyticsContentType; contentId: number; views: number }[],
-  ) {
+  ): Promise<TopContentItem[]> {
     const idsByType = new Map<AnalyticsContentType, number[]>();
     for (const item of items) {
       if (!idsByType.has(item.contentType)) idsByType.set(item.contentType, []);
@@ -217,7 +229,10 @@ export class AnalyticsService {
       idsByType.get(AnalyticsContentType.CARTOON),
     );
 
-    const lookup = new Map<string, { id: number; title: string; previewUrl: string | null }>();
+    const lookup = new Map<
+      string,
+      { id: number; title: string; previewUrl: string | null; cardImg: string | null }
+    >();
     films.forEach(item => lookup.set(`${AnalyticsContentType.FILM}:${item.id}`, item));
     serials.forEach(item => lookup.set(`${AnalyticsContentType.SERIAL}:${item.id}`, item));
     cartoons.forEach(item => lookup.set(`${AnalyticsContentType.CARTOON}:${item.id}`, item));
@@ -233,17 +248,7 @@ export class AnalyticsService {
           views: item.views,
         };
       })
-      .filter(
-        (
-          item,
-        ): item is {
-          id: number;
-          title: string;
-          previewUrl: string | null;
-          contentType: AnalyticsContentType;
-          views: number;
-        } => Boolean(item),
-      );
+      .filter((item): item is TopContentItem => Boolean(item));
   }
 
   private async getMoviesByIds<T extends Film | Serial | Cartoon>(
@@ -259,19 +264,19 @@ export class AnalyticsService {
       id: row.id,
       title: row.title,
       previewUrl: row.previewUrl || row.backgroundContentUrl || row.titleUrl || null,
+      cardImg:
+        row.horizontalPreviewUrl ||
+        row.previewUrl ||
+        row.backgroundContentUrl ||
+        row.titleUrl ||
+        null,
     }));
   }
 
   private async fillWithRandomItems(
-    existing: Array<{
-      id: number;
-      title: string;
-      previewUrl: string | null;
-      contentType: AnalyticsContentType;
-      views: number;
-    }>,
+    existing: TopContentItem[],
     limit: number,
-  ) {
+  ): Promise<TopContentItem[]> {
     const used = new Map<AnalyticsContentType, Set<number>>();
     for (const item of existing) {
       if (!used.has(item.contentType)) used.set(item.contentType, new Set());
@@ -281,7 +286,7 @@ export class AnalyticsService {
     const remaining = limit - existing.length;
     if (remaining <= 0) return existing;
 
-    const randomItems: typeof existing = [];
+    const randomItems: TopContentItem[] = [];
 
     randomItems.push(
       ...(await this.getRandomByType(
@@ -308,7 +313,7 @@ export class AnalyticsService {
       )),
     );
 
-    const deduped = new Map<string, (typeof existing)[number]>();
+    const deduped = new Map<string, TopContentItem>();
     for (const item of [...existing, ...randomItems]) {
       const key = `${item.contentType}:${item.id}`;
       if (!deduped.has(key)) deduped.set(key, item);
@@ -322,7 +327,7 @@ export class AnalyticsService {
     contentType: AnalyticsContentType,
     excludeIds?: Set<number>,
     limit = 10,
-  ) {
+  ): Promise<TopContentItem[]> {
     const qb = repository.createQueryBuilder('m');
     qb.where('m.isHidden = false').andWhere('m.handleStatus = :status', {
       status: MovieHandleStatus.PRODUCTION,
@@ -339,9 +344,46 @@ export class AnalyticsService {
       id: row.id,
       title: row.title,
       previewUrl: row.previewUrl || row.backgroundContentUrl || row.titleUrl || null,
+      cardImg:
+        row.horizontalPreviewUrl ||
+        row.previewUrl ||
+        row.backgroundContentUrl ||
+        row.titleUrl ||
+        null,
       contentType,
       views: 0,
     }));
+  }
+
+  private async signTopItemsMedia(items: TopContentItem[]): Promise<TopContentItem[]> {
+    const cache = new Map<string, Promise<string | null>>();
+    const signWithCache = async (url: string | null): Promise<string | null> => {
+      if (!url) return null;
+
+      if (!cache.has(url)) {
+        cache.set(
+          url,
+          this.downloaderServiceAdapter.signMediaUrl(url, 3600).catch(error => {
+            this.logger.error(
+              `Failed to sign analytics media url "${url}": ${
+                error instanceof Error ? error.message : String(error)
+              }`,
+            );
+            return url;
+          }),
+        );
+      }
+
+      return cache.get(url)!;
+    };
+
+    return Promise.all(
+      items.map(async item => ({
+        ...item,
+        previewUrl: await signWithCache(item.previewUrl),
+        cardImg: await signWithCache(item.cardImg),
+      })),
+    );
   }
 
   private getRangeDates(range: AnalyticsRangeEnum): RangeDates {

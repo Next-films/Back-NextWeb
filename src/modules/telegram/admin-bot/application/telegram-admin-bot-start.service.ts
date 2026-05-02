@@ -15,6 +15,8 @@ export type TelegramAdminBotStartResult = {
   };
 };
 
+const FALLBACK_ADMIN_PANEL_URL = 'https://web.admin.next-films.ru';
+
 @Injectable()
 export class TelegramAdminBotStartService {
   constructor(
@@ -77,8 +79,7 @@ export class TelegramAdminBotStartService {
     isPasswordSet: boolean;
     username: string | null;
   } {
-    const apiSettings = this.configService.get('apiSettings', { infer: true });
-    const adminBaseUrl = apiSettings.ADMIN_PANEL_URL;
+    const adminBaseUrl = this.resolveAdminPanelBaseUrl();
 
     const parsed = new URL(adminBaseUrl);
     parsed.pathname = '/login';
@@ -90,5 +91,39 @@ export class TelegramAdminBotStartService {
       isPasswordSet,
       username,
     };
+  }
+
+  private resolveAdminPanelBaseUrl(): string {
+    const apiSettings = this.configService.get('apiSettings', { infer: true });
+    const envSettings = this.configService.get('environmentSettings', { infer: true });
+    const configuredUrl = (apiSettings.ADMIN_PANEL_URL || '').trim();
+
+    const fallback = () => {
+      this.logger.warn(
+        `Unsafe ADMIN_PANEL_URL detected ("${configuredUrl}"). Falling back to ${FALLBACK_ADMIN_PANEL_URL}`,
+        this.resolveAdminPanelBaseUrl.name,
+      );
+      return FALLBACK_ADMIN_PANEL_URL;
+    };
+
+    if (!configuredUrl) return fallback();
+
+    let parsed: URL;
+    try {
+      parsed = new URL(configuredUrl);
+    } catch {
+      return fallback();
+    }
+
+    const host = parsed.hostname.toLowerCase();
+    const isLocalHost =
+      host === 'localhost' || host === '127.0.0.1' || host === '::1' || host.endsWith('.local');
+    const isUnsafeProtocol = parsed.protocol !== 'https:' && !envSettings.isDevelopment;
+
+    if (!envSettings.isDevelopment && (isLocalHost || isUnsafeProtocol)) {
+      return fallback();
+    }
+
+    return parsed.origin;
   }
 }
