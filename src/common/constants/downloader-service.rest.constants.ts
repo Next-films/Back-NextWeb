@@ -7,6 +7,7 @@ export const DOWNLOADER_SERVICE_REST_BRIDGE_METHODS_CONSTANTS = {
   FILMS: 'films',
   CARTOONS: 'cartoons',
   SERIALS: 'serials',
+  SEASONS: 'seasons',
   DOWNLOAD: 'download',
   FIND: 'find',
   RECONCILE: 'reconcile',

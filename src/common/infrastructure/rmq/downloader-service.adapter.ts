@@ -34,6 +34,7 @@ import {
   DownloadPreviewYtClipPayloadDto,
   DEFAULT_DOWNLOADER_TRIGGER_SCHEDULE,
   DownloaderRunByListInputDto,
+  DownloaderSerialSeasonsOutputDto,
   DownloaderTriggerScheduleDto,
   DownloaderTriggerTaskRuntimeStatusDto,
   IDownloaderServiceAdapter,
@@ -148,9 +149,18 @@ export class DownloaderServiceAdapter implements IDownloaderServiceAdapter {
     throw new Error('Cancel process is available only via HTTP transport adapter.');
   }
 
-  bridgeReconcileSerialByKpId(_kpId: string): Promise<Res<{ message: string }>> {
+  bridgeReconcileSerialByKpId(
+    _kpId: string,
+    _seasonNumbers?: number[],
+  ): Promise<Res<{ message: string }>> {
     void _kpId;
+    void _seasonNumbers;
     throw new Error('Serial reconcile by kpId is available only via HTTP transport adapter.');
+  }
+
+  bridgeGetSerialSeasonsByKpId(_kpId: string): Promise<Res<DownloaderSerialSeasonsOutputDto>> {
+    void _kpId;
+    throw new Error('Get serial seasons by kpId is available only via HTTP transport adapter.');
   }
 
   // ─── Bridge void actions ────────────────────────────────────────
@@ -362,13 +372,35 @@ export class DownloaderServiceAdapterMock implements IDownloaderServiceAdapter {
     );
   }
 
-  bridgeReconcileSerialByKpId(kpId: string): Promise<Res<{ message: string }>> {
+  bridgeReconcileSerialByKpId(
+    kpId: string,
+    seasonNumbers?: number[],
+  ): Promise<Res<{ message: string }>> {
     this.mockLog(
-      `Execute: serial reconcile by kpId (mock). kpId: ${kpId}`,
+      `Execute: serial reconcile by kpId (mock). kpId: ${kpId}, seasons: ${JSON.stringify(
+        seasonNumbers || [],
+      )}`,
       this.bridgeReconcileSerialByKpId.name,
     );
     return Promise.resolve(
       this.mockSuccess({ message: `Mock serial reconcile started for kpId ${kpId}` }),
+    );
+  }
+
+  bridgeGetSerialSeasonsByKpId(kpId: string): Promise<Res<DownloaderSerialSeasonsOutputDto>> {
+    this.mockLog(
+      `Execute: get serial seasons by kpId (mock). kpId: ${kpId}`,
+      this.bridgeGetSerialSeasonsByKpId.name,
+    );
+    return Promise.resolve(
+      this.mockSuccess({
+        kpId,
+        title: `Mock serial ${kpId}`,
+        totalCandidates: 0,
+        totalSeasons: 0,
+        seasons: [],
+        hasUnknownSeasonCandidates: false,
+      }),
     );
   }
 

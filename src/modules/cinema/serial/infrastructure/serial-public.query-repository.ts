@@ -14,6 +14,20 @@ export class SerialPublicQueryRepository {
     @InjectRepository(SerialEpisode) private readonly episodeRepository: Repository<SerialEpisode>,
   ) {}
 
+  private resolveSortField(sortField?: GetSerialSortFieldEnum): GetSerialSortFieldEnum {
+    if (!sortField) return GetSerialSortFieldEnum.RELEASE_DATE;
+    if (Object.values(GetSerialSortFieldEnum).includes(sortField)) return sortField;
+    return GetSerialSortFieldEnum.RELEASE_DATE;
+  }
+
+  private resolveSortDirection(sortDirection?: SortDirectionEnum): SortDirectionEnum {
+    if (!sortDirection) return SortDirectionEnum.DESC;
+    if (sortDirection === SortDirectionEnum.ASC || sortDirection === SortDirectionEnum.DESC) {
+      return sortDirection;
+    }
+    return SortDirectionEnum.DESC;
+  }
+
   private getSearchSerialClause(
     qb: SelectQueryBuilder<Serial>,
     searchName: string | null,
@@ -95,8 +109,9 @@ export class SerialPublicQueryRepository {
     } else {
       qb.loadRelationCountAndMap('s.episodesCount', 's.episodes');
     }
-
-    qb.skip(skip).take(take).orderBy(`s.${sortField}`, sortDirection);
+    const resolvedSortField = this.resolveSortField(sortField);
+    const resolvedSortDirection = this.resolveSortDirection(sortDirection);
+    qb.skip(skip).take(take).orderBy(`s.${resolvedSortField}`, resolvedSortDirection);
 
     return qb.getMany();
   }

@@ -18,4 +18,8 @@ export class BusinessRulesSettings {
 
   @IsBoolean()
   IS_RMQ_ENABLE: boolean = this.environmentVariables.IS_RMQ_ENABLE === 'true';
+
+  @IsBoolean()
+  ADMIN_DEV_DIRECT_LOGIN_ENABLED: boolean =
+    this.environmentVariables.ADMIN_DEV_DIRECT_LOGIN_ENABLED === 'true';
 }

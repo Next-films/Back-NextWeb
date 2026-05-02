@@ -14,6 +14,7 @@ import { AddMovieToDownloadQueuePayloadDto, RemoveMoviePayloadDto } from '@/admi
 import {
   DownloadPreviewYtClipPayloadDto,
   DownloaderRunByListInputDto,
+  DownloaderSerialSeasonsOutputDto,
   DownloaderTriggerScheduleDto,
   DownloaderTriggerTaskRuntimeStatusDto,
   IDownloaderServiceAdapter,
@@ -281,11 +282,22 @@ export class DownloaderServiceRestAdapter implements IDownloaderServiceAdapter {
     return this.postResult(this.url(BRIDGE.MAIN, BRIDGE.CANCEL), {}, this.cancelBridgeProcess.name);
   }
 
-  bridgeReconcileSerialByKpId(kpId: string): Promise<Res<{ message: string }>> {
+  bridgeReconcileSerialByKpId(
+    kpId: string,
+    seasonNumbers?: number[],
+  ): Promise<Res<{ message: string }>> {
     return this.postResult(
       this.url(BRIDGE.MAIN, BRIDGE.SERIALS, BRIDGE.RECONCILE),
-      { kpId },
+      { kpId, seasonNumbers },
       this.bridgeReconcileSerialByKpId.name,
+    );
+  }
+
+  bridgeGetSerialSeasonsByKpId(kpId: string): Promise<Res<DownloaderSerialSeasonsOutputDto>> {
+    return this.postResult(
+      this.url(BRIDGE.MAIN, BRIDGE.SERIALS, BRIDGE.SEASONS),
+      { kpId },
+      this.bridgeGetSerialSeasonsByKpId.name,
     );
   }
 

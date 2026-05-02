@@ -11,6 +11,7 @@ import { ErrorFieldExceptionDto } from '@/common/exception-filters/http/http-exc
 import {
   DEFAULT_DOWNLOADER_TRIGGER_SCHEDULE,
   DownloaderRunByListInputDto,
+  DownloaderSerialSeasonsOutputDto,
   DownloaderTriggerScheduleDto,
   DownloaderTriggerTaskRuntimeStatusDto,
   ImgExtEnum,
@@ -192,11 +193,24 @@ export class DownloaderServiceSwitchAdapter {
 
   // ─── Request/response actions (RMQ → HTTP fallback) ────────────
 
-  bridgeReconcileSerialByKpId(kpId: string): Promise<FallbackResult<{ message: string }>> {
+  bridgeReconcileSerialByKpId(
+    kpId: string,
+    seasonNumbers?: number[],
+  ): Promise<FallbackResult<{ message: string }>> {
     return this.executeRequestWithFallback(
       this.bridgeReconcileSerialByKpId.name,
-      this.rmqCall(a => a.bridgeReconcileSerialByKpId(kpId)),
-      () => this.restAdapter.bridgeReconcileSerialByKpId(kpId),
+      this.rmqCall(a => a.bridgeReconcileSerialByKpId(kpId, seasonNumbers)),
+      () => this.restAdapter.bridgeReconcileSerialByKpId(kpId, seasonNumbers),
+    );
+  }
+
+  bridgeGetSerialSeasonsByKpId(
+    kpId: string,
+  ): Promise<FallbackResult<DownloaderSerialSeasonsOutputDto>> {
+    return this.executeRequestWithFallback(
+      this.bridgeGetSerialSeasonsByKpId.name,
+      this.rmqCall(a => a.bridgeGetSerialSeasonsByKpId(kpId)),
+      () => this.restAdapter.bridgeGetSerialSeasonsByKpId(kpId),
     );
   }
 

@@ -29,6 +29,12 @@ export class SerialEpisode {
   @Column()
   duration: number;
 
+  @Column({ type: 'int', nullable: true })
+  episodeNumber: number | null;
+
+  @Column({ type: 'varchar', collation: RU_PG_COLLATION, nullable: true })
+  voiceoverLabel: string | null;
+
   @ManyToOne(() => Serial, serial => serial.episodes)
   @JoinColumn()
   serial: Serial;
@@ -40,6 +46,6 @@ export class SerialEpisode {
   @JoinColumn()
   season: SerialSeason;
 
-  @Column({ nullable: true })
+  @Column({ type: 'int', nullable: true })
   seasonId: number | null;
 }

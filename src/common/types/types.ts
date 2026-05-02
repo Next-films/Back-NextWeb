@@ -172,6 +172,21 @@ export type DownloaderRunByListInputDto = {
   serials?: string[];
 };
 
+export type DownloaderSerialSeasonAvailabilityItem = {
+  seasonNumber: number;
+  torrentsCount: number;
+  expectedEpisodesCount: number | null;
+};
+
+export type DownloaderSerialSeasonsOutputDto = {
+  kpId: string;
+  title: string;
+  totalCandidates: number;
+  totalSeasons: number;
+  seasons: DownloaderSerialSeasonAvailabilityItem[];
+  hasUnknownSeasonCandidates: boolean;
+};
+
 export type HandledRmqErrorType = {
   isError: boolean;
   isStopProcess: boolean;
@@ -197,7 +212,14 @@ export interface IDownloaderServiceAdapter {
 
   bridgeReconcileSerialByKpId(
     kpId: string,
+    seasonNumbers?: number[],
   ): Promise<AppNotificationResult<{ message: string }, ErrorFieldExceptionDto | null>> | void;
+
+  bridgeGetSerialSeasonsByKpId(
+    kpId: string,
+  ): Promise<
+    AppNotificationResult<DownloaderSerialSeasonsOutputDto, ErrorFieldExceptionDto | null>
+  > | void;
 
   getBridgeSchedule(): DownloaderTriggerScheduleDto | Promise<DownloaderTriggerScheduleDto>;
 

@@ -40,6 +40,8 @@ import { AdminGetAllSerialsInputQueryDto } from '@/admin/api/dtos/input/admin-ge
 import { AdminCinemaSerialsOutputDto } from '@/admin/api/dtos/output/admin-cinema-serials.output.dto';
 import { AdminUpdateSerialInputDto } from '@/admin/api/dtos/input/admin-update-serial.input.dto';
 import { AdminShowOrHiddeSerialInputDto } from '@/admin/api/dtos/input/admin-show-or-hidde-serial.input.dto';
+import { AdminCheckSerialUpdatesInputDto } from '@/admin/api/dtos/input/admin-check-serial-updates.input.dto';
+import { AdminSerialSeasonsPlanOutputDto } from '@/admin/api/dtos/output/admin-serial-seasons.output.dto';
 import { AdminGetAllSerialsQuery } from '@/admin/application/query-handlers/admin-get-all-serials.query-handler';
 import { AdminUpdateSerialCommand } from '@/admin/application/handlers/admin-update-serial.handler';
 import { AdminRemoveSerialCommand } from '@/admin/application/handlers/admin-remove-serial.handler';
@@ -255,6 +257,7 @@ export class AdminCinemaSerialsController {
   @Post(`:serialId/check-updates`)
   async checkSerialUpdates(
     @Param('serialId', ParseIntPatchPipe) serialId: number,
+    @Body() body: AdminCheckSerialUpdatesInputDto,
   ): Promise<{ message: string } | void> {
     this.logger.log('Execute: check serial updates by admin', this.checkSerialUpdates.name);
 
@@ -272,8 +275,19 @@ export class AdminCinemaSerialsController {
       return;
     }
 
+    const removedDuplicates = await this.serialRepository.removeDuplicateEpisodesBySerialId(
+      serialId,
+    );
+    if (removedDuplicates > 0) {
+      this.logger.warn(
+        `Removed duplicate serial episodes before check-updates. serialId=${serialId}, removed=${removedDuplicates}`,
+        this.checkSerialUpdates.name,
+      );
+    }
+
     const reconcileResult = await this.downloaderServiceAdapter.bridgeReconcileSerialByKpId(
       serialResult.data.kpId,
+      body.seasonNumbers,
     );
 
     if (reconcileResult.appResult !== AppNotificationResultEnum.Success || !reconcileResult.data) {
@@ -282,5 +296,107 @@ export class AdminCinemaSerialsController {
     }
 
     return reconcileResult.data;
+  }
+
+  @Get(`:serialId/check-updates/seasons`)
+  async getSerialCheckUpdatesSeasons(
+    @Param('serialId', ParseIntPatchPipe) serialId: number,
+  ): Promise<AdminSerialSeasonsPlanOutputDto | void> {
+    this.logger.log(
+      'Execute: get serial seasons for check updates by admin',
+      this.getSerialCheckUpdatesSeasons.name,
+    );
+
+    const serialResult = await this.queryBus.execute<
+      AdminGetSerialByIdQuery,
+      AppNotificationResult<AdminCinemaSerialsOutputDto, ErrorFieldExceptionDto | null>
+    >(new AdminGetSerialByIdQuery(serialId));
+
+    if (serialResult.appResult !== AppNotificationResultEnum.Success || !serialResult.data?.kpId) {
+      this.appNotification.handleHttpResult(
+        this.appNotification.badRequest([
+          { field: 'serialId', message: 'Serial not found or kpId is missing' },
+        ]),
+      );
+      return;
+    }
+
+    const removedDuplicates = await this.serialRepository.removeDuplicateEpisodesBySerialId(
+      serialId,
+    );
+    if (removedDuplicates > 0) {
+      this.logger.warn(
+        `Removed duplicate serial episodes before seasons plan. serialId=${serialId}, removed=${removedDuplicates}`,
+        this.getSerialCheckUpdatesSeasons.name,
+      );
+    }
+
+    const refreshedSerialResult = await this.queryBus.execute<
+      AdminGetSerialByIdQuery,
+      AppNotificationResult<AdminCinemaSerialsOutputDto, ErrorFieldExceptionDto | null>
+    >(new AdminGetSerialByIdQuery(serialId));
+
+    if (
+      refreshedSerialResult.appResult !== AppNotificationResultEnum.Success ||
+      !refreshedSerialResult.data?.kpId
+    ) {
+      this.appNotification.handleHttpResult(
+        this.appNotification.badRequest([
+          { field: 'serialId', message: 'Serial not found or kpId is missing' },
+        ]),
+      );
+      return;
+    }
+
+    const seasonsResult = await this.downloaderServiceAdapter.bridgeGetSerialSeasonsByKpId(
+      refreshedSerialResult.data.kpId,
+    );
+
+    if (seasonsResult.appResult !== AppNotificationResultEnum.Success || !seasonsResult.data) {
+      this.appNotification.handleHttpResult(seasonsResult);
+      return;
+    }
+
+    const downloadedSeasons = Array.from(
+      new Set(
+        (refreshedSerialResult.data.episodes || [])
+          .map(episode => episode.seasonNumber)
+          .filter(Boolean),
+      ),
+    ).sort((a, b) => a - b);
+    const downloadedSeasonSet = new Set<number>(downloadedSeasons);
+    const downloadedEpisodesCountBySeason = new Map<number, number>();
+
+    for (const episode of refreshedSerialResult.data.episodes || []) {
+      if (!episode.seasonNumber) continue;
+      downloadedEpisodesCountBySeason.set(
+        episode.seasonNumber,
+        (downloadedEpisodesCountBySeason.get(episode.seasonNumber) || 0) + 1,
+      );
+    }
+
+    return {
+      ...seasonsResult.data,
+      downloadedSeasons,
+      seasons: seasonsResult.data.seasons.map(season => ({
+        ...season,
+        downloadedEpisodesCount: downloadedEpisodesCountBySeason.get(season.seasonNumber) || 0,
+        missingEpisodesCount:
+          season.expectedEpisodesCount !== null
+            ? Math.max(
+                0,
+                season.expectedEpisodesCount -
+                  (downloadedEpisodesCountBySeason.get(season.seasonNumber) || 0),
+              )
+            : null,
+        isComplete:
+          season.expectedEpisodesCount !== null
+            ? (downloadedEpisodesCountBySeason.get(season.seasonNumber) || 0) >=
+              season.expectedEpisodesCount
+            : null,
+        isDownloaded: downloadedSeasonSet.has(season.seasonNumber),
+        canDownload: !downloadedSeasonSet.has(season.seasonNumber) && season.torrentsCount > 0,
+      })),
+    };
   }
 }

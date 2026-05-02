@@ -1,9 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsString, Length, Matches } from 'class-validator';
+import { IsNotEmpty, IsString, Length, Matches, ValidateIf } from 'class-validator';
 import { ADMIN_AUTH_VALIDATION_RULES } from '@/common/constants/validation-rules.constants';
 import { Trim } from '@/common/decorators/transform/trim.decorator';
 
 export class AdminLoginInputModel {
+  private static readonly DEV_DIRECT_LOGIN_TOKEN = 'DEV_LOCAL_LOGIN';
+
   @ApiProperty({
     minLength: 10,
     maxLength: 500,
@@ -24,10 +26,14 @@ export class AdminLoginInputModel {
   @Trim()
   @IsString()
   @IsNotEmpty()
+  @ValidateIf(o => o.token === AdminLoginInputModel.DEV_DIRECT_LOGIN_TOKEN)
+  @Length(5, ADMIN_AUTH_VALIDATION_RULES.PASSWORD.LENGTH_MAX)
+  @ValidateIf(o => o.token !== AdminLoginInputModel.DEV_DIRECT_LOGIN_TOKEN)
   @Length(
     ADMIN_AUTH_VALIDATION_RULES.PASSWORD.LENGTH_MIN,
     ADMIN_AUTH_VALIDATION_RULES.PASSWORD.LENGTH_MAX,
   )
+  @ValidateIf(o => o.token !== AdminLoginInputModel.DEV_DIRECT_LOGIN_TOKEN)
   @Matches(ADMIN_AUTH_VALIDATION_RULES.PASSWORD.PATTERN)
   password: string;
 }

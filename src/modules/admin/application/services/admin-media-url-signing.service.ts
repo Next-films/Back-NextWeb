@@ -50,6 +50,10 @@ export class AdminMediaUrlSigningService {
   }
 
   private async signUrl(url: string | null): Promise<string | null> {
+    if (this.isHlsUrl(url)) {
+      return url;
+    }
+
     try {
       return await this.downloaderServiceAdapter.signMediaUrl(url, this.signedUrlTtlSec);
     } catch (error) {
@@ -57,5 +61,11 @@ export class AdminMediaUrlSigningService {
 
       return url;
     }
+  }
+
+  private isHlsUrl(url: string | null): boolean {
+    if (!url) return false;
+
+    return /\.m3u8(?:[?#].*)?$/i.test(url);
   }
 }

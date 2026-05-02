@@ -1,6 +1,6 @@
 import { NewMovieNotificationPayloadDto } from '@/movies/api/dtos/input/new-movie-notification.input.dto';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsNotEmpty, IsNumber, IsOptional } from 'class-validator';
+import { IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
 
 export class NewSerialNotificationPayloadDto extends NewMovieNotificationPayloadDto {
   @ApiProperty({ nullable: true })
@@ -17,4 +17,9 @@ export class NewSerialNotificationPayloadDto extends NewMovieNotificationPayload
   @IsOptional()
   @IsNumber()
   episodeNumber?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  voiceoverLabel?: string;
 }

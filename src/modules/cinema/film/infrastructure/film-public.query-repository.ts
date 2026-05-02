@@ -10,6 +10,20 @@ import { MovieHandleStatus } from '@/movies/domain/types';
 export class FilmPublicQueryRepository {
   constructor(@InjectRepository(Film) private readonly filmRepository: Repository<Film>) {}
 
+  private resolveSortField(sortField?: GetFilmsSortFieldEnum): GetFilmsSortFieldEnum {
+    if (!sortField) return GetFilmsSortFieldEnum.RELEASE_DATE;
+    if (Object.values(GetFilmsSortFieldEnum).includes(sortField)) return sortField;
+    return GetFilmsSortFieldEnum.RELEASE_DATE;
+  }
+
+  private resolveSortDirection(sortDirection?: SortDirectionEnum): SortDirectionEnum {
+    if (!sortDirection) return SortDirectionEnum.DESC;
+    if (sortDirection === SortDirectionEnum.ASC || sortDirection === SortDirectionEnum.DESC) {
+      return sortDirection;
+    }
+    return SortDirectionEnum.DESC;
+  }
+
   private getSearchFilmClause(
     qb: SelectQueryBuilder<Film>,
     searchName: string | null,
@@ -74,8 +88,9 @@ export class FilmPublicQueryRepository {
       qb = qb.leftJoinAndSelect('f.genres', 'g');
     }
     qb = this.getSearchFilmClause(qb, searchName, searchGenreIds);
-
-    qb.orderBy(`f.${sortField}`, sortDirection).skip(skip).take(take);
+    const resolvedSortField = this.resolveSortField(sortField);
+    const resolvedSortDirection = this.resolveSortDirection(sortDirection);
+    qb.orderBy(`f.${resolvedSortField}`, resolvedSortDirection).skip(skip).take(take);
 
     return qb.getMany();
   }

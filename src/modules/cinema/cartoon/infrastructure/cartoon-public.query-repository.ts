@@ -10,6 +10,20 @@ import { MovieHandleStatus } from '@/movies/domain/types';
 export class CartoonPublicQueryRepository {
   constructor(@InjectRepository(Cartoon) private readonly cartoonRepository: Repository<Cartoon>) {}
 
+  private resolveSortField(sortField?: GetCartoonSortFieldEnum): GetCartoonSortFieldEnum {
+    if (!sortField) return GetCartoonSortFieldEnum.RELEASE_DATE;
+    if (Object.values(GetCartoonSortFieldEnum).includes(sortField)) return sortField;
+    return GetCartoonSortFieldEnum.RELEASE_DATE;
+  }
+
+  private resolveSortDirection(sortDirection?: SortDirectionEnum): SortDirectionEnum {
+    if (!sortDirection) return SortDirectionEnum.DESC;
+    if (sortDirection === SortDirectionEnum.ASC || sortDirection === SortDirectionEnum.DESC) {
+      return sortDirection;
+    }
+    return SortDirectionEnum.DESC;
+  }
+
   private getSearchCartoonClause(
     qb: SelectQueryBuilder<Cartoon>,
     searchName: string | null,
@@ -74,8 +88,9 @@ export class CartoonPublicQueryRepository {
       qb = qb.leftJoinAndSelect('f.genres', 'g');
     }
     qb = this.getSearchCartoonClause(qb, searchName, searchGenreIds);
-
-    qb.skip(skip).take(take).orderBy(`f.${sortField}`, sortDirection);
+    const resolvedSortField = this.resolveSortField(sortField);
+    const resolvedSortDirection = this.resolveSortDirection(sortDirection);
+    qb.skip(skip).take(take).orderBy(`f.${resolvedSortField}`, resolvedSortDirection);
     return qb.getMany();
   }
 

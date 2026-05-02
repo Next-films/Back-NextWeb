@@ -68,4 +68,69 @@ export class SerialRepository {
       await seasonRepository.delete({ id: seasonId, serialId });
     }
   }
+
+  async removeDuplicateEpisodesBySerialId(
+    serialId: number,
+    queryRunner?: QueryRunner,
+  ): Promise<number> {
+    const manager = queryRunner?.manager ?? this.serialRepository.manager;
+    const episodeRepository = manager.getRepository(SerialEpisode);
+    const seasonRepository = manager.getRepository(SerialSeason);
+
+    const episodes = await episodeRepository.find({
+      where: { serialId },
+      relations: { season: true },
+      order: { id: 'DESC' },
+    });
+
+    if (episodes.length <= 1) return 0;
+
+    const seenSlots = new Set<string>();
+    const duplicateIds: number[] = [];
+    const affectedSeasonIds = new Set<number>();
+
+    for (const episode of episodes) {
+      const seasonNumber = episode.season?.seasonNumber ?? 1;
+      const episodeNumber = episode.episodeNumber ?? this.extractEpisodeNumber(episode.title);
+      const voiceoverKey = (episode.voiceoverLabel || '').trim().toLowerCase() || 'default';
+      const titleKey = (episode.title || '').trim().toLowerCase();
+      const slotKey = episodeNumber
+        ? `${seasonNumber}:${episodeNumber}:${voiceoverKey}`
+        : `${seasonNumber}:title:${titleKey}:${voiceoverKey}`;
+
+      if (!seenSlots.has(slotKey)) {
+        seenSlots.add(slotKey);
+        continue;
+      }
+
+      duplicateIds.push(episode.id);
+      if (episode.seasonId) affectedSeasonIds.add(episode.seasonId);
+    }
+
+    if (duplicateIds.length === 0) return 0;
+
+    await episodeRepository.delete(duplicateIds);
+
+    for (const seasonId of affectedSeasonIds) {
+      const leftCount = await episodeRepository.count({ where: { serialId, seasonId } });
+
+      if (leftCount === 0) {
+        await seasonRepository.delete({ id: seasonId, serialId });
+      }
+    }
+
+    return duplicateIds.length;
+  }
+
+  private extractEpisodeNumber(title: string | null | undefined): number | null {
+    if (!title) return null;
+    const match = title.match(/(\d{1,4})/);
+
+    if (!match) return null;
+    const parsed = Number.parseInt(match[1], 10);
+
+    if (!Number.isFinite(parsed) || parsed <= 0) return null;
+
+    return parsed;
+  }
 }

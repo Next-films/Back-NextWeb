@@ -58,7 +58,7 @@ export class NewSerialNotificationCommandHandler
     command: NewSerialNotificationCommand,
   ): Promise<AppNotificationResult<null, ErrorFieldExceptionDto | null>> {
     const { inputDto } = command;
-    const { kpId, key, duration, seasonNumber, episodeNumber } = inputDto;
+    const { kpId, key, duration, seasonNumber, episodeNumber, voiceoverLabel } = inputDto;
     this.logger.log(`New serial notification command`, this.execute.name);
 
     const queryRunner = this.dataSource.createQueryRunner();
@@ -66,10 +66,29 @@ export class NewSerialNotificationCommandHandler
       await queryRunner.connect();
       await queryRunner.startTransaction();
 
-      const [kpMovie, existingSerial] = await Promise.all([
+      const [kpMovie, existingSerialRaw] = await Promise.all([
         this.kinopoiskService.getMovieById(Number(kpId)),
         this.serialRepository.getSerialByKinopoiskId(kpId, queryRunner),
       ]);
+      let existingSerial = existingSerialRaw;
+
+      if (existingSerial) {
+        const removedDuplicates = await this.serialRepository.removeDuplicateEpisodesBySerialId(
+          existingSerial.id,
+          queryRunner,
+        );
+
+        if (removedDuplicates > 0) {
+          this.logger.warn(
+            `Removed duplicate episodes for kpId ${kpId}: ${removedDuplicates}`,
+            this.execute.name,
+          );
+          existingSerial = await this.serialRepository.getSerialById(
+            existingSerial.id,
+            queryRunner,
+          );
+        }
+      }
 
       // For serials we allow repeated notifications to append missing episodes/new seasons.
       if (this.moviesService.isFilmInProductionOrModerate(existingSerial)) {
@@ -86,7 +105,7 @@ export class NewSerialNotificationCommandHandler
         ? await this.updateExistingSerial(existingSerial, metadata, key, duration || 0, kpId)
         : this.createNewSerial(metadata, key, duration || 0, kpId);
 
-      this.attachEpisode(serial, key, duration || 0, seasonNumber, episodeNumber);
+      this.attachEpisode(serial, key, duration || 0, seasonNumber, episodeNumber, voiceoverLabel);
 
       this.moviesService.setHandleProductionStatus(serial);
 
@@ -149,6 +168,7 @@ export class NewSerialNotificationCommandHandler
     duration: number,
     seasonNumber?: number,
     episodeNumber?: number,
+    voiceoverLabel?: string,
   ): void {
     const previewUrl = serial.previewUrl || serial.backgroundContentUrl || serial.titleUrl || key;
     const releaseDate = serial.releaseDate ? new Date(serial.releaseDate) : new Date();
@@ -169,11 +189,48 @@ export class NewSerialNotificationCommandHandler
       return;
     }
 
-    const season = this.getOrCreateSeason(serial, seasonNumber || 1);
+    const resolvedSeasonNumber = seasonNumber || 1;
+    const season = this.getOrCreateSeason(serial, resolvedSeasonNumber);
     if (!season.episodes) season.episodes = [];
 
-    const nextEpisodeNumber = episodeNumber || season.episodes.length + 1;
-    const title = `Эпизод ${nextEpisodeNumber}`;
+    const resolvedEpisodeNumber = episodeNumber || this.getNextEpisodeNumber(season);
+    const normalizedVoiceoverLabel = this.normalizeVoiceoverLabel(voiceoverLabel);
+    const title = `Эпизод ${resolvedEpisodeNumber}`;
+    const existingBySlot = serial.episodes.find(episode => {
+      const existingSeasonNumber = episode.season?.seasonNumber ?? resolvedSeasonNumber;
+      const existingEpisodeNumber =
+        episode.episodeNumber ?? this.extractEpisodeNumber(episode.title);
+      const existingVoiceoverLabel = this.normalizeVoiceoverLabel(
+        episode.voiceoverLabel || undefined,
+      );
+      const currentVoiceoverLabel = normalizedVoiceoverLabel || null;
+
+      return (
+        existingSeasonNumber === resolvedSeasonNumber &&
+        existingEpisodeNumber === resolvedEpisodeNumber &&
+        existingVoiceoverLabel === currentVoiceoverLabel
+      );
+    });
+
+    if (existingBySlot) {
+      existingBySlot.videoUrl = key;
+      existingBySlot.previewUrl = previewUrl;
+      existingBySlot.releaseDate = releaseDate;
+      if (normalizedDuration > 0) {
+        existingBySlot.duration = normalizedDuration;
+      }
+      existingBySlot.episodeNumber = resolvedEpisodeNumber;
+      existingBySlot.voiceoverLabel = normalizedVoiceoverLabel;
+      existingBySlot.season = season;
+      existingBySlot.seasonId = season.id || null;
+
+      if (!season.episodes.some(item => item === existingBySlot)) {
+        season.episodes.push(existingBySlot);
+      }
+
+      return;
+    }
+
     const episode: Partial<SerialEpisode> = {
       title,
       originalTitle: serial.originalTitle || serial.title,
@@ -182,6 +239,8 @@ export class NewSerialNotificationCommandHandler
       releaseDate,
       videoUrl: key,
       duration: normalizedDuration,
+      episodeNumber: resolvedEpisodeNumber,
+      voiceoverLabel: normalizedVoiceoverLabel,
       season,
       seasonId: season.id || null,
     };
@@ -204,6 +263,39 @@ export class NewSerialNotificationCommandHandler
     }
 
     return season;
+  }
+
+  private getNextEpisodeNumber(season: SerialSeason): number {
+    const existingNumbers = (season.episodes || [])
+      .map(episode => episode.episodeNumber ?? this.extractEpisodeNumber(episode.title))
+      .filter((value): value is number => value !== null);
+
+    if (existingNumbers.length === 0) {
+      return (season.episodes?.length || 0) + 1;
+    }
+
+    return Math.max(...existingNumbers) + 1;
+  }
+
+  private normalizeVoiceoverLabel(value?: string | null): string | null {
+    if (!value) return null;
+    const normalized = value.trim();
+
+    return normalized.length > 0 ? normalized : null;
+  }
+
+  private extractEpisodeNumber(title: string | null | undefined): number | null {
+    if (!title) return null;
+
+    const match = title.match(/(\d{1,4})/);
+
+    if (!match) return null;
+
+    const parsed = Number.parseInt(match[1], 10);
+
+    if (!Number.isFinite(parsed) || parsed <= 0) return null;
+
+    return parsed;
   }
 
   private async updateExistingSerial(
