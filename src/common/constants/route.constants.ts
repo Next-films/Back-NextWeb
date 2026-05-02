@@ -146,6 +146,11 @@ export const CARTOONS_ROUTE = {
   MAIN: `${CINEMA_PREFIX}/cartoons`,
 };
 
+export const MEDIA_ROUTE = {
+  MAIN: `${CINEMA_PREFIX}/media`,
+  SIGN_URL: 'sign-url',
+};
+
 export const PRIVATE_CARTOONS_ROUTE = {
   MAIN: `${CINEMA_PREFIX}/private/cartoons`,
   KP: `kp`,

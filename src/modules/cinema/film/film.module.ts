@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { PublicFilmController } from '@/films/api/public-film.controller';
+import { PublicMediaController } from '@/films/api/public-media.controller';
 import { GetPublicFilmByIdQueryHandler } from '@/films/application/query-handlers/get-public-film-by-id.query-handler';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Film } from '@/films/domain/film.entity';
@@ -53,6 +54,7 @@ const exportProviders = [FilmRepository, filmProvider, FilmQueryRepository];
   ],
   controllers: [
     PublicFilmController,
+    PublicMediaController,
     FilmPrivateController,
     FilmPrivateRpcController,
     FilmBridgeRmqController,
