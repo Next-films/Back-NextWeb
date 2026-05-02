@@ -49,10 +49,15 @@ export class GetPublicFilmByIdQueryHandler
   private async signMovieMedia(movie: FilmPublicOutputDto): Promise<FilmPublicOutputDto> {
     if (!movie?.content) return movie;
 
-    const [movieUrl, trailerUrl] = await Promise.all([
-      this.signUrl(movie.content.movieUrl),
-      this.signUrl(movie.content.trailerUrl),
-    ]);
+    const [movieUrl, trailerUrl, previewUrl, horizontalPreviewUrl, backgroundUrl, titleUrl] =
+      await Promise.all([
+        this.signUrl(movie.content.movieUrl),
+        this.signUrl(movie.content.trailerUrl),
+        this.signUrl(movie.content.previewUrl),
+        this.signUrl(movie.content.horizontalPreviewUrl),
+        this.signUrl(movie.content.backgroundUrl),
+        this.signUrl(movie.content.titleUrl),
+      ]);
 
     return {
       ...movie,
@@ -60,6 +65,10 @@ export class GetPublicFilmByIdQueryHandler
         ...movie.content,
         movieUrl,
         trailerUrl,
+        previewUrl,
+        horizontalPreviewUrl,
+        backgroundUrl,
+        titleUrl,
       },
     };
   }

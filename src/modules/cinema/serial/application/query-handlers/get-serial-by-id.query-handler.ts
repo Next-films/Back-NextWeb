@@ -19,12 +19,19 @@ export class GetSerialByIdQuery implements IQuery {
 
 type EpisodeLike = {
   videoUrl?: string | null;
+  previewUrl?: string | null;
   voiceovers?: Array<{ videoUrl?: string | null }>;
 };
 
 type SignedSerialOutput = SerialsOutputDto & {
+  trailerUrl?: string | null;
+  backgroundImg?: string | null;
+  cardImg?: string | null;
+  titleImg?: string | null;
+  episodes?: EpisodeLike[];
   films?: EpisodeLike[];
   seasons?: Array<{
+    episodes?: EpisodeLike[];
     films?: EpisodeLike[];
   }>;
 };
@@ -69,11 +76,22 @@ export class GetSerialByIdQueryHandler
   private async signSerialMedia(serial: SerialsOutputDto): Promise<SerialsOutputDto> {
     const result: SignedSerialOutput = { ...serial };
     const cache = new Map<string, Promise<string | null>>();
+    const episodes = Array.isArray(result?.episodes) ? result.episodes : [];
     const films = Array.isArray(result?.films) ? result.films : [];
     const seasons = Array.isArray(result?.seasons) ? result.seasons : [];
 
+    result.trailerUrl = await this.signUrlWithCache(result.trailerUrl, cache);
+    result.backgroundImg = await this.signUrlWithCache(result.backgroundImg, cache);
+    result.cardImg = await this.signUrlWithCache(result.cardImg, cache);
+    result.titleImg = await this.signUrlWithCache(result.titleImg, cache);
+
+    for (const episode of episodes) {
+      episode.previewUrl = await this.signUrlWithCache(episode.previewUrl, cache);
+    }
+
     for (const film of films) {
       film.videoUrl = await this.signUrlWithCache(film.videoUrl, cache);
+      film.previewUrl = await this.signUrlWithCache(film.previewUrl, cache);
 
       if (Array.isArray(film?.voiceovers)) {
         for (const voiceover of film.voiceovers) {
@@ -83,9 +101,16 @@ export class GetSerialByIdQueryHandler
     }
 
     for (const season of seasons) {
+      const seasonEpisodes = Array.isArray(season?.episodes) ? season.episodes : [];
       const seasonFilms = Array.isArray(season?.films) ? season.films : [];
+
+      for (const episode of seasonEpisodes) {
+        episode.previewUrl = await this.signUrlWithCache(episode.previewUrl, cache);
+      }
+
       for (const film of seasonFilms) {
         film.videoUrl = await this.signUrlWithCache(film.videoUrl, cache);
+        film.previewUrl = await this.signUrlWithCache(film.previewUrl, cache);
 
         if (Array.isArray(film?.voiceovers)) {
           for (const voiceover of film.voiceovers) {
