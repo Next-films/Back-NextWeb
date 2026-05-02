@@ -11,6 +11,7 @@ import {
   FilmsPublicOutputDtoMapper,
 } from '@/films/api/dtos/output/films-public.output.dto';
 import { FilmPublicQueryRepository } from '@/films/infrastructure/film-public.query-repository';
+import { DownloaderServiceAdapter } from '@/common/infrastructure/rmq/downloader-service.adapter';
 
 export class GetPublicFilmByIdQuery implements IQuery {
   constructor(public filmId: number) {}
@@ -29,8 +30,38 @@ export class GetPublicFilmByIdQueryHandler
     private readonly logger: LoggerService,
     private readonly filmPublicQueryRepository: FilmPublicQueryRepository,
     private readonly filmsPublicOutputDtoMapper: FilmsPublicOutputDtoMapper,
+    private readonly downloaderServiceAdapter: DownloaderServiceAdapter,
   ) {
     this.logger.setContext(GetPublicFilmByIdQueryHandler.name);
+  }
+
+  private async signUrl(url: string | null): Promise<string | null> {
+    if (!url) return url;
+
+    try {
+      return await this.downloaderServiceAdapter.signMediaUrl(url, 3600);
+    } catch (error) {
+      this.logger.error(error, this.signUrl.name);
+      return url;
+    }
+  }
+
+  private async signMovieMedia(movie: FilmPublicOutputDto): Promise<FilmPublicOutputDto> {
+    if (!movie?.content) return movie;
+
+    const [movieUrl, trailerUrl] = await Promise.all([
+      this.signUrl(movie.content.movieUrl),
+      this.signUrl(movie.content.trailerUrl),
+    ]);
+
+    return {
+      ...movie,
+      content: {
+        ...movie.content,
+        movieUrl,
+        trailerUrl,
+      },
+    };
   }
 
   async execute(
@@ -48,8 +79,9 @@ export class GetPublicFilmByIdQueryHandler
         });
 
       const result = this.filmsPublicOutputDtoMapper.mapMovie(film);
+      const signedResult = await this.signMovieMedia(result);
 
-      return this.appNotification.success(result);
+      return this.appNotification.success(signedResult);
     } catch (e) {
       this.logger.error(e, this.execute.name);
       return this.appNotification.internalServerError();
