@@ -129,19 +129,26 @@ jobs:
 
           docker network inspect "$NEXT_NETWORK" >/dev/null 2>&1 || docker network create "$NEXT_NETWORK"
 
-          dc() {
-            if docker compose version >/dev/null 2>&1; then
-              docker compose -p "$COMPOSE_PROJECT_NAME" -f "$COMPOSE_FILE" --env-file "$RUNTIME_ENV_FILE" "$@"
-              return $?
-            fi
+          type -a docker || true
+          alias docker 2>/dev/null || true
 
-            if command -v docker-compose >/dev/null 2>&1; then
-              docker-compose -p "$COMPOSE_PROJECT_NAME" -f "$COMPOSE_FILE" --env-file "$RUNTIME_ENV_FILE" "$@"
-              return $?
-            fi
-
+          if command -v docker-compose >/dev/null 2>&1; then
+            COMPOSE_IMPL="docker-compose"
+          elif command docker compose version >/dev/null 2>&1; then
+            COMPOSE_IMPL="docker-compose-plugin"
+          else
             echo "Neither 'docker compose' nor 'docker-compose' is available on server."
-            return 1
+            exit 1
+          fi
+
+          echo "DEPLOY_MARKER: compose implementation -> $COMPOSE_IMPL"
+
+          dc() {
+            if [ "$COMPOSE_IMPL" = "docker-compose" ]; then
+              command docker-compose -p "$COMPOSE_PROJECT_NAME" -f "$COMPOSE_FILE" --env-file "$RUNTIME_ENV_FILE" "$@"
+            else
+              command docker compose -p "$COMPOSE_PROJECT_NAME" -f "$COMPOSE_FILE" --env-file "$RUNTIME_ENV_FILE" "$@"
+            fi
           }
 
           check_container_stable() {
