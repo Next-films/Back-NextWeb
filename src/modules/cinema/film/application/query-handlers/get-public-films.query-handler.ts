@@ -11,6 +11,7 @@ import { PaginationUtil } from '@/common/utils/pagination.util';
 import { GetFilmsInputQuery } from '@/films/api/dtos/input/get-films.input-query';
 import { FilmPublicQueryRepository } from '@/films/infrastructure/film-public.query-repository';
 import { MoviesPublicOutputDto } from '@/movies/api/dtos/output/movie-public.output.dto';
+import { DownloaderServiceAdapter } from '@/common/infrastructure/rmq/downloader-service.adapter';
 
 export class GetPublicFilmsQuery implements IQuery {
   constructor(public query: GetFilmsInputQuery) {}
@@ -30,8 +31,47 @@ export class GetPublicFilmsQueryHandler
     private readonly filmPublicQueryRepository: FilmPublicQueryRepository,
     private readonly filmsPublicOutputDtoMapper: FilmsPublicOutputDtoMapper,
     private readonly paginationUtil: PaginationUtil,
+    private readonly downloaderServiceAdapter: DownloaderServiceAdapter,
   ) {
     this.logger.setContext(GetPublicFilmsQueryHandler.name);
+  }
+
+  private async signUrlWithCache(
+    url: string | null | undefined,
+    cache: Map<string, Promise<string | null>>,
+  ): Promise<string | null> {
+    if (!url) return null;
+
+    if (!cache.has(url)) {
+      cache.set(
+        url,
+        this.downloaderServiceAdapter.signMediaUrl(url, 3600).catch(error => {
+          this.logger.error(error, this.signUrlWithCache.name);
+          return url;
+        }),
+      );
+    }
+
+    return cache.get(url)!;
+  }
+
+  private async signListItems(items: MoviesPublicOutputDto[]): Promise<MoviesPublicOutputDto[]> {
+    const cache = new Map<string, Promise<string | null>>();
+
+    return Promise.all(
+      items.map(async item => {
+        const [previewUrl, cardImg] = await Promise.all([
+          this.signUrlWithCache(item.previewUrl, cache),
+          this.signUrlWithCache(item.cardImg, cache),
+        ]);
+
+        return {
+          ...item,
+          previewUrl: previewUrl ?? item.previewUrl,
+          cardImg: cardImg ?? item.cardImg,
+        };
+      }),
+    );
   }
 
   async execute(
@@ -60,14 +100,18 @@ export class GetPublicFilmsQueryHandler
           false,
         );
 
+        const mappedItems =
+          films && films.length > 0
+            ? this.filmsPublicOutputDtoMapper.mapAllPublicMovies(films)
+            : [];
+        const signedItems = await this.signListItems(mappedItems);
+
         const result = this.paginationUtil.create(
           films?.length || 0,
           1,
           normalizedPage,
           normalizedSize,
-          films && films.length > 0
-            ? this.filmsPublicOutputDtoMapper.mapAllPublicMovies(films)
-            : [],
+          signedItems,
         );
 
         return this.appNotification.success(result);
@@ -99,12 +143,16 @@ export class GetPublicFilmsQueryHandler
         searchGenreIds || null,
       );
 
+      const mappedItems =
+        films && films.length > 0 ? this.filmsPublicOutputDtoMapper.mapAllPublicMovies(films) : [];
+      const signedItems = await this.signListItems(mappedItems);
+
       const result = this.paginationUtil.create(
         totalCount,
         pagesCount,
         normalizedPage,
         normalizedSize,
-        films && films.length > 0 ? this.filmsPublicOutputDtoMapper.mapAllPublicMovies(films) : [],
+        signedItems,
       );
 
       return this.appNotification.success(result);

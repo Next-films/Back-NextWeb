@@ -13,6 +13,7 @@ import {
   SerialsOutputDtoMapper,
 } from '@/serials/api/dtos/output/serials.output.dto';
 import { GetSerialInputQuery } from '@/serials/api/dtos/input/get-serial.input-query';
+import { DownloaderServiceAdapter } from '@/common/infrastructure/rmq/downloader-service.adapter';
 
 export class GetSerialsQuery implements IQuery {
   constructor(public query: GetSerialInputQuery) {}
@@ -32,8 +33,51 @@ export class GetSerialsQueryHandler
     private readonly serialQueryRepository: SerialPublicQueryRepository,
     private readonly serialsOutputDtoMapper: SerialsOutputDtoMapper,
     private readonly paginationUtil: PaginationUtil,
+    private readonly downloaderServiceAdapter: DownloaderServiceAdapter,
   ) {
     this.logger.setContext(GetSerialsQueryHandler.name);
+  }
+
+  private async signUrlWithCache(
+    url: string | null | undefined,
+    cache: Map<string, Promise<string | null>>,
+  ): Promise<string | null> {
+    if (!url) return null;
+
+    if (!cache.has(url)) {
+      cache.set(
+        url,
+        this.downloaderServiceAdapter.signMediaUrl(url, 3600).catch(error => {
+          this.logger.error(error, this.signUrlWithCache.name);
+          return url;
+        }),
+      );
+    }
+
+    return cache.get(url)!;
+  }
+
+  private async signListItems(items: SerialsOutputDto[]): Promise<SerialsOutputDto[]> {
+    const cache = new Map<string, Promise<string | null>>();
+
+    return Promise.all(
+      items.map(async item => {
+        const [cardImg, backgroundImg, titleImg, trailerUrl] = await Promise.all([
+          this.signUrlWithCache(item.cardImg, cache),
+          this.signUrlWithCache(item.backgroundImg, cache),
+          this.signUrlWithCache(item.titleImg, cache),
+          this.signUrlWithCache(item.trailerUrl, cache),
+        ]);
+
+        return {
+          ...item,
+          cardImg: cardImg ?? item.cardImg,
+          backgroundImg: backgroundImg ?? item.backgroundImg,
+          titleImg: titleImg ?? item.titleImg,
+          trailerUrl: trailerUrl ?? item.trailerUrl,
+        };
+      }),
+    );
   }
 
   async execute(
@@ -63,12 +107,16 @@ export class GetSerialsQueryHandler
           false,
         );
 
+        const mappedItems =
+          serials && serials.length > 0 ? this.serialsOutputDtoMapper.mapSerials(serials) : [];
+        const signedItems = await this.signListItems(mappedItems);
+
         const result = this.paginationUtil.create(
           serials?.length || 0,
           1,
           normalizedPage,
           normalizedSize,
-          serials && serials.length > 0 ? this.serialsOutputDtoMapper.mapSerials(serials) : [],
+          signedItems,
         );
 
         return this.appNotification.success(result);
@@ -100,12 +148,16 @@ export class GetSerialsQueryHandler
         searchGenreIds || null,
       );
 
+      const mappedItems =
+        serials && serials.length > 0 ? this.serialsOutputDtoMapper.mapSerials(serials) : [];
+      const signedItems = await this.signListItems(mappedItems);
+
       const result = this.paginationUtil.create(
         totalCount,
         pagesCount,
         normalizedPage,
         normalizedSize,
-        serials && serials.length > 0 ? this.serialsOutputDtoMapper.mapSerials(serials) : [],
+        signedItems,
       );
 
       return this.appNotification.success(result);

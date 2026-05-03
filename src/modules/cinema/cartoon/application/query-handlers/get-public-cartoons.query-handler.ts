@@ -13,6 +13,8 @@ import {
 } from '@/cartoons/api/dtos/output/cartoons-public.output.dto';
 import { EXCEPTION_KEYS_ENUM } from '@/common/enums/exception-keys.enum';
 import { CartoonPublicQueryRepository } from '@/cartoons/infrastructure/cartoon-public.query-repository';
+import { DownloaderServiceAdapter } from '@/common/infrastructure/rmq/downloader-service.adapter';
+import { MoviesPublicOutputDto } from '@/movies/api/dtos/output/movie-public.output.dto';
 
 export class GetPublicCartoonsQuery implements IQuery {
   constructor(public query: GetCartoonInputQuery) {}
@@ -35,8 +37,47 @@ export class GetPublicCartoonsQueryHandler
     private readonly cartoonPublicQueryRepository: CartoonPublicQueryRepository,
     private readonly cartoonsPublicOutputDtoMapper: CartoonsPublicOutputDtoMapper,
     private readonly paginationUtil: PaginationUtil,
+    private readonly downloaderServiceAdapter: DownloaderServiceAdapter,
   ) {
     this.logger.setContext(GetPublicCartoonsQueryHandler.name);
+  }
+
+  private async signUrlWithCache(
+    url: string | null | undefined,
+    cache: Map<string, Promise<string | null>>,
+  ): Promise<string | null> {
+    if (!url) return null;
+
+    if (!cache.has(url)) {
+      cache.set(
+        url,
+        this.downloaderServiceAdapter.signMediaUrl(url, 3600).catch(error => {
+          this.logger.error(error, this.signUrlWithCache.name);
+          return url;
+        }),
+      );
+    }
+
+    return cache.get(url)!;
+  }
+
+  private async signListItems(items: MoviesPublicOutputDto[]): Promise<MoviesPublicOutputDto[]> {
+    const cache = new Map<string, Promise<string | null>>();
+
+    return Promise.all(
+      items.map(async item => {
+        const [previewUrl, cardImg] = await Promise.all([
+          this.signUrlWithCache(item.previewUrl, cache),
+          this.signUrlWithCache(item.cardImg, cache),
+        ]);
+
+        return {
+          ...item,
+          previewUrl: previewUrl ?? item.previewUrl,
+          cardImg: cardImg ?? item.cardImg,
+        };
+      }),
+    );
   }
 
   async execute(
@@ -65,14 +106,18 @@ export class GetPublicCartoonsQueryHandler
           false,
         );
 
+        const mappedItems =
+          cartoons && cartoons.length > 0
+            ? this.cartoonsPublicOutputDtoMapper.mapAllPublicMovies(cartoons)
+            : [];
+        const signedItems = await this.signListItems(mappedItems);
+
         const result = this.paginationUtil.create(
           cartoons?.length || 0,
           1,
           normalizedPage,
           normalizedSize,
-          cartoons && cartoons.length > 0
-            ? this.cartoonsPublicOutputDtoMapper.mapAllPublicMovies(cartoons)
-            : [],
+          signedItems,
         );
 
         return this.appNotification.success(result);
@@ -104,14 +149,18 @@ export class GetPublicCartoonsQueryHandler
         searchGenreIds || null,
       );
 
+      const mappedItems =
+        cartoons && cartoons.length > 0
+          ? this.cartoonsPublicOutputDtoMapper.mapAllPublicMovies(cartoons)
+          : [];
+      const signedItems = await this.signListItems(mappedItems);
+
       const result = this.paginationUtil.create(
         totalCount,
         pagesCount,
         normalizedPage,
         normalizedSize,
-        cartoons && cartoons.length > 0
-          ? this.cartoonsPublicOutputDtoMapper.mapAllPublicMovies(cartoons)
-          : [],
+        signedItems,
       );
 
       return this.appNotification.success(result);
