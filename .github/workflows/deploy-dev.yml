@@ -148,14 +148,20 @@ jobs:
 
           check_container_stable() {
             local name="$1"
-            for i in 1 2 3 4 5 6; do
-              status="\$(docker inspect --format '{{.State.Status}}' "$name" 2>/dev/null || echo missing)"
-              if [ "$status" != "running" ]; then
-                return 1
+            local running_streak=0
+            for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18; do
+              status="$(docker inspect --format '{{.State.Status}}' "$name" 2>/dev/null || echo missing)"
+              if [ "$status" = "running" ]; then
+                running_streak=$((running_streak + 1))
+                if [ "$running_streak" -ge 3 ]; then
+                  return 0
+                fi
+              else
+                running_streak=0
               fi
               sleep 5
             done
-            return 0
+            return 1
           }
 
           print_container_debug() {
