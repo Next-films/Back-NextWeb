@@ -100,7 +100,7 @@ jobs:
 
           sshpass -e ssh $SSH_OPTS -p ${{ secrets.PROD_SSH_PORT }} \
             ${{ secrets.PROD_SSH_USERNAME }}@$SSH_HOST \
-            "REMOTE_PATH='$REMOTE_PATH' COMPOSE_FILE='$COMPOSE_FILE' IMAGE_NAME='$IMAGE_NAME' LOCAL_COMPOSE_IMAGE='$LOCAL_COMPOSE_IMAGE' COMPOSE_PROJECT_NAME='$COMPOSE_PROJECT_NAME' RUNTIME_ENV_FILE='$RUNTIME_ENV_FILE' NEXT_NETWORK='$NEXT_NETWORK' CONTAINER_NAME='$CONTAINER_NAME' OTHER_CONTAINER_NAME='$OTHER_CONTAINER_NAME' BRANCH='prod' bash -se" << 'EOF'
+            "REMOTE_PATH='$REMOTE_PATH' COMPOSE_FILE='$COMPOSE_FILE' IMAGE_NAME='$IMAGE_NAME' LOCAL_COMPOSE_IMAGE='$LOCAL_COMPOSE_IMAGE' COMPOSE_PROJECT_NAME='$COMPOSE_PROJECT_NAME' RUNTIME_ENV_FILE='$RUNTIME_ENV_FILE' NEXT_NETWORK='$NEXT_NETWORK' CONTAINER_NAME='$CONTAINER_NAME' OTHER_CONTAINER_NAME='$OTHER_CONTAINER_NAME' EXPECTED_HOST_PORT='$EXPECTED_HOST_PORT' BRANCH='prod' bash -se" << 'EOF'
 
           set -e
           cd "$REMOTE_PATH"
@@ -164,6 +164,21 @@ jobs:
             echo "Recent logs:"
             docker logs --tail 300 "$name" || true
           }
+
+          if [ -n "$EXPECTED_HOST_PORT" ]; then
+            OCCUPIED_CONTAINERS="$(docker ps -a --filter "publish=$EXPECTED_HOST_PORT" --format '{{.Names}}' || true)"
+            if [ -n "$OCCUPIED_CONTAINERS" ]; then
+              echo "Freeing occupied port $EXPECTED_HOST_PORT..."
+              while IFS= read -r occupied; do
+                [ -n "$occupied" ] || continue
+                if [ "$occupied" = "$CONTAINER_NAME" ]; then
+                  continue
+                fi
+                echo "Removing container using port $EXPECTED_HOST_PORT: $occupied"
+                docker rm -f "$occupied" || true
+              done <<< "$OCCUPIED_CONTAINERS"
+            fi
+          fi
 
           dc down --remove-orphans
           dc up -d --remove-orphans --no-build
