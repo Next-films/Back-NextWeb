@@ -99,7 +99,8 @@ jobs:
           REMOTE_PATH="$BASE_REMOTE_PATH/$SERVICE_FOLDER"
 
           sshpass -e ssh $SSH_OPTS -p ${{ secrets.DEV_SSH_PORT }} \
-            ${{ secrets.DEV_SSH_USERNAME }}@$SSH_HOST << EOF
+            ${{ secrets.DEV_SSH_USERNAME }}@$SSH_HOST \
+            "REMOTE_PATH='$REMOTE_PATH' COMPOSE_FILE='$COMPOSE_FILE' IMAGE_NAME='$IMAGE_NAME' LOCAL_COMPOSE_IMAGE='$LOCAL_COMPOSE_IMAGE' COMPOSE_PROJECT_NAME='$COMPOSE_PROJECT_NAME' RUNTIME_ENV_FILE='$RUNTIME_ENV_FILE' NEXT_NETWORK='$NEXT_NETWORK' CONTAINER_NAME='$CONTAINER_NAME' OTHER_CONTAINER_NAME='$OTHER_CONTAINER_NAME' BRANCH='dev' bash -se" << 'EOF'
 
           set -e
           cd "$REMOTE_PATH"
@@ -110,19 +111,13 @@ jobs:
           docker pull "$IMAGE_NAME"
           docker tag "$IMAGE_NAME" "$LOCAL_COMPOSE_IMAGE"
 
-          export BRANCH=dev
-          export COMPOSE_PROJECT_NAME="$COMPOSE_PROJECT_NAME"
-          export RUNTIME_ENV_FILE="$RUNTIME_ENV_FILE"
-          export NEXT_NETWORK="$NEXT_NETWORK"
-          export LOCAL_COMPOSE_IMAGE="$LOCAL_COMPOSE_IMAGE"
-
           if [ ! -f "$RUNTIME_ENV_FILE" ]; then
             echo "Missing runtime env file: $RUNTIME_ENV_FILE"
             exit 1
           fi
 
-          OTHER_PROJECT_LABEL="\$(docker inspect --format '{{ index .Config.Labels "com.docker.compose.project" }}' $OTHER_CONTAINER_NAME 2>/dev/null || true)"
-          if [ -n "\$OTHER_PROJECT_LABEL" ] && [ "\$OTHER_PROJECT_LABEL" = "$COMPOSE_PROJECT_NAME" ]; then
+          OTHER_PROJECT_LABEL="$(docker inspect --format '{{ index .Config.Labels "com.docker.compose.project" }}' "$OTHER_CONTAINER_NAME" 2>/dev/null || true)"
+          if [ -n "$OTHER_PROJECT_LABEL" ] && [ "$OTHER_PROJECT_LABEL" = "$COMPOSE_PROJECT_NAME" ]; then
             echo "Refusing deploy: container '$OTHER_CONTAINER_NAME' uses same compose project '$COMPOSE_PROJECT_NAME'."
             exit 1
           fi
