@@ -38,23 +38,44 @@ export class GetSerialsQueryHandler
     this.logger.setContext(GetSerialsQueryHandler.name);
   }
 
+  private normalizePublicMediaUrl(url: string | null | undefined): string | null {
+    if (!url) return null;
+
+    let normalized = url.trim().replace(/^["']+|["']+$/g, '');
+    normalized = normalized.replace(/^(,\s*)+/, '');
+
+    if (normalized.startsWith('//request.next-films.ru/')) {
+      normalized = `https:${normalized}`;
+    } else if (normalized.startsWith('/request.next-films.ru/')) {
+      normalized = `https://${normalized.slice(1)}`;
+    } else if (normalized.startsWith('request.next-films.ru/')) {
+      normalized = `https://${normalized}`;
+    }
+
+    normalized = normalized.replace(/^(https?:\/\/[^/:]+):(?=[A-Za-z_/-])/, '$1/');
+    normalized = normalized.replace(/^(https?:\/\/request\.next-films\.ru)(next-films\/)/, '$1/$2');
+
+    return normalized || null;
+  }
+
   private async signUrlWithCache(
     url: string | null | undefined,
     cache: Map<string, Promise<string | null>>,
   ): Promise<string | null> {
-    if (!url) return null;
+    const normalizedUrl = this.normalizePublicMediaUrl(url);
+    if (!normalizedUrl) return null;
 
-    if (!cache.has(url)) {
+    if (!cache.has(normalizedUrl)) {
       cache.set(
-        url,
-        this.downloaderServiceAdapter.signMediaUrl(url, 3600).catch(error => {
+        normalizedUrl,
+        this.downloaderServiceAdapter.signMediaUrl(normalizedUrl, 3600).catch(error => {
           this.logger.error(error, this.signUrlWithCache.name);
-          return url;
+          return normalizedUrl;
         }),
       );
     }
 
-    return cache.get(url)!;
+    return cache.get(normalizedUrl)!;
   }
 
   private async signListItems(items: SerialsOutputDto[]): Promise<SerialsOutputDto[]> {

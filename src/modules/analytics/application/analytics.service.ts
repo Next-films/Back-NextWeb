@@ -357,24 +357,47 @@ export class AnalyticsService {
 
   private async signTopItemsMedia(items: TopContentItem[]): Promise<TopContentItem[]> {
     const cache = new Map<string, Promise<string | null>>();
-    const signWithCache = async (url: string | null): Promise<string | null> => {
+    const normalizeMediaUrl = (url: string | null): string | null => {
       if (!url) return null;
 
-      if (!cache.has(url)) {
+      let normalized = url.trim().replace(/^["']+|["']+$/g, '');
+      normalized = normalized.replace(/^(,\s*)+/, '');
+
+      if (normalized.startsWith('//request.next-films.ru/')) {
+        normalized = `https:${normalized}`;
+      } else if (normalized.startsWith('/request.next-films.ru/')) {
+        normalized = `https://${normalized.slice(1)}`;
+      } else if (normalized.startsWith('request.next-films.ru/')) {
+        normalized = `https://${normalized}`;
+      }
+
+      normalized = normalized.replace(/^(https?:\/\/[^/:]+):(?=[A-Za-z_/-])/, '$1/');
+      normalized = normalized.replace(
+        /^(https?:\/\/request\.next-films\.ru)(next-films\/)/,
+        '$1/$2',
+      );
+
+      return normalized || null;
+    };
+    const signWithCache = async (url: string | null): Promise<string | null> => {
+      const normalizedUrl = normalizeMediaUrl(url);
+      if (!normalizedUrl) return null;
+
+      if (!cache.has(normalizedUrl)) {
         cache.set(
-          url,
-          this.downloaderServiceAdapter.signMediaUrl(url, 3600).catch(error => {
+          normalizedUrl,
+          this.downloaderServiceAdapter.signMediaUrl(normalizedUrl, 3600).catch(error => {
             this.logger.error(
-              `Failed to sign analytics media url "${url}": ${
+              `Failed to sign analytics media url "${normalizedUrl}": ${
                 error instanceof Error ? error.message : String(error)
               }`,
             );
-            return url;
+            return normalizedUrl;
           }),
         );
       }
 
-      return cache.get(url)!;
+      return cache.get(normalizedUrl)!;
     };
 
     return Promise.all(
