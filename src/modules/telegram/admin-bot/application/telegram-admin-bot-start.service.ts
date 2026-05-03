@@ -95,7 +95,6 @@ export class TelegramAdminBotStartService {
 
   private resolveAdminPanelBaseUrl(): string {
     const apiSettings = this.configService.get('apiSettings', { infer: true });
-    const envSettings = this.configService.get('environmentSettings', { infer: true });
     const configuredUrl = (apiSettings.ADMIN_PANEL_URL || '').trim();
 
     const fallback = () => {
@@ -118,11 +117,16 @@ export class TelegramAdminBotStartService {
     const host = parsed.hostname.toLowerCase();
     const isLocalHost =
       host === 'localhost' || host === '127.0.0.1' || host === '::1' || host.endsWith('.local');
-    const isUnsafeProtocol = parsed.protocol !== 'https:' && !envSettings.isDevelopment;
+    const isUnsafeProtocol = parsed.protocol !== 'https:';
 
-    if (!envSettings.isDevelopment && (isLocalHost || isUnsafeProtocol)) {
+    if (isLocalHost || isUnsafeProtocol) {
       return fallback();
     }
+
+    this.logger.log(
+      `Telegram admin panel URL resolved to: ${parsed.origin}`,
+      this.resolveAdminPanelBaseUrl.name,
+    );
 
     return parsed.origin;
   }

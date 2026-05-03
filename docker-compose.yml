@@ -1,0 +1,34 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        PORT: ${PORT:-4000}
+    image: ${LOCAL_COMPOSE_IMAGE:-next-back-nextweb-local:latest}
+    container_name: next-back-nextweb-${BRANCH:-local}
+    labels:
+      - io.next.project=next
+      - io.next.service=back-nextweb
+      - io.next.stack=back-nextweb-${BRANCH:-local}
+    ports:
+      - "0.0.0.0:${PORT:-4000}:${PORT:-4000}"
+    env_file:
+      - ${RUNTIME_ENV_FILE:-./.env}
+    command:
+      - sh
+      - -c
+      - |
+        if [ "${ENV}" = "PRODUCTION" ]; then
+          yarn start:prod
+        else
+          yarn start:stg
+        fi
+    restart: unless-stopped
+    networks:
+      - next-network
+
+networks:
+  next-network:
+    external: true
+    name: ${NEXT_NETWORK}

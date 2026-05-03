@@ -1,0 +1,186 @@
+name: Deploy Back-NextWeb to DEV
+
+on:
+  push:
+    branches:
+      - dev
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    env:
+      COMPOSE_FILE: docker-compose.yml
+      BASE_REMOTE_PATH: /home/deploy/dev/Next
+      SERVICE_FOLDER: Back-NextWeb
+      RUNTIME_ENV_FILE: /home/deploy/dev/secrets-next/.env.back
+      NEXT_NETWORK: next-dev-net
+      IMAGE_NAME: nextfilms/back-nextweb:dev-latest
+      LOCAL_COMPOSE_IMAGE: next-back-nextweb-dev:latest
+      COMPOSE_PROJECT_NAME: next-back-nextweb-dev
+      CONTAINER_NAME: next-back-nextweb-dev
+      OTHER_CONTAINER_NAME: next-back-nextweb-prod
+      EXPECTED_PORT_KEY: PORT
+      EXPECTED_HOST_PORT: "4000"
+      SSH_HOST: ${{ secrets.DEV_SSH_HOST }}
+      SSH_OPTS: -o StrictHostKeyChecking=yes
+      SSHPASS: ${{ secrets.DEV_SSH_PASSWORD }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install sshpass
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y sshpass
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -p ${{ secrets.DEV_SSH_PORT }} -H "$SSH_HOST" >> ~/.ssh/known_hosts || true
+
+      - name: Prepare remote folder
+        run: |
+          REMOTE_PATH="$BASE_REMOTE_PATH/$SERVICE_FOLDER"
+
+          sshpass -e ssh $SSH_OPTS -p ${{ secrets.DEV_SSH_PORT }} \
+            ${{ secrets.DEV_SSH_USERNAME }}@$SSH_HOST \
+            "mkdir -p '$REMOTE_PATH'"
+
+      - name: Validate runtime env on server
+        run: |
+          sshpass -e ssh $SSH_OPTS -p ${{ secrets.DEV_SSH_PORT }} \
+            ${{ secrets.DEV_SSH_USERNAME }}@$SSH_HOST "
+              set -e
+              if [ ! -f '$RUNTIME_ENV_FILE' ]; then
+                echo 'Missing runtime env file: $RUNTIME_ENV_FILE'
+                exit 1
+              fi
+              ENV_PORT=\$(sed -n -E \"s/^[[:space:]]*(export[[:space:]]+)?$EXPECTED_PORT_KEY[[:space:]]*=[[:space:]]*['\\\"]?([^'\\\"#[:space:]]+).*/\\2/p\" '$RUNTIME_ENV_FILE' | tail -n1 | tr -d '\r')
+              if [ -z \"\$ENV_PORT\" ]; then
+                echo '$EXPECTED_PORT_KEY is missing or empty in $RUNTIME_ENV_FILE. Expected: $EXPECTED_HOST_PORT'
+                grep -n -E '$EXPECTED_PORT_KEY' '$RUNTIME_ENV_FILE' || true
+                exit 1
+              fi
+              if [ \"\$ENV_PORT\" != '$EXPECTED_HOST_PORT' ]; then
+                echo \"Unexpected $EXPECTED_PORT_KEY in $RUNTIME_ENV_FILE: '\$ENV_PORT' (expected '$EXPECTED_HOST_PORT')\"
+                exit 1
+              fi
+            "
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_PASSWORD }}
+
+      - name: Build Docker image
+        run: |
+          docker build -f Dockerfile -t "$IMAGE_NAME" .
+
+      - name: Push image to Docker Hub
+        run: |
+          docker push "$IMAGE_NAME"
+
+      - name: Upload compose to server
+        run: |
+          REMOTE_PATH="$BASE_REMOTE_PATH/$SERVICE_FOLDER"
+
+          sshpass -e ssh $SSH_OPTS -p ${{ secrets.DEV_SSH_PORT }} \
+            ${{ secrets.DEV_SSH_USERNAME }}@$SSH_HOST \
+            "mkdir -p '$REMOTE_PATH'"
+
+          sshpass -e scp $SSH_OPTS -P ${{ secrets.DEV_SSH_PORT }} "$COMPOSE_FILE" \
+            ${{ secrets.DEV_SSH_USERNAME }}@$SSH_HOST:"$REMOTE_PATH/$COMPOSE_FILE"
+
+      - name: Deploy on server
+        run: |
+          REMOTE_PATH="$BASE_REMOTE_PATH/$SERVICE_FOLDER"
+
+          sshpass -e ssh $SSH_OPTS -p ${{ secrets.DEV_SSH_PORT }} \
+            ${{ secrets.DEV_SSH_USERNAME }}@$SSH_HOST << EOF
+
+          set -e
+          cd "$REMOTE_PATH"
+
+          echo "${{ secrets.DOCKER_HUB_PASSWORD }}" | docker login \
+            -u "${{ secrets.DOCKER_HUB_USERNAME }}" --password-stdin
+
+          docker pull "$IMAGE_NAME"
+          docker tag "$IMAGE_NAME" "$LOCAL_COMPOSE_IMAGE"
+
+          export BRANCH=dev
+          export COMPOSE_PROJECT_NAME="$COMPOSE_PROJECT_NAME"
+          export RUNTIME_ENV_FILE="$RUNTIME_ENV_FILE"
+          export NEXT_NETWORK="$NEXT_NETWORK"
+          export LOCAL_COMPOSE_IMAGE="$LOCAL_COMPOSE_IMAGE"
+
+          if [ ! -f "$RUNTIME_ENV_FILE" ]; then
+            echo "Missing runtime env file: $RUNTIME_ENV_FILE"
+            exit 1
+          fi
+
+          OTHER_PROJECT_LABEL="\$(docker inspect --format '{{ index .Config.Labels "com.docker.compose.project" }}' $OTHER_CONTAINER_NAME 2>/dev/null || true)"
+          if [ -n "\$OTHER_PROJECT_LABEL" ] && [ "\$OTHER_PROJECT_LABEL" = "$COMPOSE_PROJECT_NAME" ]; then
+            echo "Refusing deploy: container '$OTHER_CONTAINER_NAME' uses same compose project '$COMPOSE_PROJECT_NAME'."
+            exit 1
+          fi
+
+          docker network inspect "$NEXT_NETWORK" >/dev/null 2>&1 || docker network create "$NEXT_NETWORK"
+
+          if command docker compose version >/dev/null 2>&1; then
+            dc() {
+              command docker compose -p "$COMPOSE_PROJECT_NAME" -f "$COMPOSE_FILE" --env-file "$RUNTIME_ENV_FILE" "$@"
+            }
+          elif command -v docker-compose >/dev/null 2>&1; then
+            dc() {
+              command docker-compose -p "$COMPOSE_PROJECT_NAME" -f "$COMPOSE_FILE" --env-file "$RUNTIME_ENV_FILE" "$@"
+            }
+          else
+            echo "Neither 'docker compose' nor 'docker-compose' is available on server."
+            exit 1
+          fi
+
+          check_container_stable() {
+            local name="$1"
+            for i in 1 2 3 4 5 6; do
+              status="\$(docker inspect --format '{{.State.Status}}' "$name" 2>/dev/null || echo missing)"
+              if [ "$status" != "running" ]; then
+                return 1
+              fi
+              sleep 5
+            done
+            return 0
+          }
+
+          print_container_debug() {
+            local name="$1"
+            docker ps -a --filter "name=$name" --format 'table {{.Names}}\t{{.Status}}\t{{.Image}}' || true
+            echo "Recent logs:"
+            docker logs --tail 300 "$name" || true
+          }
+
+          dc down --remove-orphans
+          dc up -d --remove-orphans --no-build
+
+          if check_container_stable "$CONTAINER_NAME"; then
+            echo "Back-NextWeb container is stable without migrations."
+          else
+            echo "Back-NextWeb failed to stabilize without migrations. Running migrations and retrying once..."
+            print_container_debug "$CONTAINER_NAME"
+
+            dc down --remove-orphans || true
+            dc run --rm --no-deps backend yarn apply-migration
+            dc up -d --remove-orphans --no-build
+
+            if check_container_stable "$CONTAINER_NAME"; then
+              echo "Back-NextWeb container is stable after migration retry."
+            else
+              echo "Back-NextWeb container is not stable after migration retry."
+              print_container_debug "$CONTAINER_NAME"
+              exit 1
+            fi
+          fi
+
+          EOF
