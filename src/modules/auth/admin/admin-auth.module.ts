@@ -16,8 +16,6 @@ import { AdminJwtRefreshTokenStrategy } from '@/admin-auth/application/guards/jw
 import { AdminRegisterHandler } from '@/admin-auth/application/handlers/admin-register.handler';
 import { AdminUpdateTokensHandler } from '@/admin-auth/application/handlers/admin-update-tokens.handler';
 import { AdminAccessTokenByRoleOnlyAdminStrategy } from '@/admin-auth/application/guards/jwt/admin-access-token-by-role-only-admin.strategy';
-import { TelegramAdminBotModule } from '@/telegram/admin-bot/telegram-admin-bot.module';
-import { AdminTelegramLoginHandler } from '@/admin-auth/application/handlers/admin-login-telegram.handler';
 import { AdminSetupPasswordHandler } from '@/admin-auth/application/handlers/admin-setup-password.handler';
 
 export const AdminSessionProvider = {
@@ -32,7 +30,6 @@ const handlers = [
   AdminLogoutHandler,
   AdminRegisterHandler,
   AdminUpdateTokensHandler,
-  AdminTelegramLoginHandler,
   AdminSetupPasswordHandler,
 ];
 
@@ -44,13 +41,7 @@ const guards = [
 ];
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([AdminSession]),
-    JwtModule,
-    AdminModule,
-    BcryptModule,
-    TelegramAdminBotModule,
-  ],
+  imports: [TypeOrmModule.forFeature([AdminSession]), JwtModule, AdminModule, BcryptModule],
   controllers: [AdminAuthController],
   providers: [
     AdminMeOutputModelMapper,

@@ -41,8 +41,6 @@ import { SwaggerDecoratorAdminMe } from '@/admin-auth/api/swagger/admin-auth-me.
 import { ApiTags } from '@nestjs/swagger';
 import { AdminGetAdminByIdQuery } from '@/admin/application/query-handlers/admin-get-admin-by-id.query-handler';
 import { AdminGetAllAdminOutputDto } from '@/admin/api/dtos/output/admin-get-all-admins.output.dto';
-import { AdminTelegramLoginInputModel } from '@/admin-auth/api/dtos/input/admin-login-telegram.input.model';
-import { AdminTelegramLoginCommand } from '@/admin-auth/application/handlers/admin-login-telegram.handler';
 import { AdminSetupPasswordInputModel } from '@/admin-auth/api/dtos/input/admin-setup-password.input.model';
 import { AdminSetupPasswordCommand } from '@/admin-auth/application/handlers/admin-setup-password.handler';
 
@@ -130,31 +128,6 @@ export class AdminAuthController {
       >(new AdminGetAdminByIdQuery(result.data!, user.id));
 
       return newAdinResult.data!;
-    }
-
-    this.appNotification.handleHttpResult(result);
-  }
-
-  @Post(ADMIN_AUTH_ROUTES.TELEGRAM_LOGIN)
-  async loginByTelegram(
-    @Res({ passthrough: true }) res: Response,
-    @Body() body: AdminTelegramLoginInputModel,
-  ): Promise<AdminLoginOutputModel | void> {
-    this.logger.log('Execute: login by telegram token', this.loginByTelegram.name);
-
-    const result = await this.commandBus.execute<
-      AdminTelegramLoginCommand,
-      AppNotificationResult<AdminLoginOutputDto, ErrorFieldExceptionDto | null>
-    >(new AdminTelegramLoginCommand(body.token));
-
-    this.logger.log(result.appResult, this.loginByTelegram.name);
-
-    if (result.appResult === AppNotificationResultEnum.Success) {
-      const { accessToken, refreshToken, isPasswordSet } = result.data!;
-
-      res.cookie(COOKIE_REFRESH_TOKEN_NAME, refreshToken, COOKIE_REFRESH_TOKEN_ADMIN_OPTIONS);
-
-      return { accessToken, isPasswordSet };
     }
 
     this.appNotification.handleHttpResult(result);
