@@ -17,6 +17,7 @@ import { AdminRegisterHandler } from '@/admin-auth/application/handlers/admin-re
 import { AdminUpdateTokensHandler } from '@/admin-auth/application/handlers/admin-update-tokens.handler';
 import { AdminAccessTokenByRoleOnlyAdminStrategy } from '@/admin-auth/application/guards/jwt/admin-access-token-by-role-only-admin.strategy';
 import { AdminSetupPasswordHandler } from '@/admin-auth/application/handlers/admin-setup-password.handler';
+import { TelegramAdminBotModule } from '@/telegram/admin-bot/telegram-admin-bot.module';
 
 export const AdminSessionProvider = {
   provide: 'AdminSession',
@@ -41,7 +42,13 @@ const guards = [
 ];
 
 @Module({
-  imports: [TypeOrmModule.forFeature([AdminSession]), JwtModule, AdminModule, BcryptModule],
+  imports: [
+    TypeOrmModule.forFeature([AdminSession]),
+    JwtModule,
+    AdminModule,
+    BcryptModule,
+    TelegramAdminBotModule,
+  ],
   controllers: [AdminAuthController],
   providers: [
     AdminMeOutputModelMapper,
