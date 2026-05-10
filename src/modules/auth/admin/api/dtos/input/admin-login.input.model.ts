@@ -4,18 +4,18 @@ import { ADMIN_AUTH_VALIDATION_RULES } from '@/common/constants/validation-rules
 import { Trim } from '@/common/decorators/transform/trim.decorator';
 
 export class AdminLoginInputModel {
-  private static readonly DEV_DIRECT_LOGIN_TOKEN = 'DEV_LOCAL_LOGIN';
+  private static readonly DEV_DIRECT_LOGIN = 'DEV_LOCAL_LOGIN';
 
   @ApiProperty({
-    minLength: 10,
-    maxLength: 500,
-    example: '2f3f2ae2-1e5d-4236-b4f5-57d0f053c4fa',
+    minLength: 4,
+    maxLength: 30,
+    example: 'admin',
   })
   @Trim()
   @IsNotEmpty()
   @IsString()
-  @Length(10, 500)
-  token: string;
+  @Length(ADMIN_AUTH_VALIDATION_RULES.USERNAME.LENGTH_MIN, 30)
+  login: string;
 
   @ApiProperty({
     minLength: ADMIN_AUTH_VALIDATION_RULES.PASSWORD.LENGTH_MIN,
@@ -26,14 +26,14 @@ export class AdminLoginInputModel {
   @Trim()
   @IsString()
   @IsNotEmpty()
-  @ValidateIf(o => o.token === AdminLoginInputModel.DEV_DIRECT_LOGIN_TOKEN)
+  @ValidateIf(o => o.login === AdminLoginInputModel.DEV_DIRECT_LOGIN)
   @Length(5, ADMIN_AUTH_VALIDATION_RULES.PASSWORD.LENGTH_MAX)
-  @ValidateIf(o => o.token !== AdminLoginInputModel.DEV_DIRECT_LOGIN_TOKEN)
+  @ValidateIf(o => o.login !== AdminLoginInputModel.DEV_DIRECT_LOGIN)
   @Length(
     ADMIN_AUTH_VALIDATION_RULES.PASSWORD.LENGTH_MIN,
     ADMIN_AUTH_VALIDATION_RULES.PASSWORD.LENGTH_MAX,
   )
-  @ValidateIf(o => o.token !== AdminLoginInputModel.DEV_DIRECT_LOGIN_TOKEN)
+  @ValidateIf(o => o.login !== AdminLoginInputModel.DEV_DIRECT_LOGIN)
   @Matches(ADMIN_AUTH_VALIDATION_RULES.PASSWORD.PATTERN)
   password: string;
 }

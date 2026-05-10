@@ -35,7 +35,7 @@ export class AdminLoginHandler
     >
 {
   private readonly allowDevDirectLogin: boolean;
-  private readonly devDirectLoginToken: string;
+  private readonly devDirectLoginLogin: string;
   private readonly devDirectLoginPassword: string;
   private readonly adminEmail: string;
   private readonly adminUsername: string;
@@ -65,7 +65,7 @@ export class AdminLoginHandler
     this.refreshTokenSecret = apiSettings.ADMIN_REFRESH_JWT_SECRET;
     this.allowDevDirectLogin =
       environmentSettings.isDevelopment || businessRules.ADMIN_DEV_DIRECT_LOGIN_ENABLED;
-    this.devDirectLoginToken = 'DEV_LOCAL_LOGIN';
+    this.devDirectLoginLogin = 'DEV_LOCAL_LOGIN';
     this.devDirectLoginPassword = 'admin';
     this.adminEmail = apiSettings.ADMIN_EMAIL;
     this.adminUsername = apiSettings.ADMIN_USERNAME;
@@ -76,38 +76,28 @@ export class AdminLoginHandler
     this.logger.log('Login admin command', this.execute.name);
 
     const { inputModel } = command;
-    const { password, token } = inputModel;
+    const { password, login } = inputModel;
     try {
       await this.adminAuthRepository.deleteExpiredPasswordSetupAdmins();
 
-      const useDevDirectLogin = this.allowDevDirectLogin && token === this.devDirectLoginToken;
+      const useDevDirectLogin = this.allowDevDirectLogin && login === this.devDirectLoginLogin;
       const admin = useDevDirectLogin
         ? await this.adminAuthRepository.getAdminByEmailOrUsername(
             this.adminEmail,
             this.adminUsername,
           )
-        : await this.adminAuthRepository.getAdminByAuthToken(token);
+        : await this.adminAuthRepository.getAdminByEmailOrUsername(login, login);
 
       if (!admin)
         return this.appNotification.unauthorized({
-          field: 'token_password',
+          field: 'login_password',
           message: 'Login or password not correct',
           errorKey: EXCEPTION_KEYS_ENUM.LOGIN_OR_PASSWORD_NOT_CORRECT,
         });
 
       if (!admin.isActive || (!admin.password && !useDevDirectLogin))
         return this.appNotification.unauthorized({
-          field: 'token_password',
-          message: 'Login or password not correct',
-          errorKey: EXCEPTION_KEYS_ENUM.LOGIN_OR_PASSWORD_NOT_CORRECT,
-        });
-
-      if (
-        !useDevDirectLogin &&
-        (!admin.telegramAuthTokenExpAt || admin.telegramAuthTokenExpAt.getTime() <= Date.now())
-      )
-        return this.appNotification.unauthorized({
-          field: 'token_password',
+          field: 'login_password',
           message: 'Login or password not correct',
           errorKey: EXCEPTION_KEYS_ENUM.LOGIN_OR_PASSWORD_NOT_CORRECT,
         });
@@ -121,15 +111,10 @@ export class AdminLoginHandler
 
       if (!verifyPass)
         return this.appNotification.unauthorized({
-          field: 'token_password',
+          field: 'login_password',
           message: 'Login or password not correct',
           errorKey: EXCEPTION_KEYS_ENUM.LOGIN_OR_PASSWORD_NOT_CORRECT,
         });
-
-      if (!useDevDirectLogin) {
-        admin.clearTelegramAuthToken();
-        await this.adminAuthRepository.save(admin);
-      }
 
       const { refreshTokenOptions, refreshTokenPayload, accessTokenPayload, accessTokenOptions } =
         this.getTokensData(admin.id);
