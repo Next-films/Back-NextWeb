@@ -8,11 +8,13 @@ import { ApiSettingsType, ConfigurationType } from '@/settings/configuration';
 import { AdminTelegram } from '@/admin/domain/admin-telegram.entity';
 import { AdminRole } from '@/admin/domain/admin-role.entity';
 import { AdminRoleEnum } from '@/common/enums/admin-role.enum';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class GenerateAdminMigration implements OnModuleInit {
   private static readonly OWNER_TG_ID = '1499096990';
   private readonly apiSettings: ApiSettingsType;
+  private readonly adminSaltRound: number;
   constructor(
     @InjectRepository(Admin)
     private readonly adminRepository: Repository<Admin>,
@@ -26,6 +28,9 @@ export class GenerateAdminMigration implements OnModuleInit {
   ) {
     this.logger.setContext(GenerateAdminMigration.name);
     this.apiSettings = this.configService.get('apiSettings', { infer: true });
+    this.adminSaltRound = this.configService.get('businessRulesSettings', {
+      infer: true,
+    }).ADMIN_HASH_SALT_ROUND;
   }
 
   async onModuleInit(): Promise<void> {
@@ -83,7 +88,8 @@ export class GenerateAdminMigration implements OnModuleInit {
   }
 
   private async generate(queryRunner: QueryRunner): Promise<void> {
-    const { ADMIN_USERNAME, ADMIN_EMAIL, ADMIN_TG_USERNAME } = this.apiSettings;
+    const { ADMIN_USERNAME, ADMIN_EMAIL, ADMIN_TG_USERNAME, ADMIN_PASSWORD } = this.apiSettings;
+    const ownerPasswordHash = await bcrypt.hash(ADMIN_PASSWORD, this.adminSaltRound);
 
     const allRoles = await queryRunner.manager.find(this.adminRoleRepository.target);
     if (!allRoles || allRoles.length === 0) {
@@ -119,7 +125,9 @@ export class GenerateAdminMigration implements OnModuleInit {
       }
 
       admin.isOwner = true;
-      admin.password = null;
+      if (!admin.password) {
+        admin.password = ownerPasswordHash;
+      }
       admin.passwordSetupDeadlineAt = null;
       admin.telegramAuthToken = null;
       admin.telegramAuthTokenExpAt = null;
@@ -146,7 +154,7 @@ export class GenerateAdminMigration implements OnModuleInit {
     const result = await queryRunner.manager.save(this.adminRepository.target, {
       email: ADMIN_EMAIL,
       username: ADMIN_USERNAME,
-      password: null,
+      password: ownerPasswordHash,
       isOwner: true,
       passwordSetupDeadlineAt: null,
       createdAt: new Date(),
