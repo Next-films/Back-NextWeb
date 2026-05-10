@@ -1,4 +1,4 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, UseGuards } from '@nestjs/common';
 import { BRIDGE_RMG_FILMS_ROUTE } from '@/common/constants/route.constants';
 import { ApiBearerAuth, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger';
 import { LoggerService } from '@/common/utils/logger/logger.service';
@@ -21,6 +21,7 @@ export class FilmBridgeRmqController {
     this.logger.setContext(FilmBridgeRmqController.name);
   }
 
+  @Post(BRIDGE_RMG_FILMS_ROUTE.FIND)
   @Get(BRIDGE_RMG_FILMS_ROUTE.FIND)
   @SwaggerDecoratorBridgeRpcFindFilms()
   async bridgeFindFilms(): Promise<void> {
@@ -28,6 +29,7 @@ export class FilmBridgeRmqController {
     await this.downloaderServiceAdapter.bridgeFindFilms();
   }
 
+  @Post(BRIDGE_RMG_FILMS_ROUTE.DOWNLOAD)
   @Get(BRIDGE_RMG_FILMS_ROUTE.DOWNLOAD)
   @SwaggerDecoratorBridgeRpcDownloadFilms()
   async bridgeDownloadFilms(): Promise<void> {

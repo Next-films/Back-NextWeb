@@ -1,4 +1,4 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, UseGuards } from '@nestjs/common';
 import { BRIDGE_RMG_CARTOON_ROUTE } from '@/common/constants/route.constants';
 import { ApiBearerAuth, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger';
 import { LoggerService } from '@/common/utils/logger/logger.service';
@@ -21,6 +21,7 @@ export class CartoonBridgeRmqController {
     this.logger.setContext(CartoonBridgeRmqController.name);
   }
 
+  @Post(BRIDGE_RMG_CARTOON_ROUTE.FIND)
   @Get(BRIDGE_RMG_CARTOON_ROUTE.FIND)
   @SwaggerDecoratorBridgeRpcFindCartoon()
   async bridgeFindCartoon(): Promise<void> {
@@ -28,6 +29,7 @@ export class CartoonBridgeRmqController {
     await this.downloaderServiceAdapter.bridgeFindCartoons();
   }
 
+  @Post(BRIDGE_RMG_CARTOON_ROUTE.DOWNLOAD)
   @Get(BRIDGE_RMG_CARTOON_ROUTE.DOWNLOAD)
   @SwaggerDecoratorBridgeRpcDownloadCartoons()
   async bridgeDownloadCartoon(): Promise<void> {

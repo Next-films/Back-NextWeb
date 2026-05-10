@@ -1,4 +1,4 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, UseGuards } from '@nestjs/common';
 import { BRIDGE_RMG_SERIALS_ROUTE } from '@/common/constants/route.constants';
 import { ApiBearerAuth, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger';
 import { LoggerService } from '@/common/utils/logger/logger.service';
@@ -27,6 +27,7 @@ export class SerialsBridgeRmqController {
 
   // TODO:
   @ApiDeprecated()
+  @Post(BRIDGE_RMG_SERIALS_ROUTE.FIND)
   @Get(BRIDGE_RMG_SERIALS_ROUTE.FIND)
   @SwaggerDecoratorBridgeRpcFindSerials()
   async bridgeFindSerials(): Promise<void> {
@@ -36,6 +37,7 @@ export class SerialsBridgeRmqController {
 
   // TODO:
   @ApiDeprecated()
+  @Post(BRIDGE_RMG_SERIALS_ROUTE.DOWNLOAD)
   @Get(BRIDGE_RMG_SERIALS_ROUTE.DOWNLOAD)
   @SwaggerDecoratorBridgeRpcDownloadSerials()
   async bridgeDownloadSerials(): Promise<void> {

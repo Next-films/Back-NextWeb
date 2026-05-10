@@ -357,14 +357,6 @@ export class AdminCinemaSerialsController {
       return;
     }
 
-    const downloadedSeasons = Array.from(
-      new Set(
-        (refreshedSerialResult.data.episodes || [])
-          .map(episode => episode.seasonNumber)
-          .filter(Boolean),
-      ),
-    ).sort((a, b) => a - b);
-    const downloadedSeasonSet = new Set<number>(downloadedSeasons);
     const downloadedEpisodesCountBySeason = new Map<number, number>();
 
     for (const episode of refreshedSerialResult.data.episodes || []) {
@@ -375,28 +367,37 @@ export class AdminCinemaSerialsController {
       );
     }
 
+    const seasonsWithStats = seasonsResult.data.seasons.map(season => {
+      const downloadedEpisodesCount = downloadedEpisodesCountBySeason.get(season.seasonNumber) || 0;
+      const missingEpisodesCount =
+        season.expectedEpisodesCount !== null
+          ? Math.max(0, season.expectedEpisodesCount - downloadedEpisodesCount)
+          : null;
+      const isComplete =
+        season.expectedEpisodesCount !== null
+          ? downloadedEpisodesCount >= season.expectedEpisodesCount
+          : null;
+      const isDownloaded = isComplete === true;
+
+      return {
+        ...season,
+        downloadedEpisodesCount,
+        missingEpisodesCount,
+        isComplete,
+        isDownloaded,
+        canDownload: !isDownloaded && season.torrentsCount > 0,
+      };
+    });
+
+    const downloadedSeasons = seasonsWithStats
+      .filter(season => season.isDownloaded)
+      .map(season => season.seasonNumber)
+      .sort((a, b) => a - b);
+
     return {
       ...seasonsResult.data,
       downloadedSeasons,
-      seasons: seasonsResult.data.seasons.map(season => ({
-        ...season,
-        downloadedEpisodesCount: downloadedEpisodesCountBySeason.get(season.seasonNumber) || 0,
-        missingEpisodesCount:
-          season.expectedEpisodesCount !== null
-            ? Math.max(
-                0,
-                season.expectedEpisodesCount -
-                  (downloadedEpisodesCountBySeason.get(season.seasonNumber) || 0),
-              )
-            : null,
-        isComplete:
-          season.expectedEpisodesCount !== null
-            ? (downloadedEpisodesCountBySeason.get(season.seasonNumber) || 0) >=
-              season.expectedEpisodesCount
-            : null,
-        isDownloaded: downloadedSeasonSet.has(season.seasonNumber),
-        canDownload: !downloadedSeasonSet.has(season.seasonNumber) && season.torrentsCount > 0,
-      })),
+      seasons: seasonsWithStats,
     };
   }
 }

@@ -97,18 +97,33 @@ export class SerialQueryRepository {
     searchGenreIds: number[] | null,
     status?: AdminGetFilmsStatusEnum | null,
   ): Promise<Serial[] | null> {
-    let qb = this.serialRepository.createQueryBuilder('f').leftJoinAndSelect('f.genres', 'g');
-    qb = this.getSearchSerialClause(qb, searchName, searchGenreIds, status || null);
+    let idsQb = this.serialRepository.createQueryBuilder('f');
+    idsQb = this.getSearchSerialClause(idsQb, searchName, searchGenreIds, status || null);
 
-    qb.leftJoinAndSelect('f.episodes', 'e')
-      .leftJoinAndSelect('e.season', 's')
+    const serialIdRows = await idsQb
+      .select('f.id', 'id')
+      .distinct(true)
+      .orderBy(`f.${sortField}`, sortDirection)
+      .addOrderBy('f.id', 'ASC')
       .skip(skip)
       .take(take)
-      .orderBy(`f.${sortField}`, sortDirection)
-      .addOrderBy('s.seasonNumber', 'ASC')
-      .addOrderBy('e.id', 'ASC');
+      .getRawMany<{ id: string | number }>();
 
-    return qb.getMany();
+    if (!serialIdRows.length) return [];
+
+    const serialIds = serialIdRows.map(row => Number(row.id));
+
+    return await this.serialRepository
+      .createQueryBuilder('f')
+      .leftJoinAndSelect('f.genres', 'g')
+      .leftJoinAndSelect('f.episodes', 'e')
+      .leftJoinAndSelect('e.season', 's')
+      .where('f.id IN (:...serialIds)', { serialIds })
+      .orderBy(`f.${sortField}`, sortDirection)
+      .addOrderBy('f.id', 'ASC')
+      .addOrderBy('s.seasonNumber', 'ASC')
+      .addOrderBy('e.id', 'ASC')
+      .getMany();
   }
 
   async getSerialCount(
