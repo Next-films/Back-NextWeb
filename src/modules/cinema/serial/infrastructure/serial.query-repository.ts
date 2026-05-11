@@ -102,7 +102,6 @@ export class SerialQueryRepository {
 
     const serialIdRows = await idsQb
       .select('f.id', 'id')
-      .distinct(true)
       .orderBy(`f.${sortField}`, sortDirection)
       .addOrderBy('f.id', 'ASC')
       .skip(skip)
