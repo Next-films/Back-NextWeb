@@ -1,0 +1,40 @@
+name: Debug DEV server state
+
+on:
+  push:
+    branches:
+      - dev
+
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+
+    env:
+      SSH_HOST: ${{ secrets.DEV_SSH_HOST }}
+      SSH_OPTS: -o StrictHostKeyChecking=no
+      SSHPASS: ${{ secrets.DEV_SSH_PASSWORD }}
+
+    steps:
+      - name: Install sshpass
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y sshpass
+
+      - name: Collect server diagnostics
+        run: |
+          sshpass -e ssh $SSH_OPTS -p ${{ secrets.DEV_SSH_PORT }} \
+            ${{ secrets.DEV_SSH_USERNAME }}@$SSH_HOST 'bash -s' << 'EOF'
+          echo "===== docker ps -a ====="
+          docker ps -a --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' || true
+          echo "===== back-nextweb-dev last logs ====="
+          docker logs --tail 200 next-back-nextweb-dev 2>&1 | tail -120 || true
+          echo "===== restart count ====="
+          docker inspect next-back-nextweb-dev --format 'Restarts={{.RestartCount}} StartedAt={{.State.StartedAt}} Status={{.State.Status}} ExitCode={{.State.ExitCode}} OOM={{.State.OOMKilled}}' || true
+          echo "===== disk and memory ====="
+          df -h / 2>/dev/null | head -3 || true
+          free -m 2>/dev/null | head -3 || true
+          echo "===== listening ports ====="
+          (ss -tlnp 2>/dev/null || netstat -tlnp 2>/dev/null) | head -25 || true
+          echo "===== nginx upstreams ====="
+          grep -r -h "proxy_pass\|server_name\|listen" /etc/nginx/sites-enabled /etc/nginx/conf.d 2>/dev/null | head -40 || true
+          EOF
