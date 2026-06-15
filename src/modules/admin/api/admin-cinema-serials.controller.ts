@@ -254,6 +254,54 @@ export class AdminCinemaSerialsController {
   }
 
   @HttpCode(HttpStatus.CREATED)
+  /**
+   * Enrich the bridge seasons plan with download state per season. A season counts as
+   * already downloaded when it is complete, or when completeness is unknown (Kinopoisk gave
+   * no episode count) but episodes already exist — re-downloading such seasons is blocked.
+   */
+  private buildSeasonsWithStats(
+    seasons: {
+      seasonNumber: number;
+      torrentsCount: number;
+      expectedEpisodesCount: number | null;
+    }[],
+    episodes: { seasonNumber?: number | null }[],
+  ): AdminSerialSeasonsPlanOutputDto['seasons'] {
+    const downloadedEpisodesCountBySeason = new Map<number, number>();
+
+    for (const episode of episodes || []) {
+      if (!episode.seasonNumber) continue;
+      downloadedEpisodesCountBySeason.set(
+        episode.seasonNumber,
+        (downloadedEpisodesCountBySeason.get(episode.seasonNumber) || 0) + 1,
+      );
+    }
+
+    return seasons.map(season => {
+      const downloadedEpisodesCount = downloadedEpisodesCountBySeason.get(season.seasonNumber) || 0;
+      const missingEpisodesCount =
+        season.expectedEpisodesCount !== null
+          ? Math.max(0, season.expectedEpisodesCount - downloadedEpisodesCount)
+          : null;
+      const isComplete =
+        season.expectedEpisodesCount !== null
+          ? downloadedEpisodesCount >= season.expectedEpisodesCount
+          : null;
+      const isDownloaded =
+        isComplete === true ||
+        (season.expectedEpisodesCount === null && downloadedEpisodesCount > 0);
+
+      return {
+        ...season,
+        downloadedEpisodesCount,
+        missingEpisodesCount,
+        isComplete,
+        isDownloaded,
+        canDownload: !isDownloaded && season.torrentsCount > 0,
+      };
+    });
+  }
+
   @Post(`:serialId/check-updates`)
   async checkSerialUpdates(
     @Param('serialId', ParseIntPatchPipe) serialId: number,
@@ -285,9 +333,59 @@ export class AdminCinemaSerialsController {
       );
     }
 
+    const refreshedSerialResult = await this.queryBus.execute<
+      AdminGetSerialByIdQuery,
+      AppNotificationResult<AdminCinemaSerialsOutputDto, ErrorFieldExceptionDto | null>
+    >(new AdminGetSerialByIdQuery(serialId));
+    const kpId =
+      refreshedSerialResult.appResult === AppNotificationResultEnum.Success &&
+      refreshedSerialResult.data?.kpId
+        ? refreshedSerialResult.data.kpId
+        : serialResult.data.kpId;
+
+    // Block re-downloading seasons that already exist: drop already-downloaded ones from the
+    // request, and refuse outright if every requested season is already present.
+    let seasonNumbers = body.seasonNumbers;
+
+    if (seasonNumbers?.length && refreshedSerialResult.data) {
+      const seasonsResult = await this.downloaderServiceAdapter.bridgeGetSerialSeasonsByKpId(kpId);
+
+      if (seasonsResult.appResult === AppNotificationResultEnum.Success && seasonsResult.data) {
+        const downloadedSeasonNumbers = new Set(
+          this.buildSeasonsWithStats(
+            seasonsResult.data.seasons,
+            refreshedSerialResult.data.episodes || [],
+          )
+            .filter(season => season.isDownloaded)
+            .map(season => season.seasonNumber),
+        );
+        const allowedSeasons = seasonNumbers.filter(season => !downloadedSeasonNumbers.has(season));
+        const blockedSeasons = seasonNumbers.filter(season => downloadedSeasonNumbers.has(season));
+
+        if (allowedSeasons.length === 0) {
+          return {
+            message: `Сезоны уже скачаны: ${blockedSeasons
+              .sort((a, b) => a - b)
+              .join(', ')}. Повторная загрузка не требуется.`,
+          };
+        }
+
+        if (blockedSeasons.length > 0) {
+          this.logger.log(
+            `Skipping already-downloaded seasons for serialId=${serialId}: ${blockedSeasons.join(
+              ', ',
+            )}`,
+            this.checkSerialUpdates.name,
+          );
+        }
+
+        seasonNumbers = allowedSeasons;
+      }
+    }
+
     const reconcileResult = await this.downloaderServiceAdapter.bridgeReconcileSerialByKpId(
-      serialResult.data.kpId,
-      body.seasonNumbers,
+      kpId,
+      seasonNumbers,
     );
 
     if (reconcileResult.appResult !== AppNotificationResultEnum.Success || !reconcileResult.data) {
@@ -357,37 +455,10 @@ export class AdminCinemaSerialsController {
       return;
     }
 
-    const downloadedEpisodesCountBySeason = new Map<number, number>();
-
-    for (const episode of refreshedSerialResult.data.episodes || []) {
-      if (!episode.seasonNumber) continue;
-      downloadedEpisodesCountBySeason.set(
-        episode.seasonNumber,
-        (downloadedEpisodesCountBySeason.get(episode.seasonNumber) || 0) + 1,
-      );
-    }
-
-    const seasonsWithStats = seasonsResult.data.seasons.map(season => {
-      const downloadedEpisodesCount = downloadedEpisodesCountBySeason.get(season.seasonNumber) || 0;
-      const missingEpisodesCount =
-        season.expectedEpisodesCount !== null
-          ? Math.max(0, season.expectedEpisodesCount - downloadedEpisodesCount)
-          : null;
-      const isComplete =
-        season.expectedEpisodesCount !== null
-          ? downloadedEpisodesCount >= season.expectedEpisodesCount
-          : null;
-      const isDownloaded = isComplete === true;
-
-      return {
-        ...season,
-        downloadedEpisodesCount,
-        missingEpisodesCount,
-        isComplete,
-        isDownloaded,
-        canDownload: !isDownloaded && season.torrentsCount > 0,
-      };
-    });
+    const seasonsWithStats = this.buildSeasonsWithStats(
+      seasonsResult.data.seasons,
+      refreshedSerialResult.data.episodes || [],
+    );
 
     const downloadedSeasons = seasonsWithStats
       .filter(season => season.isDownloaded)
