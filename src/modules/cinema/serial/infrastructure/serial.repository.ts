@@ -17,7 +17,18 @@ export class SerialRepository {
   }
 
   async remove(serial: Serial): Promise<void> {
-    await this.serialRepository.remove(serial);
+    // Delete children explicitly in FK order (episodes → seasons → serial). Relying on
+    // TypeORM cascade here left serial_season rows behind and the serial delete failed on
+    // the foreign key constraint.
+    await this.serialRepository.manager.transaction(async manager => {
+      await manager.getRepository(SerialEpisode).delete({ serialId: serial.id });
+      await manager.getRepository(SerialSeason).delete({ serialId: serial.id });
+      // Children already gone; drop the loaded relations so remove() only clears the
+      // genres junction and the serial row itself.
+      serial.episodes = [];
+      serial.seasons = [];
+      await manager.getRepository(Serial).remove(serial);
+    });
   }
 
   async getSerialByKinopoiskId(kpId: string, queryRunner?: QueryRunner): Promise<Serial | null> {
