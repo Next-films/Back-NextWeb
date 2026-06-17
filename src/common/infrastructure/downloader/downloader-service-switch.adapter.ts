@@ -214,6 +214,16 @@ export class DownloaderServiceSwitchAdapter {
     );
   }
 
+  bridgeGetSerialSeasonsByTitle(
+    title: string,
+  ): Promise<FallbackResult<DownloaderSerialSeasonsOutputDto>> {
+    return this.executeRequestWithFallback(
+      this.bridgeGetSerialSeasonsByTitle.name,
+      this.rmqCall(a => a.bridgeGetSerialSeasonsByTitle(title)),
+      () => this.restAdapter.bridgeGetSerialSeasonsByTitle(title),
+    );
+  }
+
   bridgeRemoveFromQueueByKpId(
     type: MovieTypesEnum,
     kpId: string,

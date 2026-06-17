@@ -163,6 +163,11 @@ export class DownloaderServiceAdapter implements IDownloaderServiceAdapter {
     throw new Error('Get serial seasons by kpId is available only via HTTP transport adapter.');
   }
 
+  bridgeGetSerialSeasonsByTitle(_title: string): Promise<Res<DownloaderSerialSeasonsOutputDto>> {
+    void _title;
+    throw new Error('Get serial seasons by title is available only via HTTP transport adapter.');
+  }
+
   bridgeRemoveFromQueueByKpId(
     _type: MovieTypesEnum,
     _kpId: string,
@@ -405,6 +410,23 @@ export class DownloaderServiceAdapterMock implements IDownloaderServiceAdapter {
       this.mockSuccess({
         kpId,
         title: `Mock serial ${kpId}`,
+        totalCandidates: 0,
+        totalSeasons: 0,
+        seasons: [],
+        hasUnknownSeasonCandidates: false,
+      }),
+    );
+  }
+
+  bridgeGetSerialSeasonsByTitle(title: string): Promise<Res<DownloaderSerialSeasonsOutputDto>> {
+    this.mockLog(
+      `Execute: get serial seasons by title (mock). title: ${title}`,
+      this.bridgeGetSerialSeasonsByTitle.name,
+    );
+    return Promise.resolve(
+      this.mockSuccess({
+        kpId: '0',
+        title,
         totalCandidates: 0,
         totalSeasons: 0,
         seasons: [],

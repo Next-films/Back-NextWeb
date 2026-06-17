@@ -301,6 +301,14 @@ export class DownloaderServiceRestAdapter implements IDownloaderServiceAdapter {
     );
   }
 
+  bridgeGetSerialSeasonsByTitle(title: string): Promise<Res<DownloaderSerialSeasonsOutputDto>> {
+    return this.postResult(
+      this.url(BRIDGE.MAIN, BRIDGE.SERIALS, BRIDGE.SEASONS),
+      { title },
+      this.bridgeGetSerialSeasonsByTitle.name,
+    );
+  }
+
   bridgeRemoveFromQueueByKpId(
     type: MovieTypesEnum,
     kpId: string,

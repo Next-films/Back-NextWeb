@@ -17,4 +17,7 @@ export type AdminSerialSeasonsPlanOutputDto = {
   hasUnknownSeasonCandidates: boolean;
   downloadedSeasons: number[];
   seasons: AdminSerialSeasonPlanItemOutputDto[];
+  // Admin DB serial matched by kpId, or null when it is not in the library yet. Per-season
+  // download needs this id; when null the serial must be downloaded first.
+  serialId?: number | null;
 };

@@ -471,4 +471,52 @@ export class AdminCinemaSerialsController {
       seasons: seasonsWithStats,
     };
   }
+
+  @Get('seasons-by-title')
+  async getSerialSeasonsByTitle(
+    @Query('title') title: string,
+  ): Promise<AdminSerialSeasonsPlanOutputDto | void> {
+    this.logger.log(
+      'Execute: get serial seasons by title by admin',
+      this.getSerialSeasonsByTitle.name,
+    );
+
+    const normalizedTitle = (title || '').trim();
+
+    if (!normalizedTitle) {
+      this.appNotification.handleHttpResult(
+        this.appNotification.badRequest([{ field: 'title', message: 'Title is required' }]),
+      );
+      return;
+    }
+
+    const seasonsResult = await this.downloaderServiceAdapter.bridgeGetSerialSeasonsByTitle(
+      normalizedTitle,
+    );
+
+    if (seasonsResult.appResult !== AppNotificationResultEnum.Success || !seasonsResult.data) {
+      this.appNotification.handleHttpResult(seasonsResult);
+      return;
+    }
+
+    const plan = seasonsResult.data;
+    // Match the admin DB serial by kpId (stable), not by the typed title. When present, enrich
+    // with downloaded-episode stats; when absent the plan is still shown (serialId = null).
+    const serial = await this.serialRepository.getSerialByKinopoiskId(plan.kpId);
+    const episodes = (serial?.episodes || []).map(episode => ({
+      seasonNumber: episode.season?.seasonNumber ?? null,
+    }));
+    const seasonsWithStats = this.buildSeasonsWithStats(plan.seasons, episodes);
+    const downloadedSeasons = seasonsWithStats
+      .filter(season => season.isDownloaded)
+      .map(season => season.seasonNumber)
+      .sort((a, b) => a - b);
+
+    return {
+      ...plan,
+      serialId: serial?.id ?? null,
+      downloadedSeasons,
+      seasons: seasonsWithStats,
+    };
+  }
 }

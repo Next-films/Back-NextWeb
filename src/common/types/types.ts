@@ -221,6 +221,12 @@ export interface IDownloaderServiceAdapter {
     AppNotificationResult<DownloaderSerialSeasonsOutputDto, ErrorFieldExceptionDto | null>
   > | void;
 
+  bridgeGetSerialSeasonsByTitle(
+    title: string,
+  ): Promise<
+    AppNotificationResult<DownloaderSerialSeasonsOutputDto, ErrorFieldExceptionDto | null>
+  > | void;
+
   bridgeRemoveFromQueueByKpId(
     type: MovieTypesEnum,
     kpId: string,
