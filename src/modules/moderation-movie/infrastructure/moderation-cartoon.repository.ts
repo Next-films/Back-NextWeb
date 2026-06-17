@@ -56,6 +56,12 @@ export class ModerationCartoonRepository {
     await this.moderationCartoonEntity.remove(task);
   }
 
+  async deleteByMovieId(movieId: number): Promise<number> {
+    const result = await this.moderationCartoonEntity.delete({ movieId });
+
+    return result.affected ?? 0;
+  }
+
   async getAllModeration(): Promise<ModerationCartoonEntity[]> {
     return this.moderationCartoonEntity.find();
   }

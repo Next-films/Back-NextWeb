@@ -54,6 +54,12 @@ export class ModerationFilmRepository {
     await this.moderationFilmEntity.remove(task);
   }
 
+  async deleteByMovieId(movieId: number): Promise<number> {
+    const result = await this.moderationFilmEntity.delete({ movieId });
+
+    return result.affected ?? 0;
+  }
+
   async getAllModeration(): Promise<ModerationFilmEntity[]> {
     return this.moderationFilmEntity.find();
   }

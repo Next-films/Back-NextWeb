@@ -32,4 +32,11 @@ export class FinishedTorrentModerationRepository {
     }
     return this.finishedTorrentModerationEntity.findOne({ where: { kpId } });
   }
+
+  async deleteByKpId(kpId: string): Promise<number> {
+    if (!kpId) return 0;
+    const result = await this.finishedTorrentModerationEntity.delete({ kpId });
+
+    return result.affected ?? 0;
+  }
 }

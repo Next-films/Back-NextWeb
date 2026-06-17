@@ -9,6 +9,9 @@ import { EXCEPTION_KEYS_ENUM } from '@/common/enums/exception-keys.enum';
 import { SerialRepository } from '@/serials/infrastructure/serial.repository';
 import { DownloaderServiceAdapter } from '@/common/infrastructure/rmq/downloader-service.adapter';
 import { RmqResultHandlerUtil } from '@/common/utils/rmq-result-handler.util';
+import { MovieTypesEnum } from '@/common/types/types';
+import { ModerationSerialRepository } from '@/moderation-movie/infrastructure/moderation-serial.repository';
+import { FinishedTorrentModerationRepository } from '@/moderation-movie/infrastructure/finished-torrent-moderation.repository';
 
 export class AdminRemoveSerialCommand implements ICommand {
   constructor(public serialId: number) {}
@@ -28,8 +31,27 @@ export class AdminRemoveSerialCommandHandler
     private readonly serialRepository: SerialRepository,
     private readonly downloaderServiceAdapter: DownloaderServiceAdapter,
     private readonly rmqResultHandlerUtil: RmqResultHandlerUtil,
+    private readonly moderationSerialRepository: ModerationSerialRepository,
+    private readonly finishedTorrentModerationRepository: FinishedTorrentModerationRepository,
   ) {
     this.logger.setContext(AdminRemoveSerialCommandHandler.name);
+  }
+
+  // Best-effort purge of residual data tied to a removed serial (download queue, pending
+  // moderation task, finished-torrent marker) so it cannot be resurrected or leave orphans.
+  private async cleanupResiduals(movieId: number, kpId: string | null): Promise<void> {
+    try {
+      if (kpId) {
+        await this.downloaderServiceAdapter.bridgeRemoveFromQueueByKpId(
+          MovieTypesEnum.SERIAL,
+          kpId,
+        );
+        await this.finishedTorrentModerationRepository.deleteByKpId(kpId);
+      }
+      await this.moderationSerialRepository.deleteByMovieId(movieId);
+    } catch (error) {
+      this.logger.error(error, this.cleanupResiduals.name);
+    }
   }
 
   private extractStorageKey(url: string | null | undefined): string | null {
@@ -102,6 +124,7 @@ export class AdminRemoveSerialCommandHandler
       );
 
       await this.serialRepository.remove(serial);
+      await this.cleanupResiduals(serial.id, serial.kpId ?? null);
 
       return this.appNotification.success(null);
     } catch (e) {

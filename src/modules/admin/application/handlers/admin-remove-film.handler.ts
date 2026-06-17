@@ -9,6 +9,9 @@ import { EXCEPTION_KEYS_ENUM } from '@/common/enums/exception-keys.enum';
 import { FilmRepository } from '@/films/infrastructure/film.repository';
 import { DownloaderServiceAdapter } from '@/common/infrastructure/rmq/downloader-service.adapter';
 import { RmqResultHandlerUtil } from '@/common/utils/rmq-result-handler.util';
+import { MovieTypesEnum } from '@/common/types/types';
+import { ModerationFilmRepository } from '@/moderation-movie/infrastructure/moderation-film.repository';
+import { FinishedTorrentModerationRepository } from '@/moderation-movie/infrastructure/finished-torrent-moderation.repository';
 
 export class AdminRemoveFilmCommand implements ICommand {
   constructor(public filmId: number) {}
@@ -28,8 +31,24 @@ export class AdminRemoveFilmCommandHandler
     private readonly filmRepository: FilmRepository,
     private readonly downloaderServiceAdapter: DownloaderServiceAdapter,
     private readonly rmqResultHandlerUtil: RmqResultHandlerUtil,
+    private readonly moderationFilmRepository: ModerationFilmRepository,
+    private readonly finishedTorrentModerationRepository: FinishedTorrentModerationRepository,
   ) {
     this.logger.setContext(AdminRemoveFilmCommandHandler.name);
+  }
+
+  // Best-effort purge of residual data tied to a removed film (download queue, pending
+  // moderation task, finished-torrent marker) so it cannot be resurrected or leave orphans.
+  private async cleanupResiduals(movieId: number, kpId: string | null): Promise<void> {
+    try {
+      if (kpId) {
+        await this.downloaderServiceAdapter.bridgeRemoveFromQueueByKpId(MovieTypesEnum.FILM, kpId);
+        await this.finishedTorrentModerationRepository.deleteByKpId(kpId);
+      }
+      await this.moderationFilmRepository.deleteByMovieId(movieId);
+    } catch (error) {
+      this.logger.error(error, this.cleanupResiduals.name);
+    }
   }
 
   private extractStorageKey(url: string | null | undefined): string | null {
@@ -97,6 +116,7 @@ export class AdminRemoveFilmCommandHandler
       );
 
       await this.filmRepository.remove(film);
+      await this.cleanupResiduals(film.id, film.kpId ?? null);
 
       return this.appNotification.success(null);
     } catch (e) {

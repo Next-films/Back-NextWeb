@@ -163,6 +163,15 @@ export class DownloaderServiceAdapter implements IDownloaderServiceAdapter {
     throw new Error('Get serial seasons by kpId is available only via HTTP transport adapter.');
   }
 
+  bridgeRemoveFromQueueByKpId(
+    _type: MovieTypesEnum,
+    _kpId: string,
+  ): Promise<Res<{ removed: number }>> {
+    void _type;
+    void _kpId;
+    throw new Error('Remove from queue by kpId is available only via HTTP transport adapter.');
+  }
+
   // ─── Bridge void actions ────────────────────────────────────────
 
   bridgeFindFilms(): Promise<void> {
@@ -402,6 +411,17 @@ export class DownloaderServiceAdapterMock implements IDownloaderServiceAdapter {
         hasUnknownSeasonCandidates: false,
       }),
     );
+  }
+
+  bridgeRemoveFromQueueByKpId(
+    type: MovieTypesEnum,
+    kpId: string,
+  ): Promise<Res<{ removed: number }>> {
+    this.mockLog(
+      `Execute: remove from queue by kpId (mock). type=${type}, kpId=${kpId}`,
+      this.bridgeRemoveFromQueueByKpId.name,
+    );
+    return Promise.resolve(this.mockSuccess({ removed: 0 }));
   }
 
   // ─── Bridge schedule & status ───────────────────────────────────

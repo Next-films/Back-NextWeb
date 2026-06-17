@@ -221,6 +221,11 @@ export interface IDownloaderServiceAdapter {
     AppNotificationResult<DownloaderSerialSeasonsOutputDto, ErrorFieldExceptionDto | null>
   > | void;
 
+  bridgeRemoveFromQueueByKpId(
+    type: MovieTypesEnum,
+    kpId: string,
+  ): Promise<AppNotificationResult<{ removed: number }, ErrorFieldExceptionDto | null>> | void;
+
   getBridgeSchedule(): DownloaderTriggerScheduleDto | Promise<DownloaderTriggerScheduleDto>;
 
   updateBridgeSchedule(

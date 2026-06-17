@@ -301,6 +301,17 @@ export class DownloaderServiceRestAdapter implements IDownloaderServiceAdapter {
     );
   }
 
+  bridgeRemoveFromQueueByKpId(
+    type: MovieTypesEnum,
+    kpId: string,
+  ): Promise<Res<{ removed: number }>> {
+    return this.postResult(
+      this.url(BRIDGE.MAIN, BRIDGE.QUEUE, BRIDGE.REMOVE_BY_KPID),
+      { kpId, type },
+      this.bridgeRemoveFromQueueByKpId.name,
+    );
+  }
+
   // ─── Bridge schedule & status ───────────────────────────────────
 
   async getBridgeSchedule(): Promise<DownloaderTriggerScheduleDto> {

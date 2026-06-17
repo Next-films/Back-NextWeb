@@ -56,6 +56,12 @@ export class ModerationSerialRepository {
     await this.moderationSerialEntity.remove(task);
   }
 
+  async deleteByMovieId(movieId: number): Promise<number> {
+    const result = await this.moderationSerialEntity.delete({ movieId });
+
+    return result.affected ?? 0;
+  }
+
   async getAllModeration(): Promise<ModerationSerialEntity[]> {
     return this.moderationSerialEntity.find();
   }

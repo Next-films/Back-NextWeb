@@ -9,6 +9,9 @@ import { EXCEPTION_KEYS_ENUM } from '@/common/enums/exception-keys.enum';
 import { DownloaderServiceAdapter } from '@/common/infrastructure/rmq/downloader-service.adapter';
 import { RmqResultHandlerUtil } from '@/common/utils/rmq-result-handler.util';
 import { CartoonRepository } from '@/cartoons/infrastructure/cartoon.repository';
+import { MovieTypesEnum } from '@/common/types/types';
+import { ModerationCartoonRepository } from '@/moderation-movie/infrastructure/moderation-cartoon.repository';
+import { FinishedTorrentModerationRepository } from '@/moderation-movie/infrastructure/finished-torrent-moderation.repository';
 
 export class AdminRemoveCartoonCommand implements ICommand {
   constructor(public cartoonId: number) {}
@@ -28,8 +31,27 @@ export class AdminRemoveCartoonCommandHandler
     private readonly cartoonRepository: CartoonRepository,
     private readonly downloaderServiceAdapter: DownloaderServiceAdapter,
     private readonly rmqResultHandlerUtil: RmqResultHandlerUtil,
+    private readonly moderationCartoonRepository: ModerationCartoonRepository,
+    private readonly finishedTorrentModerationRepository: FinishedTorrentModerationRepository,
   ) {
     this.logger.setContext(AdminRemoveCartoonCommandHandler.name);
+  }
+
+  // Best-effort purge of residual data tied to a removed cartoon (download queue, pending
+  // moderation task, finished-torrent marker) so it cannot be resurrected or leave orphans.
+  private async cleanupResiduals(movieId: number, kpId: string | null): Promise<void> {
+    try {
+      if (kpId) {
+        await this.downloaderServiceAdapter.bridgeRemoveFromQueueByKpId(
+          MovieTypesEnum.CARTOON,
+          kpId,
+        );
+        await this.finishedTorrentModerationRepository.deleteByKpId(kpId);
+      }
+      await this.moderationCartoonRepository.deleteByMovieId(movieId);
+    } catch (error) {
+      this.logger.error(error, this.cleanupResiduals.name);
+    }
   }
 
   private extractStorageKey(url: string | null | undefined): string | null {
@@ -97,6 +119,7 @@ export class AdminRemoveCartoonCommandHandler
       );
 
       await this.cartoonRepository.remove(cartoon);
+      await this.cleanupResiduals(cartoon.id, cartoon.kpId ?? null);
 
       return this.appNotification.success(null);
     } catch (e) {

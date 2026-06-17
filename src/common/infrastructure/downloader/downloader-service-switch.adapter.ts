@@ -214,6 +214,17 @@ export class DownloaderServiceSwitchAdapter {
     );
   }
 
+  bridgeRemoveFromQueueByKpId(
+    type: MovieTypesEnum,
+    kpId: string,
+  ): Promise<FallbackResult<{ removed: number }>> {
+    return this.executeRequestWithFallback(
+      this.bridgeRemoveFromQueueByKpId.name,
+      this.rmqCall(a => a.bridgeRemoveFromQueueByKpId(type, kpId)),
+      () => this.restAdapter.bridgeRemoveFromQueueByKpId(type, kpId),
+    );
+  }
+
   clearLogs(keys: string[]): Promise<FallbackResult<null>> {
     return this.executeRequestWithFallback(
       this.clearLogs.name,

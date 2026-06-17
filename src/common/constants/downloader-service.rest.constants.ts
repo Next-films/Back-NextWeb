@@ -13,6 +13,8 @@ export const DOWNLOADER_SERVICE_REST_BRIDGE_METHODS_CONSTANTS = {
   RECONCILE: 'reconcile',
   SCHEDULE: 'schedule',
   STATUS: 'status',
+  QUEUE: 'queue',
+  REMOVE_BY_KPID: 'remove-by-kpid',
 };
 
 const CONVERTER_PREFIX = 'converter';
