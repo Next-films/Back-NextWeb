@@ -19,13 +19,12 @@ export class MovieMetadataCardService {
   }
 
   createMovieDto(metadata: MovieKpMetadata, kpId: string): MovieCreateDto {
-    return {
+    const dto = {
       key: null,
       kpId,
       duration: 0,
       name: metadata.name || 'unknown',
       originalName: metadata.originalName,
-      hidden: false,
       genres: metadata.genres,
       alternativeName: metadata.alternativeName,
       universe: metadata.universe,
@@ -33,20 +32,27 @@ export class MovieMetadataCardService {
       country: metadata.countries,
       description: metadata.description,
       releaseDate: metadata.releaseDate,
-      handleStatus: MovieHandleStatus.PRODUCTION,
       availabilityStatus: MovieAvailabilityStatus.UPCOMING,
       trailerUrl: metadata.trailerUrl,
-      backgroundContentUrl: null,
-      horizontalPreviewUrl: null,
-      previewUrl: null,
-      titleUrl: null,
+      backgroundContentUrl: metadata.backdropUrl,
+      horizontalPreviewUrl: metadata.backdropUrl,
+      previewUrl: metadata.posterUrl,
+      titleUrl: metadata.titleUrl,
+    };
+    const moderationState = this.getUpcomingModerationState(dto);
+
+    return {
+      ...dto,
+      ...moderationState,
     };
   }
 
   updateExistingMovie<T extends MovieEntity>(movie: T, metadata: MovieKpMetadata, kpId: string): T {
     const updateDto = this.createUpdateDto(movie, metadata, kpId);
+    const moderationState = this.getUpcomingModerationState(updateDto);
+
     movie.update(updateDto);
-    movie.showOrHiddeMovie(false, MovieHandleStatus.PRODUCTION);
+    movie.showOrHiddeMovie(moderationState.hidden, moderationState.handleStatus);
     movie.updateAvailabilityStatus(MovieAvailabilityStatus.UPCOMING);
     return movie;
   }
@@ -84,12 +90,52 @@ export class MovieMetadataCardService {
       country: metadata.countries || movie.country,
       description: metadata.description || movie.description,
       releaseDate: metadata.releaseDate || movie.releaseDate,
-      previewUrl: movie.previewUrl || null,
-      horizontalPreviewUrl: movie.horizontalPreviewUrl || null,
-      backgroundContentUrl: movie.backgroundContentUrl || null,
+      previewUrl: movie.previewUrl || metadata.posterUrl,
+      horizontalPreviewUrl: movie.horizontalPreviewUrl || metadata.backdropUrl,
+      backgroundContentUrl: movie.backgroundContentUrl || metadata.backdropUrl,
       trailerUrl: movie.trailerUrl || metadata.trailerUrl,
-      titleUrl: movie.titleUrl || null,
+      titleUrl: movie.titleUrl || metadata.titleUrl,
     };
+  }
+
+  private getUpcomingModerationState(
+    movie: Pick<
+      MovieCreateDto,
+      | 'name'
+      | 'alternativeName'
+      | 'country'
+      | 'description'
+      | 'releaseDate'
+      | 'genres'
+      | 'trailerUrl'
+      | 'backgroundContentUrl'
+      | 'previewUrl'
+    >,
+  ): { hidden: boolean; handleStatus: MovieHandleStatus } {
+    const isReadyForProduction = !!(
+      this.hasText(movie.name) &&
+      this.hasText(movie.alternativeName) &&
+      this.hasText(movie.description) &&
+      this.hasText(movie.releaseDate) &&
+      this.hasText(movie.trailerUrl) &&
+      this.hasText(movie.backgroundContentUrl) &&
+      this.hasText(movie.previewUrl) &&
+      movie.genres &&
+      movie.genres.length > 0 &&
+      movie.country &&
+      movie.country.length > 0
+    );
+
+    return {
+      hidden: !isReadyForProduction,
+      handleStatus: isReadyForProduction
+        ? MovieHandleStatus.PRODUCTION
+        : MovieHandleStatus.MODERATE,
+    };
+  }
+
+  private hasText(value: string | null): boolean {
+    return Boolean(value && value.trim());
   }
 
   private async getContentUrlForMovie(

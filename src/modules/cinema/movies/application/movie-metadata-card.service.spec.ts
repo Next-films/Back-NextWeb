@@ -1,6 +1,6 @@
 import { MovieMetadataCardService } from '@/movies/application/movie-metadata-card.service';
 import { MovieTypesEnum } from '@/common/types/types';
-import { MovieAvailabilityStatus, MovieKpMetadata } from '@/movies/domain/types';
+import { MovieAvailabilityStatus, MovieHandleStatus, MovieKpMetadata } from '@/movies/domain/types';
 
 describe('MovieMetadataCardService', () => {
   const service = new MovieMetadataCardService(null as never);
@@ -21,6 +21,18 @@ describe('MovieMetadataCardService', () => {
     trailerUrl: null,
   });
 
+  const completeMetadata = (): MovieKpMetadata => ({
+    ...metadata(['США']),
+    name: 'Movie',
+    alternativeName: 'Movie 2026',
+    description: 'Description',
+    releaseDate: '2026-10-07',
+    genres: [{} as never],
+    posterUrl: 'https://image.example/poster.jpg',
+    backdropUrl: 'https://image.example/backdrop.jpg',
+    trailerUrl: 'https://youtube.com/watch?v=test',
+  });
+
   it('allows upcoming cards for foreign movies', () => {
     expect(service.shouldPublishUpcomingCard(metadata(['США']))).toBe(true);
   });
@@ -38,6 +50,28 @@ describe('MovieMetadataCardService', () => {
     );
 
     expect(dto.availabilityStatus).toBe(MovieAvailabilityStatus.UPCOMING);
+  });
+
+  it('sends upcoming cards with missing images to moderation', () => {
+    const dto = service.createMovieDto(
+      {
+        ...completeMetadata(),
+        posterUrl: null,
+      },
+      '1264562',
+    );
+
+    expect(dto.handleStatus).toBe(MovieHandleStatus.MODERATE);
+    expect(dto.hidden).toBe(true);
+  });
+
+  it('publishes complete upcoming cards to production', () => {
+    const dto = service.createMovieDto(completeMetadata(), '1264562');
+
+    expect(dto.handleStatus).toBe(MovieHandleStatus.PRODUCTION);
+    expect(dto.hidden).toBe(false);
+    expect(dto.previewUrl).toBe('https://image.example/poster.jpg');
+    expect(dto.backgroundContentUrl).toBe('https://image.example/backdrop.jpg');
   });
 
   it('keeps existing metadata cards in upcoming status', () => {
@@ -72,6 +106,7 @@ describe('MovieMetadataCardService', () => {
     expect(existingMovie.updateAvailabilityStatus).toHaveBeenCalledWith(
       MovieAvailabilityStatus.UPCOMING,
     );
+    expect(existingMovie.showOrHiddeMovie).toHaveBeenCalledWith(true, MovieHandleStatus.MODERATE);
   });
 
   it('does not hydrate downloader assets for upcoming cards', async () => {
