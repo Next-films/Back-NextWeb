@@ -7,6 +7,8 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Serial } from '@/serials/domain/serial.entity';
 import { SerialEpisode } from '@/serials/domain/serial-episode.entity';
 import { SerialSeason } from '@/serials/domain/serial-season.entity';
+import { MovieAvailabilityPolicy } from '@/movies/domain/movie-availability.policy';
+import { MovieAvailabilityStatus } from '@/movies/domain/types';
 
 export class SerialsOutputDto {
   @ApiProperty()
@@ -44,6 +46,15 @@ export class SerialsOutputDto {
 
   @ApiProperty()
   episodeCount: number;
+
+  @ApiProperty({ enum: MovieAvailabilityStatus })
+  availabilityStatus: MovieAvailabilityStatus;
+
+  @ApiProperty()
+  isPlayable: boolean;
+
+  @ApiProperty({ nullable: true })
+  unavailableReason: string | null;
 }
 
 type GroupedEpisodeVariants = {
@@ -138,6 +149,11 @@ export class SerialsOutputDtoMapper extends MoviePublicOutputDtoMapper {
       loadedEpisodes.length > 0
         ? this.countUniqueEpisodes(loadedEpisodes)
         : relationEpisodeCount ?? 0;
+    const availabilitySubject = {
+      availabilityStatus: serial.availabilityStatus,
+      releaseDate: serial.releaseDate,
+      hasPlayableMedia: episodeCount > 0,
+    };
 
     return {
       id: serial.id,
@@ -156,6 +172,9 @@ export class SerialsOutputDtoMapper extends MoviePublicOutputDtoMapper {
       genres: this.mapMovieGenres(genres),
       country: serial.country,
       episodeCount,
+      availabilityStatus: MovieAvailabilityPolicy.resolveStatus(availabilitySubject),
+      isPlayable: MovieAvailabilityPolicy.isPlayable(availabilitySubject),
+      unavailableReason: MovieAvailabilityPolicy.getUnavailableReason(availabilitySubject),
     };
   }
 

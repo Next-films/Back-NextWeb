@@ -1,11 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Brackets, Repository, SelectQueryBuilder } from 'typeorm';
+import { Brackets, In, Repository, SelectQueryBuilder } from 'typeorm';
 import { Serial } from '../domain/serial.entity';
 import { SerialEpisode } from '@/serials/domain/serial-episode.entity';
 import { GetSerialSortFieldEnum } from '@/serials/api/dtos/input/get-serial.input-query';
 import { SortDirectionEnum } from '@/common/utils/query-filter.util';
 import { MovieHandleStatus } from '@/movies/domain/types';
+import { MovieAvailabilityPolicy } from '@/movies/domain/movie-availability.policy';
 
 @Injectable()
 export class SerialPublicQueryRepository {
@@ -66,13 +67,21 @@ export class SerialPublicQueryRepository {
     qb.andWhere(`s.isHidden = false`).andWhere(`s.handleStatus = :handleStatus`, {
       handleStatus: MovieHandleStatus.PRODUCTION,
     });
+    qb.andWhere(`s.availabilityStatus IN (:...availabilityStatuses)`, {
+      availabilityStatuses: MovieAvailabilityPolicy.publicStatuses,
+    });
 
     return qb;
   }
 
   async getSerialById(id: number): Promise<Serial | null> {
     return this.serialRepository.findOne({
-      where: { id, isHidden: false, handleStatus: MovieHandleStatus.PRODUCTION },
+      where: {
+        id,
+        isHidden: false,
+        handleStatus: MovieHandleStatus.PRODUCTION,
+        availabilityStatus: In(MovieAvailabilityPolicy.publicStatuses),
+      },
       relations: {
         genres: true,
         episodes: { season: true },

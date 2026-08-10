@@ -37,6 +37,8 @@ import { SwaggerDecoratorNewSerialIsHandle } from '@/serials/api/swagger/new-ser
 import { SwaggerDecoratorNewBackgroundContentForSerial } from '@/serials/api/swagger/new-background-content-private.swagger.decorator';
 import { NewSerialBackGroundContentPayloadDto } from '@/serials/api/dtos/input/new-serial-background-content.input.dto';
 import { NewBackGroundContentSerialCommand } from '@/serials/application/handlers/new-background-content-serial.handler';
+import { UpsertUpcomingMoviePayloadDto } from '@/movies/api/dtos/input/upsert-upcoming-movie.input.dto';
+import { UpsertUpcomingSerialCommand } from '@/serials/application/handlers/upsert-upcoming-serial.handler';
 
 @ApiBearerAuth(BACKEND_TO_BACKEND_AUTH_JWT_SCHEMA_NAME)
 @ApiUnauthorizedResponse({ description: 'Unauthorized', type: HttpPrivateExceptionDto })
@@ -67,6 +69,23 @@ export class SerialPrivateController {
     >(new GetPrivateSerialByKinopoiskIdQuery(kpId));
 
     this.logger.log(result.appResult, this.getSerialByKpId.name);
+
+    return this.appNotification.handleHttpResult(result, true);
+  }
+
+  @HttpCode(HttpStatus.CREATED)
+  @Post(`${PRIVATE_SERIALS_ROUTE.UPCOMING}`)
+  async upsertUpcomingSerial(
+    @Body() body: UpsertUpcomingMoviePayloadDto,
+  ): Promise<AppNotificationResult<null, ErrorFieldExceptionDto | null> | void> {
+    this.logger.log(`Execute: Upsert upcoming serial`, this.upsertUpcomingSerial.name);
+
+    const result = await this.commandBus.execute<
+      UpsertUpcomingSerialCommand,
+      AppNotificationResult<null, ErrorFieldExceptionDto | null>
+    >(new UpsertUpcomingSerialCommand(body));
+
+    this.logger.log(result.appResult, this.upsertUpcomingSerial.name);
 
     return this.appNotification.handleHttpResult(result, true);
   }

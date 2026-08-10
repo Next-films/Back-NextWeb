@@ -3,7 +3,12 @@ import { Genre } from '@/movies/domain/genre.entity';
 import { CartonCreateDto } from '@/cartoons/domain/types';
 import { FilmCreateDto } from '@/films/domain/types';
 import { RU_PG_COLLATION } from '@/common/constants/collation.constant';
-import { MovieHandleStatus, MovieUpdateDto, UploadedFilesUrlResult } from '@/movies/domain/types';
+import {
+  MovieAvailabilityStatus,
+  MovieHandleStatus,
+  MovieUpdateDto,
+  UploadedFilesUrlResult,
+} from '@/movies/domain/types';
 
 export class MovieEntity {
   @PrimaryGeneratedColumn()
@@ -63,6 +68,14 @@ export class MovieEntity {
   @Column({ enum: MovieHandleStatus, default: MovieHandleStatus.PROCESSING })
   handleStatus: MovieHandleStatus;
 
+  @Column({
+    type: 'enum',
+    enum: MovieAvailabilityStatus,
+    enumName: 'movie_availability_status_enum',
+    default: MovieAvailabilityStatus.AVAILABLE,
+  })
+  availabilityStatus: MovieAvailabilityStatus;
+
   @Column({ type: 'timestamp with time zone', default: () => 'CURRENT_TIMESTAMP' })
   createdAt: Date;
 
@@ -91,6 +104,7 @@ export class MovieEntity {
       duration,
       releaseDate,
       handleStatus,
+      availabilityStatus,
       previewUrl,
       horizontalPreviewUrl,
       trailerUrl,
@@ -115,6 +129,9 @@ export class MovieEntity {
     instance.createdAt = currentDate;
     instance.updatedAt = currentDate;
     instance.handleStatus = handleStatus;
+    instance.availabilityStatus =
+      availabilityStatus ||
+      (key ? MovieAvailabilityStatus.AVAILABLE : MovieAvailabilityStatus.RELEASED_NO_VIDEO);
 
     instance.trailerUrl = trailerUrl;
     instance.backgroundContentUrl = backgroundContentUrl;
@@ -201,6 +218,11 @@ export class MovieEntity {
     } else {
       this.isHidden = false;
     }
+  }
+
+  updateAvailabilityStatus(status: MovieAvailabilityStatus): void {
+    this.availabilityStatus = status;
+    this.updatedAt = new Date();
   }
 
   showOrHiddeMovie(isHidden: boolean, status?: MovieHandleStatus): void {

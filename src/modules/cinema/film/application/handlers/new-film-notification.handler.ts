@@ -11,7 +11,7 @@ import { EXCEPTION_KEYS_ENUM } from '@/common/enums/exception-keys.enum';
 import { FilmRepository } from '@/films/infrastructure/film.repository';
 import { FilmCreateDto, FilmUpdateDto } from '@/films/domain/types';
 import { Film } from '@/films/domain/film.entity';
-import { MovieHandleStatus, MovieKpMetadata } from '@/movies/domain/types';
+import { MovieAvailabilityStatus, MovieHandleStatus, MovieKpMetadata } from '@/movies/domain/types';
 import { MoviesService } from '@/movies/application/movies.service';
 import { NewFilmNotificationPayloadDto } from '@/films/api/dtos/input/new-film-notification.input.dto';
 import { CreateModerationDto } from '@/moderation-movie/domain/types';
@@ -68,7 +68,7 @@ export class NewFilmNotificationCommandHandler
         this.filmRepository.getFilmByKinopoiskId(kpId, queryRunner),
       ]);
 
-      if (this.moviesService.isFilmInProductionOrModerate(existingFilm)) {
+      if (this.isAlreadyPlayableOrModerating(existingFilm)) {
         this.logger.warn('Film already exist', this.execute.name);
 
         await queryRunner.rollbackTransaction();
@@ -86,6 +86,7 @@ export class NewFilmNotificationCommandHandler
         ? await this.updateExistingFilm(existingFilm, metadata, key, duration || 0, kpId)
         : this.createNewFilm(metadata, key, duration || 0, kpId);
 
+      film.updateAvailabilityStatus(MovieAvailabilityStatus.AVAILABLE);
       this.moviesService.setHandleProductionStatus(film);
 
       const savedFilm = await this.filmRepository.save(film, queryRunner);
@@ -131,6 +132,12 @@ export class NewFilmNotificationCommandHandler
     } finally {
       await queryRunner.release();
     }
+  }
+
+  private isAlreadyPlayableOrModerating(film: Film | null): boolean {
+    if (!film) return false;
+    if (film.handleStatus === MovieHandleStatus.MODERATE) return true;
+    return film.handleStatus === MovieHandleStatus.PRODUCTION && Boolean(film.videoUrl);
   }
 
   private async updateExistingFilm(

@@ -37,6 +37,8 @@ import { BACKEND_TO_BACKEND_AUTH_JWT_SCHEMA_NAME } from '@/common/constants/auth
 import { NewFilmBackGroundContentPayloadDto } from '@/films/api/dtos/input/new-film-background-content.input.dto';
 import { NewBackGroundContentFilmCommand } from '@/films/application/handlers/new-background-content-film.handler';
 import { SwaggerDecoratorNewBackgroundContentForFilm } from '@/films/api/swagger/new-background-content-private.swagger.decorator';
+import { UpsertUpcomingMoviePayloadDto } from '@/movies/api/dtos/input/upsert-upcoming-movie.input.dto';
+import { UpsertUpcomingFilmCommand } from '@/films/application/handlers/upsert-upcoming-film.handler';
 
 @ApiBearerAuth(BACKEND_TO_BACKEND_AUTH_JWT_SCHEMA_NAME)
 @ApiUnauthorizedResponse({ description: 'Unauthorized', type: HttpPrivateExceptionDto })
@@ -85,6 +87,23 @@ export class FilmPrivateController {
     >(new NewFilmIsHandleNotificationCommand(body));
 
     this.logger.log(result.appResult, this.newFilmIsHandle.name);
+
+    return this.appNotification.handleHttpResult(result, true);
+  }
+
+  @HttpCode(HttpStatus.CREATED)
+  @Post(`${PRIVATE_FILMS_ROUTE.UPCOMING}`)
+  async upsertUpcomingFilm(
+    @Body() body: UpsertUpcomingMoviePayloadDto,
+  ): Promise<AppNotificationResult<null, ErrorFieldExceptionDto | null> | void> {
+    this.logger.log(`Execute: Upsert upcoming film`, this.upsertUpcomingFilm.name);
+
+    const result = await this.commandBus.execute<
+      UpsertUpcomingFilmCommand,
+      AppNotificationResult<null, ErrorFieldExceptionDto | null>
+    >(new UpsertUpcomingFilmCommand(body));
+
+    this.logger.log(result.appResult, this.upsertUpcomingFilm.name);
 
     return this.appNotification.handleHttpResult(result, true);
   }

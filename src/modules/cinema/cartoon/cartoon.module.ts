@@ -21,6 +21,7 @@ import { CartoonsPublicOutputDtoMapper } from '@/cartoons/api/dtos/output/cartoo
 import { CartoonsPrivateOutputDtoMapper } from '@/cartoons/api/dtos/output/cartoons-private.output.dto';
 import { CartoonPublicQueryRepository } from '@/cartoons/infrastructure/cartoon-public.query-repository';
 import { ModerationMovieModule } from '@/moderation-movie/moderation-movie.module';
+import { UpsertUpcomingCartoonCommandHandler } from '@/cartoons/application/handlers/upsert-upcoming-cartoon.handler';
 
 const cartoonProvider = {
   provide: 'Cartoon',
@@ -40,6 +41,7 @@ const handlers = [
   NewCartoonNotificationCommandHandler,
   NewCartoonIsHandleNotificationCommandHandler,
   NewBackGroundContentCartoonCommandHandler,
+  UpsertUpcomingCartoonCommandHandler,
 ];
 
 const exportProviders = [CartoonRepository, CartoonQueryRepository, cartoonProvider];

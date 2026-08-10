@@ -1,10 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Brackets, Repository, SelectQueryBuilder } from 'typeorm';
+import { Brackets, In, Repository, SelectQueryBuilder } from 'typeorm';
 import { Film } from '@/films/domain/film.entity';
 import { SortDirectionEnum } from '@/common/utils/query-filter.util';
 import { GetFilmsSortFieldEnum } from '@/films/api/dtos/input/get-films.input-query';
 import { MovieHandleStatus } from '@/movies/domain/types';
+import { MovieAvailabilityPolicy } from '@/movies/domain/movie-availability.policy';
 
 @Injectable()
 export class FilmPublicQueryRepository {
@@ -63,13 +64,21 @@ export class FilmPublicQueryRepository {
     qb.andWhere(`f.isHidden = false`).andWhere(`f.handleStatus = :handleStatus`, {
       handleStatus: MovieHandleStatus.PRODUCTION,
     });
+    qb.andWhere(`f.availabilityStatus IN (:...availabilityStatuses)`, {
+      availabilityStatuses: MovieAvailabilityPolicy.publicStatuses,
+    });
 
     return qb;
   }
 
   async getFilmById(id: number): Promise<Film | null> {
     return this.filmRepository.findOne({
-      where: { id, isHidden: false, handleStatus: MovieHandleStatus.PRODUCTION },
+      where: {
+        id,
+        isHidden: false,
+        handleStatus: MovieHandleStatus.PRODUCTION,
+        availabilityStatus: In(MovieAvailabilityPolicy.publicStatuses),
+      },
       relations: { genres: true },
     });
   }

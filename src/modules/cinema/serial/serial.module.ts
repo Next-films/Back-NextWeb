@@ -27,6 +27,7 @@ import { GetRpcSerialByKinopoiskIdQueryHandler } from '@/serials/application/que
 import { NewSerialNotificationCommandHandler } from '@/serials/application/handlers/new-serial-notification.handler';
 import { NewSerialIsHandleNotificationCommandHandler } from '@/serials/application/handlers/new-serial-is-handle-notification.handler';
 import { NewBackGroundContentSerialCommandHandler } from '@/serials/application/handlers/new-background-content-serial.handler';
+import { UpsertUpcomingSerialCommandHandler } from '@/serials/application/handlers/upsert-upcoming-serial.handler';
 import { MoviesModules } from '@/movies/movies.modules';
 import { KinopoiskModule } from '@/external-api/kinopoisk/kinopoisk.module';
 import { ModerationMovieModule } from '@/moderation-movie/moderation-movie.module';
@@ -43,6 +44,7 @@ const handlers = [
   NewSerialNotificationCommandHandler,
   NewSerialIsHandleNotificationCommandHandler,
   NewBackGroundContentSerialCommandHandler,
+  UpsertUpcomingSerialCommandHandler,
 ];
 
 const serialProvider = {

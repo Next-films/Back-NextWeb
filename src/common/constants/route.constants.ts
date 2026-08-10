@@ -53,6 +53,7 @@ export const ADMIN_CINEMA_ROUTE = {
   FILMS: `films`,
   CARTOONS: `cartoons`,
   SERIALS: `serials`,
+  PREMIERES: `premieres`,
 };
 
 export const ADMIN_BANNER_ROUTE = {
@@ -113,6 +114,7 @@ export const FILMS_ROUTE = {
 export const PRIVATE_FILMS_ROUTE = {
   MAIN: `${CINEMA_PREFIX}/private/films`,
   NEW_FILM: 'new-film',
+  UPCOMING: 'new-film/upcoming',
   NEW_FILM_IS_HANDLE: 'new-film/is-handle',
   KP: `kp`,
   NEW_BACKGROUND_CONTENT: 'new-background-content',
@@ -131,6 +133,7 @@ export const SERIALS_ROUTE = {
 export const PRIVATE_SERIALS_ROUTE = {
   MAIN: `${CINEMA_PREFIX}/private/serials`,
   NEW_SERIAL: 'new-serial',
+  UPCOMING: 'new-serial/upcoming',
   NEW_SERIAL_IS_HANDLE: 'new-serial/is-handle',
   KP: `kp`,
   NEW_BACKGROUND_CONTENT: 'new-background-content',
@@ -155,6 +158,7 @@ export const PRIVATE_CARTOONS_ROUTE = {
   MAIN: `${CINEMA_PREFIX}/private/cartoons`,
   KP: `kp`,
   NEW_CARTOON: 'new-cartoon',
+  UPCOMING: 'new-cartoon/upcoming',
   NEW_CARTOON_IS_HANDLE: 'new-cartoon/is-handle',
   NEW_BACKGROUND_CONTENT: 'new-background-content',
 };

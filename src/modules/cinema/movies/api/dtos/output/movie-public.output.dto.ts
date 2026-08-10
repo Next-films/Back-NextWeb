@@ -3,6 +3,8 @@ import { ApiProperty } from '@nestjs/swagger';
 import { MovieEntity } from '@/movies/domain/movie.entity';
 import { MovieDurationUtil } from '@/common/utils/movie-duration.util';
 import { Genre } from '@/movies/domain/genre.entity';
+import { MovieAvailabilityPolicy } from '@/movies/domain/movie-availability.policy';
+import { MovieAvailabilityStatus } from '@/movies/domain/types';
 
 export class MovieGenreOutputDto {
   @ApiProperty()
@@ -61,6 +63,15 @@ export class MoviesPublicOutputDto {
 
   @ApiProperty({ nullable: true })
   studio: string | null;
+
+  @ApiProperty({ enum: MovieAvailabilityStatus })
+  availabilityStatus: MovieAvailabilityStatus;
+
+  @ApiProperty()
+  isPlayable: boolean;
+
+  @ApiProperty({ nullable: true })
+  unavailableReason: string | null;
 }
 /*
  *
@@ -100,6 +111,15 @@ export class MoviePublicOutputDto {
 
   @ApiProperty({ nullable: true })
   studio: string | null;
+
+  @ApiProperty({ enum: MovieAvailabilityStatus })
+  availabilityStatus: MovieAvailabilityStatus;
+
+  @ApiProperty()
+  isPlayable: boolean;
+
+  @ApiProperty({ nullable: true })
+  unavailableReason: string | null;
 }
 
 @Injectable()
@@ -144,13 +164,15 @@ export class MoviePublicOutputDtoMapper {
       universe,
       studio,
     } = movie;
+    const availabilityStatus = MovieAvailabilityPolicy.resolveStatus(movie);
+    const isPlayable = MovieAvailabilityPolicy.isPlayable(movie);
 
     return {
       id,
       name: title,
 
       content: {
-        movieUrl: videoUrl,
+        movieUrl: isPlayable ? videoUrl : null,
         backgroundUrl: backgroundContentUrl,
         previewUrl,
         horizontalPreviewUrl,
@@ -168,6 +190,9 @@ export class MoviePublicOutputDtoMapper {
       duration: duration,
       universe,
       studio,
+      availabilityStatus,
+      isPlayable,
+      unavailableReason: MovieAvailabilityPolicy.getUnavailableReason(movie),
     };
   }
 
@@ -182,6 +207,8 @@ export class MoviePublicOutputDtoMapper {
   mapAllPublicMovie(movie: MovieEntity): MoviesPublicOutputDto {
     const { id, title, releaseDate, previewUrl, horizontalPreviewUrl, genres, universe, studio } =
       movie;
+    const availabilityStatus = MovieAvailabilityPolicy.resolveStatus(movie);
+
     return {
       id,
       name: title,
@@ -191,6 +218,9 @@ export class MoviePublicOutputDtoMapper {
       genres: this.mapMovieGenres(genres),
       universe,
       studio,
+      availabilityStatus,
+      isPlayable: MovieAvailabilityPolicy.isPlayable(movie),
+      unavailableReason: MovieAvailabilityPolicy.getUnavailableReason(movie),
     };
   }
 

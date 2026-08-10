@@ -16,6 +16,7 @@ export class MovieCreateDto {
 
   hidden: boolean;
   handleStatus: MovieHandleStatus;
+  availabilityStatus?: MovieAvailabilityStatus;
 
   trailerUrl: string | null;
   backgroundContentUrl: string | null;
@@ -28,6 +29,12 @@ export enum MovieHandleStatus {
   PROCESSING = 'processing',
   MODERATE = 'moderate',
   PRODUCTION = 'production',
+}
+
+export enum MovieAvailabilityStatus {
+  UPCOMING = 'upcoming',
+  RELEASED_NO_VIDEO = 'released_no_video',
+  AVAILABLE = 'available',
 }
 
 export class MovieUpdateDto {

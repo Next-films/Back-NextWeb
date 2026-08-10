@@ -12,6 +12,7 @@ import { GetAllGenreQueryHandler } from '@/movies/application/query-handlers/get
 import { MoviesService } from '@/movies/application/movies.service';
 import { MovieRpcOutputDtoMapper } from '@/movies/api/dtos/output/movie-rpc.output.dto';
 import { MoviePrivateOutputDtoMapper } from '@/movies/api/dtos/output/movie-private.output.dto';
+import { MovieMetadataCardService } from '@/movies/application/movie-metadata-card.service';
 
 export const GenreProvider = {
   provide: 'Genre',
@@ -25,6 +26,7 @@ const exportProviders = [
   TypeOrmModule.forFeature([Genre]),
   GenreRepository,
   MoviesService,
+  MovieMetadataCardService,
 ];
 
 const queryCommands = [GetGenreByIdQueryHandler, GetAllGenreQueryHandler];
@@ -41,6 +43,7 @@ const queryCommands = [GetGenreByIdQueryHandler, GetAllGenreQueryHandler];
     GenreQueryRepository,
     MoviePrivateOutputDtoMapper,
     MoviesService,
+    MovieMetadataCardService,
     ...providers,
     ...queryCommands,
   ],

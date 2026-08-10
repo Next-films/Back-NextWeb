@@ -75,6 +75,7 @@ import { AdminGetFilmByIdQueryHandler } from '@/admin/application/query-handlers
 import { AdminGetCartoonByIdQueryHandler } from '@/admin/application/query-handlers/admin-get-cartoon-by-id.query-handler';
 import { SerialModule } from '@/serials/serial.module';
 import { AdminCinemaSerialsController } from '@/admin/api/admin-cinema-serials.controller';
+import { AdminCinemaPremieresController } from '@/admin/api/admin-cinema-premieres.controller';
 import { AdminGetAllSerialsQueryHandler } from '@/admin/application/query-handlers/admin-get-all-serials.query-handler';
 import { AdminUpdateSerialCommandHandler } from '@/admin/application/handlers/admin-update-serial.handler';
 import { AdminRemoveSerialCommandHandler } from '@/admin/application/handlers/admin-remove-serial.handler';
@@ -82,6 +83,7 @@ import { AdminShowOrHiddeSerialCommandHandler } from '@/admin/application/handle
 import { AdminGetSerialByIdQueryHandler } from '@/admin/application/query-handlers/admin-get-serial-by-id.query-handler';
 import { AdminMediaUrlSigningService } from '@/admin/application/services/admin-media-url-signing.service';
 import { AdminRemoveAdminCommandHandler } from '@/admin/application/handlers/admin-remove-admin.handler';
+import { AdminGetPremieresQueryHandler } from '@/admin/application/query-handlers/admin-get-premieres.query-handler';
 
 export const AdminProvider = {
   provide: 'Admin',
@@ -136,6 +138,7 @@ const queryHandlers = [
   AdminGetCartoonByIdQueryHandler,
   AdminGetAllSerialsQueryHandler,
   AdminGetSerialByIdQueryHandler,
+  AdminGetPremieresQueryHandler,
 ];
 
 const exportProviders = [
@@ -170,6 +173,7 @@ const exportProviders = [
     AdminCinemaPrivateController,
     AdminCinemaCartoonsController,
     AdminCinemaSerialsController,
+    AdminCinemaPremieresController,
     AdminController,
   ],
   providers: [

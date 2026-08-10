@@ -11,7 +11,7 @@ import { ErrorFieldExceptionDto } from '@/common/exception-filters/http/http-exc
 import { LoggerService } from '@/common/utils/logger/logger.service';
 import { KinopoiskService } from '@/external-api/kinopoisk/application/kinopoisk.service';
 import { MoviesService } from '@/movies/application/movies.service';
-import { MovieHandleStatus, MovieKpMetadata } from '@/movies/domain/types';
+import { MovieAvailabilityStatus, MovieHandleStatus, MovieKpMetadata } from '@/movies/domain/types';
 import { MovieTypesEnum } from '@/common/types/types';
 import { CreateModerationDto } from '@/moderation-movie/domain/types';
 import { TelegramAdminBotSendNotificationNewModerationMovieCommand } from '@/telegram/admin-bot/application/handlers/bot-send-notification-new-moderation-movie.handler';
@@ -107,6 +107,7 @@ export class NewSerialNotificationCommandHandler
 
       this.attachEpisode(serial, key, duration || 0, seasonNumber, episodeNumber, voiceoverLabel);
 
+      serial.updateAvailabilityStatus(MovieAvailabilityStatus.AVAILABLE);
       this.moviesService.setHandleProductionStatus(serial);
 
       const savedSerial = await this.serialRepository.save(serial, queryRunner);

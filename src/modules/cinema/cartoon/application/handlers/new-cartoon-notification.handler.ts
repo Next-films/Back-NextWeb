@@ -11,7 +11,7 @@ import { Cartoon } from '@/cartoons/domain/cartoon.entity';
 import { CartoonRepository } from '@/cartoons/infrastructure/cartoon.repository';
 import { KinopoiskService } from '@/external-api/kinopoisk/application/kinopoisk.service';
 import { EXCEPTION_KEYS_ENUM } from '@/common/enums/exception-keys.enum';
-import { MovieHandleStatus, MovieKpMetadata } from '@/movies/domain/types';
+import { MovieAvailabilityStatus, MovieHandleStatus, MovieKpMetadata } from '@/movies/domain/types';
 import { MoviesService } from '@/movies/application/movies.service';
 import { NewCartoonNotificationPayloadDto } from '@/cartoons/api/dtos/input/new-cartoon-notification.input.dto';
 import { InjectDataSource } from '@nestjs/typeorm';
@@ -68,7 +68,7 @@ export class NewCartoonNotificationCommandHandler
         this.cartoonRepository.getCartoonByKinopoiskId(kpId, queryRunner),
       ]);
 
-      if (this.moviesService.isFilmInProductionOrModerate(existingCartoon)) {
+      if (this.isAlreadyPlayableOrModerating(existingCartoon)) {
         this.logger.warn('Cartoon already exist', this.execute.name);
 
         await queryRunner.rollbackTransaction();
@@ -86,6 +86,7 @@ export class NewCartoonNotificationCommandHandler
         ? await this.updateExistingCartoon(existingCartoon, metadata, key, duration || 0, kpId)
         : this.createNewCartoon(metadata, key, duration || 0, kpId);
 
+      cartoon.updateAvailabilityStatus(MovieAvailabilityStatus.AVAILABLE);
       this.moviesService.setHandleProductionStatus(cartoon);
 
       const savedCartoon = await this.cartoonRepository.save(cartoon, queryRunner);
@@ -132,6 +133,12 @@ export class NewCartoonNotificationCommandHandler
     } finally {
       await queryRunner.release();
     }
+  }
+
+  private isAlreadyPlayableOrModerating(cartoon: Cartoon | null): boolean {
+    if (!cartoon) return false;
+    if (cartoon.handleStatus === MovieHandleStatus.MODERATE) return true;
+    return cartoon.handleStatus === MovieHandleStatus.PRODUCTION && Boolean(cartoon.videoUrl);
   }
 
   private async updateExistingCartoon(
