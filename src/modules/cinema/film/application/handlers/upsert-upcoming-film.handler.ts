@@ -79,12 +79,7 @@ export class UpsertUpcomingFilmCommandHandler
       }
 
       const film = existingFilm
-        ? await this.movieMetadataCardService.updateExistingMovie(
-            existingFilm,
-            metadata,
-            kpId,
-            MovieTypesEnum.FILM,
-          )
+        ? this.movieMetadataCardService.updateExistingMovie(existingFilm, metadata, kpId)
         : this.filmEntity.create(this.movieMetadataCardService.createMovieDto(metadata, kpId));
 
       const savedFilm = await this.filmRepository.save(film, queryRunner);

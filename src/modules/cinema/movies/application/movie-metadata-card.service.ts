@@ -34,7 +34,7 @@ export class MovieMetadataCardService {
       description: metadata.description,
       releaseDate: metadata.releaseDate,
       handleStatus: MovieHandleStatus.PRODUCTION,
-      availabilityStatus: this.resolveAvailabilityStatus(metadata.releaseDate),
+      availabilityStatus: MovieAvailabilityStatus.UPCOMING,
       trailerUrl: metadata.trailerUrl,
       backgroundContentUrl: null,
       horizontalPreviewUrl: null,
@@ -43,16 +43,11 @@ export class MovieMetadataCardService {
     };
   }
 
-  async updateExistingMovie<T extends MovieEntity>(
-    movie: T,
-    metadata: MovieKpMetadata,
-    kpId: string,
-    movieType: MovieTypesEnum,
-  ): Promise<T> {
-    const updateDto = await this.createUpdateDto(movie, metadata, kpId, movieType);
+  updateExistingMovie<T extends MovieEntity>(movie: T, metadata: MovieKpMetadata, kpId: string): T {
+    const updateDto = this.createUpdateDto(movie, metadata, kpId);
     movie.update(updateDto);
     movie.showOrHiddeMovie(false, MovieHandleStatus.PRODUCTION);
-    movie.updateAvailabilityStatus(this.resolveAvailabilityStatus(metadata.releaseDate));
+    movie.updateAvailabilityStatus(MovieAvailabilityStatus.UPCOMING);
     return movie;
   }
 
@@ -61,6 +56,8 @@ export class MovieMetadataCardService {
     metadata: MovieKpMetadata,
     movieType: MovieTypesEnum,
   ): Promise<void> {
+    if (movie.availabilityStatus === MovieAvailabilityStatus.UPCOMING) return;
+
     const assets = await this.getContentUrlForMovie(movie.id, metadata, movieType);
 
     movie.updateBackgroundUrl(assets.backgroundContentUrl);
@@ -69,14 +66,11 @@ export class MovieMetadataCardService {
     movie.updateTitleUrl(assets.titleUrl);
   }
 
-  private async createUpdateDto<T extends MovieEntity>(
+  private createUpdateDto<T extends MovieEntity>(
     movie: T,
     metadata: MovieKpMetadata,
     kpId: string,
-    movieType: MovieTypesEnum,
-  ): Promise<MovieUpdateDto> {
-    const assets = await this.getMissingContentUrlForMovie(movie, metadata, movieType);
-
+  ): MovieUpdateDto {
     return {
       videUrl: movie.videoUrl,
       kpId,
@@ -90,47 +84,12 @@ export class MovieMetadataCardService {
       country: metadata.countries || movie.country,
       description: metadata.description || movie.description,
       releaseDate: metadata.releaseDate || movie.releaseDate,
-      previewUrl: movie.previewUrl || assets.posterUrl,
-      horizontalPreviewUrl: movie.horizontalPreviewUrl || assets.horizontalPreviewUrl,
-      backgroundContentUrl: movie.backgroundContentUrl || assets.backgroundContentUrl,
+      previewUrl: movie.previewUrl || null,
+      horizontalPreviewUrl: movie.horizontalPreviewUrl || null,
+      backgroundContentUrl: movie.backgroundContentUrl || null,
       trailerUrl: movie.trailerUrl || metadata.trailerUrl,
-      titleUrl: movie.titleUrl || assets.titleUrl,
+      titleUrl: movie.titleUrl || null,
     };
-  }
-
-  private async getMissingContentUrlForMovie<T extends MovieEntity>(
-    movie: T,
-    metadata: MovieKpMetadata,
-    movieType: MovieTypesEnum,
-  ): Promise<{
-    backgroundContentUrl: string | null;
-    horizontalPreviewUrl: string | null;
-    posterUrl: string | null;
-    titleUrl: string | null;
-  }> {
-    const backgroundSourceUrl = metadata.backdropUrl || metadata.trailerUrl;
-
-    const [backgroundContentUrl, horizontalPreviewUrl, posterUrl, titleUrl] = await Promise.all([
-      !movie.backgroundContentUrl
-        ? this.moviesService.getBackgroundContentUrl(backgroundSourceUrl, movie.id, movieType)
-        : Promise.resolve(null),
-      !movie.horizontalPreviewUrl
-        ? this.moviesService.getBackgroundContentUrl(
-            metadata.backdropUrl,
-            movie.id,
-            movieType,
-            'horizontal-posters',
-          )
-        : Promise.resolve(null),
-      !movie.previewUrl
-        ? this.moviesService.getPosterUrl(metadata.posterUrl, movie.id, movieType)
-        : Promise.resolve(null),
-      !movie.titleUrl
-        ? this.moviesService.getLogoUrl(metadata.titleUrl, movie.id, movieType)
-        : Promise.resolve(null),
-    ]);
-
-    return { backgroundContentUrl, horizontalPreviewUrl, posterUrl, titleUrl };
   }
 
   private async getContentUrlForMovie(
@@ -145,32 +104,34 @@ export class MovieMetadataCardService {
   }> {
     const backgroundSourceUrl = metadata.backdropUrl || metadata.trailerUrl;
     const [backgroundContentUrl, horizontalPreviewUrl, posterUrl, titleUrl] = await Promise.all([
-      this.moviesService.getBackgroundContentUrl(backgroundSourceUrl, movieId, movieType),
-      this.moviesService.getBackgroundContentUrl(
-        metadata.backdropUrl,
-        movieId,
-        movieType,
-        'horizontal-posters',
+      this.getAssetUrlOrNull(() =>
+        this.moviesService.getBackgroundContentUrl(backgroundSourceUrl, movieId, movieType),
       ),
-      this.moviesService.getPosterUrl(metadata.posterUrl, movieId, movieType),
-      this.moviesService.getLogoUrl(metadata.titleUrl, movieId, movieType),
+      this.getAssetUrlOrNull(() =>
+        this.moviesService.getBackgroundContentUrl(
+          metadata.backdropUrl,
+          movieId,
+          movieType,
+          'horizontal-posters',
+        ),
+      ),
+      this.getAssetUrlOrNull(() =>
+        this.moviesService.getPosterUrl(metadata.posterUrl, movieId, movieType),
+      ),
+      this.getAssetUrlOrNull(() =>
+        this.moviesService.getLogoUrl(metadata.titleUrl, movieId, movieType),
+      ),
     ]);
 
     return { backgroundContentUrl, horizontalPreviewUrl, posterUrl, titleUrl };
   }
 
-  private resolveAvailabilityStatus(releaseDate: string | null): MovieAvailabilityStatus {
-    if (!releaseDate) return MovieAvailabilityStatus.RELEASED_NO_VIDEO;
-
-    const releaseTime = new Date(releaseDate).getTime();
-    if (Number.isNaN(releaseTime)) return MovieAvailabilityStatus.RELEASED_NO_VIDEO;
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    return releaseTime > today.getTime()
-      ? MovieAvailabilityStatus.UPCOMING
-      : MovieAvailabilityStatus.RELEASED_NO_VIDEO;
+  private async getAssetUrlOrNull(action: () => Promise<string | null>): Promise<string | null> {
+    try {
+      return await action();
+    } catch {
+      return null;
+    }
   }
 
   private isForeignCountryList(countries: string[] | null): boolean {

@@ -79,12 +79,7 @@ export class UpsertUpcomingSerialCommandHandler
       }
 
       const serial = existingSerial
-        ? await this.movieMetadataCardService.updateExistingMovie(
-            existingSerial,
-            metadata,
-            kpId,
-            MovieTypesEnum.SERIAL,
-          )
+        ? this.movieMetadataCardService.updateExistingMovie(existingSerial, metadata, kpId)
         : this.serialEntity.create(this.movieMetadataCardService.createMovieDto(metadata, kpId));
 
       const savedSerial = await this.serialRepository.save(serial, queryRunner);

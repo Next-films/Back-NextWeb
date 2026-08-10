@@ -79,12 +79,7 @@ export class UpsertUpcomingCartoonCommandHandler
       }
 
       const cartoon = existingCartoon
-        ? await this.movieMetadataCardService.updateExistingMovie(
-            existingCartoon,
-            metadata,
-            kpId,
-            MovieTypesEnum.CARTOON,
-          )
+        ? this.movieMetadataCardService.updateExistingMovie(existingCartoon, metadata, kpId)
         : this.cartoonEntity.create(this.movieMetadataCardService.createMovieDto(metadata, kpId));
 
       const savedCartoon = await this.cartoonRepository.save(cartoon, queryRunner);
