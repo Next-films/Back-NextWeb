@@ -10,7 +10,7 @@ import { Genre } from '@/movies/domain/genre.entity';
 import { GenreRepository } from '@/movies/infrastructure/genre.repository';
 import { QueryRunner } from 'typeorm';
 import { MovieEntity } from '@/movies/domain/movie.entity';
-import { MovieHandleStatus, MovieKpMetadata } from '@/movies/domain/types';
+import { MovieAvailabilityStatus, MovieHandleStatus, MovieKpMetadata } from '@/movies/domain/types';
 import { DateUtil } from '@/common/utils/date.util';
 import { MovieTypesEnum } from '@/common/types/types';
 import { DownloaderServiceAdapter } from '@/common/infrastructure/rmq/downloader-service.adapter';
@@ -139,6 +139,44 @@ export class MoviesService {
     movie.showOrHiddeMovie(
       !isValid,
       isValid ? MovieHandleStatus.PRODUCTION : MovieHandleStatus.MODERATE,
+    );
+  }
+
+  isPremiereWithoutVideo<T extends MovieEntity>(movie: T): boolean {
+    return movie.availabilityStatus !== MovieAvailabilityStatus.AVAILABLE && !movie.videoUrl;
+  }
+
+  setHandleProductionStatusForPremiere<T extends MovieEntity>(movie: T): void {
+    const isValid = this.isValidMovieForPremiereProduction(movie);
+    movie.showOrHiddeMovie(
+      !isValid,
+      isValid ? MovieHandleStatus.PRODUCTION : MovieHandleStatus.MODERATE,
+    );
+  }
+
+  private isValidMovieForPremiereProduction<T extends MovieEntity>(movie: T): boolean {
+    const {
+      title,
+      description,
+      country,
+      alternativeTitles,
+      releaseDate,
+      trailerUrl,
+      previewUrl,
+      genres,
+    } = movie;
+
+    return !!(
+      title &&
+      description &&
+      releaseDate &&
+      trailerUrl &&
+      previewUrl &&
+      alternativeTitles &&
+      genres &&
+      genres.length > 0 &&
+      country &&
+      country.length > 0
     );
   }
 

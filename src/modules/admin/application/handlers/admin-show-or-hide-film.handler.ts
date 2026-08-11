@@ -98,12 +98,18 @@ export class AdminShowOrHiddeFilmCommandHandler
         }
 
         if (!isHidden) {
-          if (moderationTask) {
+          if (this.moviesService.isPremiereWithoutVideo(film)) {
+            this.moviesService.setHandleProductionStatusForPremiere(film);
+          } else {
             this.moviesService.setHandleProductionStatus(film);
+          }
 
-            if (film.handleStatus === MovieHandleStatus.PRODUCTION) {
-              await this.moderationFilmRepository.removeTask(moderationTask, queryRunner);
-            }
+          if (film.handleStatus === MovieHandleStatus.PRODUCTION && moderationTask) {
+            await this.moderationFilmRepository.removeTask(moderationTask, queryRunner);
+          }
+
+          if (film.handleStatus === MovieHandleStatus.MODERATE && !moderationTask) {
+            newModerationId = await this.createModeration(film, queryRunner);
           }
         } else {
           this.moviesService.setHandleProductionStatus(film);

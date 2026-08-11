@@ -98,12 +98,18 @@ export class AdminShowOrHiddeCartoonCommandHandler
         }
 
         if (!isHidden) {
-          if (moderationTask) {
+          if (this.moviesService.isPremiereWithoutVideo(cartoon)) {
+            this.moviesService.setHandleProductionStatusForPremiere(cartoon);
+          } else {
             this.moviesService.setHandleProductionStatus(cartoon);
+          }
 
-            if (cartoon.handleStatus === MovieHandleStatus.PRODUCTION) {
-              await this.moderationCartoonRepository.removeTask(moderationTask, queryRunner);
-            }
+          if (cartoon.handleStatus === MovieHandleStatus.PRODUCTION && moderationTask) {
+            await this.moderationCartoonRepository.removeTask(moderationTask, queryRunner);
+          }
+
+          if (cartoon.handleStatus === MovieHandleStatus.MODERATE && !moderationTask) {
+            newModerationId = await this.createModeration(cartoon, queryRunner);
           }
         } else {
           this.moviesService.setHandleProductionStatus(cartoon);

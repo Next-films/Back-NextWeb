@@ -98,12 +98,18 @@ export class AdminShowOrHiddeSerialCommandHandler
         }
 
         if (!isHidden) {
-          if (moderationTask) {
+          if (this.moviesService.isPremiereWithoutVideo(serial)) {
+            this.moviesService.setHandleProductionStatusForPremiere(serial);
+          } else {
             this.moviesService.setHandleProductionStatus(serial);
+          }
 
-            if (serial.handleStatus === MovieHandleStatus.PRODUCTION) {
-              await this.moderationSerialRepository.removeTask(moderationTask, queryRunner);
-            }
+          if (serial.handleStatus === MovieHandleStatus.PRODUCTION && moderationTask) {
+            await this.moderationSerialRepository.removeTask(moderationTask, queryRunner);
+          }
+
+          if (serial.handleStatus === MovieHandleStatus.MODERATE && !moderationTask) {
+            newModerationId = await this.createModeration(serial, queryRunner);
           }
         } else {
           this.moviesService.setHandleProductionStatus(serial);
