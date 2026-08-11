@@ -34,24 +34,16 @@ describe('ExternalMovieAssetsService', () => {
         trailerUrl: 'https://www.youtube.com/watch?v=tmdb',
       }),
     };
-    const fanartService = {
-      getMovieBackgroundUrls: jest.fn().mockResolvedValue(['https://fanart.example/bg.jpg']),
-    };
 
     return {
-      service: new ExternalMovieAssetsService(
-        kinopoiskService as never,
-        tmdbService as never,
-        fanartService as never,
-      ),
+      service: new ExternalMovieAssetsService(kinopoiskService as never, tmdbService as never),
       kinopoiskService,
       tmdbService,
-      fanartService,
     };
   };
 
-  it('adds backdrop and trailer fallbacks for upcoming movies', async () => {
-    const { service, tmdbService, fanartService } = createService();
+  it('adds trailer fallback for upcoming movies', async () => {
+    const { service, tmdbService } = createService();
     const metadata = createMetadata();
 
     await service.enrichUpcomingMetadata(
@@ -74,21 +66,15 @@ describe('ExternalMovieAssetsService', () => {
       originalTitle: 'Original Movie',
       year: 2026,
     });
-    expect(fanartService.getMovieBackgroundUrls).toHaveBeenCalledWith({
-      tmdbId: 123,
-      imdbId: 'tt1234567',
-    });
     expect(metadata.trailerUrl).toBe('https://www.youtube.com/watch?v=tmdb');
     expect(metadata.backdropUrls).toEqual([
       'https://kp.example/primary.jpg',
       'https://kp.example/landscape.jpg',
-      'https://tmdb.example/backdrop.jpg',
-      'https://fanart.example/bg.jpg',
     ]);
   });
 
-  it('does not call fallback providers when kinopoisk metadata is already rich enough', async () => {
-    const { service, tmdbService, fanartService } = createService();
+  it('does not call fallback providers when trailer already exists', async () => {
+    const { service, tmdbService } = createService();
     const metadata: MovieKpMetadata = {
       ...createMetadata(),
       backdropUrls: ['https://kp.example/primary.jpg', 'https://kp.example/secondary.jpg'],
@@ -98,21 +84,6 @@ describe('ExternalMovieAssetsService', () => {
     await service.enrichUpcomingMetadata(metadata, { id: 42 }, MovieTypesEnum.CARTOON);
 
     expect(tmdbService.getAssetCandidates).not.toHaveBeenCalled();
-    expect(fanartService.getMovieBackgroundUrls).not.toHaveBeenCalled();
     expect(metadata.trailerUrl).toBe('https://www.youtube.com/watch?v=kp');
-  });
-
-  it('skips fanart for serials because the current metadata has no tvdb id', async () => {
-    const { service, tmdbService, fanartService } = createService();
-    const metadata = createMetadata();
-
-    await service.enrichUpcomingMetadata(
-      metadata,
-      { id: 42, externalId: { tmdb: 321 }, typeNumber: 2 },
-      MovieTypesEnum.SERIAL,
-    );
-
-    expect(tmdbService.getAssetCandidates).toHaveBeenCalled();
-    expect(fanartService.getMovieBackgroundUrls).not.toHaveBeenCalled();
   });
 });

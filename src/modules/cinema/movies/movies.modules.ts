@@ -16,7 +16,6 @@ import { MovieMetadataCardService } from '@/movies/application/movie-metadata-ca
 import { ExternalMovieAssetsService } from '@/movies/application/external-movie-assets.service';
 import { KinopoiskModule } from '@/external-api/kinopoisk/kinopoisk.module';
 import { TmdbModule } from '@/external-api/tmdb/tmdb.module';
-import { FanartModule } from '@/external-api/fanart/fanart.module';
 
 export const GenreProvider = {
   provide: 'Genre',
@@ -37,7 +36,7 @@ const exportProviders = [
 const queryCommands = [GetGenreByIdQueryHandler, GetAllGenreQueryHandler];
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Genre]), KinopoiskModule, TmdbModule, FanartModule],
+  imports: [TypeOrmModule.forFeature([Genre]), KinopoiskModule, TmdbModule],
   controllers: [MoviesController],
   providers: [
     MoviePublicOutputDtoMapper,

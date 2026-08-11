@@ -121,11 +121,11 @@ export class AdminReprocessPremiereAssetsInputDto {
   @IsBoolean()
   onlyMissingAssets?: boolean = true;
 
-  @ApiPropertyOptional({ default: 3, minimum: 1, maximum: 10 })
+  @ApiPropertyOptional({ default: 50, minimum: 1, maximum: 100 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  @Max(10)
-  limit?: number = 3;
+  @Max(100)
+  limit?: number = 50;
 }

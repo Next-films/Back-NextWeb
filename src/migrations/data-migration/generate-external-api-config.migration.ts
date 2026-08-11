@@ -94,18 +94,6 @@ export class GenerateExternalApiConfigMigration implements OnModuleInit {
       });
     }
 
-    const fanartApiUrl = process.env.FANART_TV_API_URL;
-    const fanartApiToken = process.env.FANART_TV_API_TOKEN;
-    if (fanartApiUrl && fanartApiToken) {
-      seedConfigs.push({
-        provider: ExternalApiProviderEnum.FANART_TV,
-        target: ExternalApiTargetEnum.BACK,
-        baseUrl: fanartApiUrl,
-        token: fanartApiToken,
-        isEnabled: true,
-      });
-    }
-
     return seedConfigs;
   }
 

@@ -51,7 +51,7 @@ export class AdminReprocessPremiereAssetsCommandHandler
   ): Promise<
     AppNotificationResult<AdminReprocessPremiereAssetsOutputDto, ErrorFieldExceptionDto | null>
   > {
-    this.logger.log('Reprocess premiere assets command', this.execute.name);
+    this.logger.log('Reprocess premiere trailers command', this.execute.name);
 
     try {
       const rows = await this.getPremieresForReprocess(command.inputDto);
@@ -97,7 +97,7 @@ export class AdminReprocessPremiereAssetsCommandHandler
   private async getPremieresForReprocess(
     inputDto: AdminReprocessPremiereAssetsInputDto,
   ): Promise<ReprocessPremiereRow[]> {
-    const limit = inputDto.limit ?? 3;
+    const limit = inputDto.limit ?? 50;
     const type = inputDto.type ?? AdminPremiereTypeEnum.ALL;
     const handleStatus = inputDto.handleStatus ?? AdminPremiereHandleStatusEnum.MODERATE;
     const values: unknown[] = [];
@@ -112,10 +112,7 @@ export class AdminReprocessPremiereAssetsCommandHandler
       if (inputDto.onlyMissingAssets ?? true) {
         conditions.push(`(
           m."trailerUrl" IS NULL
-          OR m."previewUrl" IS NULL
-          OR lower(split_part(m."previewUrl", '?', 1)) NOT LIKE '%.webp'
-          OR m."backgroundContentUrl" IS NULL
-          OR lower(split_part(m."backgroundContentUrl", '?', 1)) NOT LIKE '%.webm'
+          OR btrim(m."trailerUrl") = ''
         )`);
       }
 

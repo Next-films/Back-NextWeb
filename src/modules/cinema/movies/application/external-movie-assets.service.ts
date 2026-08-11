@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 
 import { MovieTypesEnum } from '@/common/types/types';
-import { FanartService } from '@/external-api/fanart/application/fanart.service';
 import { KinopoiskService } from '@/external-api/kinopoisk/application/kinopoisk.service';
 import { KinopoiskMovie } from '@/external-api/kinopoisk/domain/types';
 import { TmdbService } from '@/external-api/tmdb/application/tmdb.service';
@@ -12,7 +11,6 @@ export class ExternalMovieAssetsService {
   constructor(
     private readonly kinopoiskService: KinopoiskService,
     private readonly tmdbService: TmdbService,
-    private readonly fanartService: FanartService,
   ) {}
 
   async enrichUpcomingMetadata(
@@ -42,27 +40,13 @@ export class ExternalMovieAssetsService {
       year: kpMovie.year || null,
     });
 
-    const fanartBackgroundUrls =
-      movieType === MovieTypesEnum.SERIAL
-        ? []
-        : await this.fanartService.getMovieBackgroundUrls({
-            tmdbId: tmdbAssets.tmdbId || kpMovie.externalId?.tmdb || null,
-            imdbId: kpMovie.externalId?.imdb || null,
-          });
-
-    metadata.backdropUrls = this.uniqueUrls([
-      ...(metadata.backdropUrls || []),
-      ...tmdbAssets.backdropUrls,
-      ...fanartBackgroundUrls,
-    ]);
-    metadata.backdropUrl = metadata.backdropUrl || metadata.backdropUrls[0] || null;
     metadata.trailerUrl = metadata.trailerUrl || tmdbAssets.trailerUrl;
 
     return metadata;
   }
 
   private shouldQueryFallbackProviders(metadata: MovieKpMetadata): boolean {
-    return !metadata.trailerUrl || (metadata.backdropUrls || []).length <= 1;
+    return !metadata.trailerUrl;
   }
 
   private uniqueUrls(urls: Array<string | null | undefined>): string[] {
