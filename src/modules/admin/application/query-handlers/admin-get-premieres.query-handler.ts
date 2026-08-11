@@ -173,7 +173,7 @@ export class AdminGetPremieresQueryHandler
     },
     where: string,
   ): string {
-    const readyWhere = this.requiredPremiereWhere(table.table);
+    const readyWhere = this.requiredPremiereWhere();
 
     return `
       SELECT
@@ -213,12 +213,10 @@ export class AdminGetPremieresQueryHandler
     `;
   }
 
-  private requiredPremiereWhere(table: string): string {
+  private requiredPremiereWhere(): string {
     return `
       m."title" IS NOT NULL
       AND btrim(m."title") <> ''
-      AND m."alternativeTitles" IS NOT NULL
-      AND btrim(m."alternativeTitles") <> ''
       AND m."description" IS NOT NULL
       AND btrim(m."description") <> ''
       AND m."releaseDate" IS NOT NULL
@@ -228,11 +226,6 @@ export class AdminGetPremieresQueryHandler
       AND btrim(m."trailerUrl") <> ''
       AND m."previewUrl" IS NOT NULL
       AND lower(split_part(m."previewUrl", '?', 1)) LIKE '%.webp'
-      AND EXISTS (
-        SELECT 1
-        FROM "${table}_genres_genre" required_mg
-        WHERE required_mg."${table}Id" = m."id"
-      )
     `;
   }
 

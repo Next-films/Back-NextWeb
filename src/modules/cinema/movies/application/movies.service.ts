@@ -155,29 +155,21 @@ export class MoviesService {
   }
 
   private isValidMovieForPremiereProduction<T extends MovieEntity>(movie: T): boolean {
-    const {
-      title,
-      description,
-      country,
-      alternativeTitles,
-      releaseDate,
-      trailerUrl,
-      previewUrl,
-      genres,
-    } = movie;
+    const { title, description, country, releaseDate, trailerUrl, previewUrl } = movie;
 
     return !!(
-      title &&
-      description &&
-      releaseDate &&
-      trailerUrl &&
-      previewUrl &&
-      alternativeTitles &&
-      genres &&
-      genres.length > 0 &&
+      this.hasText(title) &&
+      this.hasText(description) &&
+      this.hasText(releaseDate) &&
+      this.hasText(trailerUrl) &&
+      this.hasText(previewUrl) &&
       country &&
       country.length > 0
     );
+  }
+
+  private hasText(value: string | null): boolean {
+    return Boolean(value && value.trim());
   }
 
   // ─── Kinopoisk metadata extraction ─────────────────────────────
