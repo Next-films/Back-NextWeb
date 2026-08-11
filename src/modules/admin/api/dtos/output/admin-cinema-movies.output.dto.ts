@@ -23,9 +23,6 @@ class AdminCinemaMoviesContentOutputDto {
   previewUrl: string | null;
 
   @ApiProperty({ nullable: true })
-  horizontalPreviewUrl: string | null;
-
-  @ApiProperty({ nullable: true })
   backgroundUrl: string | null;
 
   @ApiProperty({ nullable: true })
@@ -100,19 +97,11 @@ export class AdminCinemaMoviesOutputDtoMapper {
   }
 
   private mapContent<T extends MovieEntity>(movie: T): AdminCinemaMoviesContentOutputDto {
-    const {
-      trailerUrl,
-      previewUrl,
-      horizontalPreviewUrl,
-      backgroundContentUrl,
-      titleUrl,
-      videoUrl,
-    } = movie;
+    const { trailerUrl, previewUrl, backgroundContentUrl, titleUrl, videoUrl } = movie;
     return {
       movieUrl: videoUrl,
       backgroundUrl: backgroundContentUrl,
       previewUrl,
-      horizontalPreviewUrl,
       titleUrl,
       trailerUrl,
     };

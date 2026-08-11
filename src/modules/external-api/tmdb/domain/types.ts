@@ -14,7 +14,7 @@ export type TmdbAssetLookupInput = {
 export type TmdbAssetCandidates = {
   tmdbId: number | null;
   mediaType: TmdbMediaType | null;
-  horizontalPreviewUrls: string[];
+  backdropUrls: string[];
   trailerUrl: string | null;
 };
 

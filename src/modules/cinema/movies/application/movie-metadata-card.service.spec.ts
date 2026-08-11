@@ -64,15 +64,8 @@ describe('MovieMetadataCardService', () => {
 
   it('publishes upcoming cards only after required assets are converted', async () => {
     const moviesService = {
-      getBackgroundContentUrl: jest.fn(
-        (url: string | null, _id: number, _type: MovieTypesEnum, prefix?: string) =>
-          Promise.resolve(
-            url
-              ? `https://cdn.example/${
-                  prefix === 'horizontal-posters' ? 'horizontal.webp' : 'trailer.webm'
-                }`
-              : null,
-          ),
+      getBackgroundContentUrl: jest.fn((url: string | null) =>
+        Promise.resolve(url ? 'https://cdn.example/trailer.webm' : null),
       ),
       getPosterUrl: jest.fn(() => Promise.resolve('https://cdn.example/poster.webp')),
       getLogoUrl: jest.fn(() => Promise.resolve('https://cdn.example/logo.webp')),
@@ -88,7 +81,7 @@ describe('MovieMetadataCardService', () => {
         this.backgroundContentUrl = url;
       }),
       updatePosterUrl: jest.fn(function (this: { previewUrl: string | null }, url) {
-        this.previewUrl = url;
+        if (url) this.previewUrl = url;
       }),
       updateHorizontalPreviewUrl: jest.fn(function (
         this: { horizontalPreviewUrl: string | null },
@@ -120,12 +113,6 @@ describe('MovieMetadataCardService', () => {
       42,
       MovieTypesEnum.FILM,
     );
-    expect(moviesService.getBackgroundContentUrl).toHaveBeenCalledWith(
-      'https://image.example/backdrop.jpg',
-      42,
-      MovieTypesEnum.FILM,
-      'horizontal-posters',
-    );
     expect(moviesService.getPosterUrl).toHaveBeenCalledWith(
       'https://image.example/poster.jpg',
       42,
@@ -134,7 +121,7 @@ describe('MovieMetadataCardService', () => {
     expect(movie.handleStatus).toBe(MovieHandleStatus.PRODUCTION);
     expect(movie.isHidden).toBe(false);
     expect(movie.previewUrl).toBe('https://cdn.example/poster.webp');
-    expect(movie.horizontalPreviewUrl).toBe('https://cdn.example/horizontal.webp');
+    expect(movie.horizontalPreviewUrl).toBeNull();
     expect(movie.backgroundContentUrl).toBe('https://cdn.example/trailer.webm');
   });
 
@@ -189,7 +176,7 @@ describe('MovieMetadataCardService', () => {
       isHidden: true,
       updateBackgroundUrl: jest.fn(),
       updatePosterUrl: jest.fn(function (this: { previewUrl: string | null }, url) {
-        this.previewUrl = url;
+        if (url) this.previewUrl = url;
       }),
       updateHorizontalPreviewUrl: jest.fn(),
       updateTitleUrl: jest.fn(),
@@ -213,23 +200,11 @@ describe('MovieMetadataCardService', () => {
     expect(movie.isHidden).toBe(true);
   });
 
-  it('tries the next horizontal preview source when the first one fails', async () => {
+  it('does not hydrate horizontal preview for upcoming cards', async () => {
     const moviesService = {
-      getBackgroundContentUrl: jest.fn(
-        (url: string | null, _id: number, _type: MovieTypesEnum, prefix?: string) => {
-          if (prefix === 'horizontal-posters' && url === 'https://image.example/broken.jpg') {
-            return Promise.resolve(null);
-          }
-
-          return Promise.resolve(
-            url
-              ? `https://cdn.example/${
-                  prefix === 'horizontal-posters' ? 'horizontal.webp' : 'trailer.webm'
-                }`
-              : null,
-          );
-        },
-      ),
+      getBackgroundContentUrl: jest.fn((url: string | null) => {
+        return Promise.resolve(url ? 'https://cdn.example/trailer.webm' : null);
+      }),
       getPosterUrl: jest.fn(() => Promise.resolve('https://cdn.example/poster.webp')),
       getLogoUrl: jest.fn(() => Promise.resolve('https://cdn.example/logo.webp')),
     };
@@ -264,25 +239,21 @@ describe('MovieMetadataCardService', () => {
         this.handleStatus = status;
       }),
     };
-    const metadataWithFallback = {
-      ...completeMetadata(),
-      backdropUrl: 'https://image.example/broken.jpg',
-      backdropUrls: ['https://image.example/broken.jpg', 'https://image.example/good.jpg'],
-    };
 
     await serviceWithMovies.hydrateNewMovieAssets(
       movie as never,
-      metadataWithFallback,
+      completeMetadata(),
       MovieTypesEnum.FILM,
     );
 
+    expect(moviesService.getBackgroundContentUrl).toHaveBeenCalledTimes(1);
     expect(moviesService.getBackgroundContentUrl).toHaveBeenCalledWith(
-      'https://image.example/good.jpg',
+      'https://youtube.com/watch?v=test',
       42,
       MovieTypesEnum.FILM,
-      'horizontal-posters',
     );
-    expect(movie.horizontalPreviewUrl).toBe('https://cdn.example/horizontal.webp');
+    expect(movie.previewUrl).toBe('https://cdn.example/poster.webp');
+    expect(movie.horizontalPreviewUrl).toBeNull();
     expect(movie.handleStatus).toBe(MovieHandleStatus.PRODUCTION);
   });
 
@@ -330,14 +301,9 @@ describe('MovieMetadataCardService', () => {
     expect(movie.isHidden).toBe(false);
   });
 
-  it('refreshes duplicated vertical and horizontal preview urls', async () => {
+  it('keeps processed vertical preview without checking copied horizontal preview', async () => {
     const moviesService = {
-      getBackgroundContentUrl: jest.fn(
-        (_url: string | null, _id: number, _type: MovieTypesEnum, prefix?: string) =>
-          Promise.resolve(
-            prefix === 'horizontal-posters' ? 'https://cdn.example/horizontal.webp' : null,
-          ),
-      ),
+      getBackgroundContentUrl: jest.fn(),
       getPosterUrl: jest.fn(() => Promise.resolve('https://cdn.example/poster.webp')),
       getLogoUrl: jest.fn(),
     };
@@ -354,7 +320,7 @@ describe('MovieMetadataCardService', () => {
       isHidden: true,
       updateBackgroundUrl: jest.fn(),
       updatePosterUrl: jest.fn(function (this: { previewUrl: string | null }, url) {
-        this.previewUrl = url;
+        if (url) this.previewUrl = url;
       }),
       updateHorizontalPreviewUrl: jest.fn(function (
         this: { horizontalPreviewUrl: string | null },
@@ -379,21 +345,11 @@ describe('MovieMetadataCardService', () => {
       MovieTypesEnum.FILM,
     );
 
-    expect(moviesService.getBackgroundContentUrl).toHaveBeenCalledTimes(1);
-    expect(moviesService.getBackgroundContentUrl).toHaveBeenCalledWith(
-      'https://image.example/backdrop.jpg',
-      42,
-      MovieTypesEnum.FILM,
-      'horizontal-posters',
-    );
-    expect(moviesService.getPosterUrl).toHaveBeenCalledWith(
-      'https://image.example/poster.jpg',
-      42,
-      MovieTypesEnum.FILM,
-    );
+    expect(moviesService.getBackgroundContentUrl).not.toHaveBeenCalled();
+    expect(moviesService.getPosterUrl).not.toHaveBeenCalled();
     expect(moviesService.getLogoUrl).not.toHaveBeenCalled();
-    expect(movie.previewUrl).toBe('https://cdn.example/poster.webp');
-    expect(movie.horizontalPreviewUrl).toBe('https://cdn.example/horizontal.webp');
+    expect(movie.previewUrl).toBe('https://cdn.example/duplicated.webp');
+    expect(movie.horizontalPreviewUrl).toBe('https://cdn.example/duplicated.webp');
     expect(movie.handleStatus).toBe(MovieHandleStatus.PRODUCTION);
   });
 });

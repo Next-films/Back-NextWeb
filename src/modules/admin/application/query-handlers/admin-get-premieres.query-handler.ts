@@ -38,7 +38,6 @@ type PremiereRow = {
   movieUrl: string | null;
   trailerUrl: string | null;
   previewUrl: string | null;
-  horizontalPreviewUrl: string | null;
   backgroundUrl: string | null;
 };
 
@@ -183,7 +182,6 @@ export class AdminGetPremieresQueryHandler
         m."videoUrl" AS "movieUrl",
         m."trailerUrl" AS "trailerUrl",
         m."previewUrl" AS "previewUrl",
-        m."horizontalPreviewUrl" AS "horizontalPreviewUrl",
         m."backgroundContentUrl" AS "backgroundUrl"
       FROM "${table.table}" m
       WHERE ${where}
@@ -222,7 +220,6 @@ export class AdminGetPremieresQueryHandler
         movieUrl: row.movieUrl,
         trailerUrl: row.trailerUrl,
         previewUrl: row.previewUrl,
-        horizontalPreviewUrl: row.horizontalPreviewUrl,
         backgroundUrl: row.backgroundUrl,
       },
     };

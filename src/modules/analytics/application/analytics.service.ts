@@ -264,12 +264,7 @@ export class AnalyticsService {
       id: row.id,
       title: row.title,
       previewUrl: row.previewUrl || null,
-      cardImg:
-        row.horizontalPreviewUrl ||
-        row.previewUrl ||
-        row.backgroundContentUrl ||
-        row.titleUrl ||
-        null,
+      cardImg: row.previewUrl || row.backgroundContentUrl || row.titleUrl || null,
     }));
   }
 
@@ -344,12 +339,7 @@ export class AnalyticsService {
       id: row.id,
       title: row.title,
       previewUrl: row.previewUrl || null,
-      cardImg:
-        row.horizontalPreviewUrl ||
-        row.previewUrl ||
-        row.backgroundContentUrl ||
-        row.titleUrl ||
-        null,
+      cardImg: row.previewUrl || row.backgroundContentUrl || row.titleUrl || null,
       contentType,
       views: 0,
     }));

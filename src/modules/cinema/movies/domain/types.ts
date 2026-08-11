@@ -78,7 +78,6 @@ export class MovieKpMetadata {
 export class UploadedFilesUrlResult {
   videoUploadedUrl: string | null;
   backgroundUploadedUrl: string | null;
-  horizontalPreviewUploadedUrl: string | null;
   previewUploadedUrl: string | null;
   titleUploadedUrl: string | null;
 }

@@ -185,17 +185,12 @@ export class MovieEntity {
     this.trailerUrl = trailerUrl;
 
     if (uploadFileResult) {
-      const {
-        videoUploadedUrl,
-        titleUploadedUrl,
-        previewUploadedUrl,
-        backgroundUploadedUrl,
-        horizontalPreviewUploadedUrl,
-      } = uploadFileResult;
+      const { videoUploadedUrl, titleUploadedUrl, previewUploadedUrl, backgroundUploadedUrl } =
+        uploadFileResult;
       this.videoUrl = videoUploadedUrl || videUrl;
       this.backgroundContentUrl = backgroundUploadedUrl || backgroundContentUrl;
       this.previewUrl = previewUploadedUrl || previewUrl;
-      this.horizontalPreviewUrl = horizontalPreviewUploadedUrl || horizontalPreviewUrl;
+      this.horizontalPreviewUrl = horizontalPreviewUrl;
       this.titleUrl = titleUploadedUrl || titleUrl;
     } else {
       this.videoUrl = videUrl;

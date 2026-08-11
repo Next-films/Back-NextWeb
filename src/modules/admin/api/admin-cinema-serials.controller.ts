@@ -113,7 +113,6 @@ export class AdminCinemaSerialsController {
         { name: 'previewFile', maxCount: 1 },
         { name: 'titleFile', maxCount: 1 },
         { name: 'backgroundFile', maxCount: 1 },
-        { name: 'horizontalPreviewFile', maxCount: 1 },
       ],
       { storage: storageUtil },
     ),
@@ -128,7 +127,6 @@ export class AdminCinemaSerialsController {
       previewFile?: Express.Multer.File[];
       titleFile?: Express.Multer.File[];
       backgroundFile?: Express.Multer.File[];
-      horizontalPreviewFile?: Express.Multer.File[];
     },
   ): Promise<AdminCinemaSerialsOutputDto | void> {
     this.logger.log('Execute: update serial by admin', this.updateSerial.name);
@@ -136,7 +134,6 @@ export class AdminCinemaSerialsController {
     const previewFile = files?.previewFile?.[0];
     const titleFile = files?.titleFile?.[0];
     const backgroundFile = files?.backgroundFile?.[0];
-    const horizontalPreviewFile = files?.horizontalPreviewFile?.[0];
 
     try {
       const result = await this.commandBus.execute<
@@ -149,7 +146,6 @@ export class AdminCinemaSerialsController {
           videoFile,
           titleFile,
           backgroundFile,
-          horizontalPreviewFile,
         }),
       );
 
@@ -166,7 +162,7 @@ export class AdminCinemaSerialsController {
 
       this.appNotification.handleHttpResult(result);
     } finally {
-      const tempFiles = [videoFile, previewFile, titleFile, backgroundFile, horizontalPreviewFile]
+      const tempFiles = [videoFile, previewFile, titleFile, backgroundFile]
         .filter(file => file?.path)
         .map(file => file!);
 

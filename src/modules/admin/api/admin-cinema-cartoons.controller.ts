@@ -107,7 +107,6 @@ export class AdminCinemaCartoonsController {
         { name: 'previewFile', maxCount: 1 },
         { name: 'titleFile', maxCount: 1 },
         { name: 'backgroundFile', maxCount: 1 },
-        { name: 'horizontalPreviewFile', maxCount: 1 },
       ],
       { storage: storageUtil },
     ),
@@ -122,7 +121,6 @@ export class AdminCinemaCartoonsController {
       previewFile?: Express.Multer.File[];
       titleFile?: Express.Multer.File[];
       backgroundFile?: Express.Multer.File[];
-      horizontalPreviewFile?: Express.Multer.File[];
     },
   ): Promise<AdminCinemaCartoonsOutputDto | void> {
     this.logger.log('Execute: update cartoon by admin', this.updateCartoon.name);
@@ -131,7 +129,6 @@ export class AdminCinemaCartoonsController {
     const previewFile = files?.previewFile?.[0];
     const titleFile = files?.titleFile?.[0];
     const backgroundFile = files?.backgroundFile?.[0];
-    const horizontalPreviewFile = files?.horizontalPreviewFile?.[0];
 
     try {
       const result = await this.commandBus.execute<
@@ -144,7 +141,6 @@ export class AdminCinemaCartoonsController {
           previewFile,
           titleFile,
           backgroundFile,
-          horizontalPreviewFile,
         }),
       );
 
@@ -161,7 +157,7 @@ export class AdminCinemaCartoonsController {
         return cartoonResult.data!;
       }
     } finally {
-      const tempFiles = [videoFile, previewFile, titleFile, backgroundFile, horizontalPreviewFile]
+      const tempFiles = [videoFile, previewFile, titleFile, backgroundFile]
         .filter(file => file?.path)
         .map(file => file!);
 
@@ -170,7 +166,7 @@ export class AdminCinemaCartoonsController {
           await unlink(file.path);
           this.logger.log(`Temp file removed: ${file.path}`);
         } catch (err) {
-          this.logger.error(`Failed to delete temp file: ${file.path}`, err);
+          this.logger.error(err, this.updateCartoon.name);
         }
       }
     }

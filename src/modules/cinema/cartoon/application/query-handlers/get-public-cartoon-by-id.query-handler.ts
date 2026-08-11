@@ -49,15 +49,13 @@ export class GetPublicCartoonByIdQueryHandler
   private async signMovieMedia(movie: CartoonPublicOutputDto): Promise<CartoonPublicOutputDto> {
     if (!movie?.content) return movie;
 
-    const [movieUrl, trailerUrl, previewUrl, horizontalPreviewUrl, backgroundUrl, titleUrl] =
-      await Promise.all([
-        this.signUrl(movie.content.movieUrl),
-        this.signUrl(movie.content.trailerUrl),
-        this.signUrl(movie.content.previewUrl),
-        this.signUrl(movie.content.horizontalPreviewUrl),
-        this.signUrl(movie.content.backgroundUrl),
-        this.signUrl(movie.content.titleUrl),
-      ]);
+    const [movieUrl, trailerUrl, previewUrl, backgroundUrl, titleUrl] = await Promise.all([
+      this.signUrl(movie.content.movieUrl),
+      this.signUrl(movie.content.trailerUrl),
+      this.signUrl(movie.content.previewUrl),
+      this.signUrl(movie.content.backgroundUrl),
+      this.signUrl(movie.content.titleUrl),
+    ]);
 
     return {
       ...movie,
@@ -66,7 +64,6 @@ export class GetPublicCartoonByIdQueryHandler
         movieUrl,
         trailerUrl,
         previewUrl,
-        horizontalPreviewUrl,
         backgroundUrl,
         titleUrl,
       },

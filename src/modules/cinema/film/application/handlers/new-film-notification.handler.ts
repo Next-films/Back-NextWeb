@@ -92,18 +92,16 @@ export class NewFilmNotificationCommandHandler
       const savedFilm = await this.filmRepository.save(film, queryRunner);
 
       if (!existingFilm) {
-        const { titleUrl, posterUrl, backgroundContentUrl, horizontalPreviewUrl } =
-          await this.getContentUrlForNewFilm(
-            savedFilm.id,
-            metadata.trailerUrl,
-            metadata.backdropUrl,
-            metadata.titleUrl,
-            metadata.posterUrl,
-          );
+        const { titleUrl, posterUrl, backgroundContentUrl } = await this.getContentUrlForNewFilm(
+          savedFilm.id,
+          metadata.trailerUrl,
+          metadata.backdropUrl,
+          metadata.titleUrl,
+          metadata.posterUrl,
+        );
 
         film.updateBackgroundUrl(backgroundContentUrl);
         film.updatePosterUrl(posterUrl);
-        film.updateHorizontalPreviewUrl(horizontalPreviewUrl);
         film.updateTitleUrl(titleUrl);
 
         this.moviesService.setHandleProductionStatus(film);
@@ -149,25 +147,9 @@ export class NewFilmNotificationCommandHandler
   ): Promise<Film> {
     const { id } = film;
     const backgroundSourceUrl = metadata.backdropUrl || metadata.trailerUrl;
-    const isBackfilledHorizontalPreview =
-      !!film.previewUrl && film.horizontalPreviewUrl === film.previewUrl;
-    const shouldRefreshHorizontalPreview =
-      !film.horizontalPreviewUrl || isBackfilledHorizontalPreview;
-    const normalizedExistingHorizontalPreviewUrl = isBackfilledHorizontalPreview
-      ? null
-      : film.horizontalPreviewUrl;
-    const [previewUrl, horizontalPreviewUrl, backgroundContentUrl, titleUrl] = await Promise.all([
+    const [previewUrl, backgroundContentUrl, titleUrl] = await Promise.all([
       !film.previewUrl
         ? this.moviesService.getPosterUrl(metadata.posterUrl, id, MovieTypesEnum.FILM)
-        : Promise.resolve(null),
-
-      shouldRefreshHorizontalPreview && !!metadata.backdropUrl
-        ? this.moviesService.getBackgroundContentUrl(
-            metadata.backdropUrl,
-            id,
-            MovieTypesEnum.FILM,
-            'horizontal-posters',
-          )
         : Promise.resolve(null),
 
       !film.backgroundContentUrl
@@ -193,9 +175,7 @@ export class NewFilmNotificationCommandHandler
       description: metadata.description,
       releaseDate: metadata.releaseDate,
       previewUrl: film.previewUrl || previewUrl || null,
-      horizontalPreviewUrl: shouldRefreshHorizontalPreview
-        ? horizontalPreviewUrl || normalizedExistingHorizontalPreviewUrl || null
-        : film.horizontalPreviewUrl || horizontalPreviewUrl || null,
+      horizontalPreviewUrl: null,
       backgroundContentUrl: film.backgroundContentUrl || backgroundContentUrl || null,
       trailerUrl: film.trailerUrl || metadata.trailerUrl,
       titleUrl: film.titleUrl || titleUrl || null,
@@ -258,21 +238,14 @@ export class NewFilmNotificationCommandHandler
     previewUrl: string | null,
   ) {
     const backgroundSourceUrl = backdropUrl || trailerUrl;
-    const [backgroundContentUrl, horizontalPreviewUrl, posterUrl, titleUrl] = await Promise.all([
+    const [backgroundContentUrl, posterUrl, titleUrl] = await Promise.all([
       this.moviesService.getBackgroundContentUrl(backgroundSourceUrl, filmId, MovieTypesEnum.FILM),
-      this.moviesService.getBackgroundContentUrl(
-        backdropUrl,
-        filmId,
-        MovieTypesEnum.FILM,
-        'horizontal-posters',
-      ),
       this.moviesService.getPosterUrl(previewUrl, filmId, MovieTypesEnum.FILM),
       this.moviesService.getLogoUrl(logoUrl, filmId, MovieTypesEnum.FILM),
     ]);
 
     return {
       backgroundContentUrl,
-      horizontalPreviewUrl,
       posterUrl,
       titleUrl,
     };

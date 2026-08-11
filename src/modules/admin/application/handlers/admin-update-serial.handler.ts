@@ -40,8 +40,6 @@ const BACKGROUND_UPLOAD_INPUT_MIME_TYPES = [
   ...POSTER_UPLOAD_INPUT_MIME_TYPES,
 ];
 
-const HORIZONTAL_PREVIEW_UPLOAD_INPUT_MIME_TYPES = [...POSTER_UPLOAD_INPUT_MIME_TYPES];
-
 export class AdminUpdateSerialCommand implements ICommand {
   constructor(
     public serialId: number,
@@ -114,25 +112,6 @@ export class AdminUpdateSerialCommandHandler
         });
       }
 
-      const uploadedHorizontalPreviewUrl = await this.uploadHorizontalPreviewUrlByInput(
-        serial,
-        inputDto.horizontalPreviewUrl,
-      );
-
-      if (typeof inputDto.horizontalPreviewUrl === 'string' && !uploadedHorizontalPreviewUrl) {
-        await queryRunner.rollbackTransaction();
-        return this.appNotification.badRequest({
-          errorsMessages: [
-            {
-              errorKey: EXCEPTION_KEYS_ENUM.INVALID_FILE_TYPE,
-              message:
-                'Failed to upload horizontal preview to file storage. Verify URL/file and retry.',
-              field: 'horizontalPreviewUrl',
-            },
-          ],
-        });
-      }
-
       const mergedInputDto: AdminUpdateSerialInputDto = {
         ...inputDto,
         videUrl: inputDto.videUrl ?? serial.videoUrl ?? undefined,
@@ -140,11 +119,6 @@ export class AdminUpdateSerialCommandHandler
           uploadedBackgroundContentUrl ??
           inputDto.backgroundContentUrl ??
           serial.backgroundContentUrl ??
-          undefined,
-        horizontalPreviewUrl:
-          uploadedHorizontalPreviewUrl ??
-          inputDto.horizontalPreviewUrl ??
-          serial.horizontalPreviewUrl ??
           undefined,
         previewUrl: inputDto.previewUrl ?? serial.previewUrl ?? undefined,
         titleUrl: inputDto.titleUrl ?? serial.titleUrl ?? undefined,
@@ -155,7 +129,6 @@ export class AdminUpdateSerialCommandHandler
         releaseDate,
         titleFile,
         backgroundFile,
-        horizontalPreviewFile,
         previewFile,
         videoFile,
       } = mergedInputDto;
@@ -167,17 +140,17 @@ export class AdminUpdateSerialCommandHandler
 
       const updateDto: SerialUpdateDto = {
         ...mergedInputDto,
+        horizontalPreviewUrl: null,
         releaseDate: this.dateUtil.formatDateYyMmDd(releaseDate),
         genres,
       };
 
       let uploadFileResult: UploadedFilesUrlResult | null = null;
-      if (titleFile || backgroundFile || horizontalPreviewFile || previewFile || videoFile) {
+      if (titleFile || backgroundFile || previewFile || videoFile) {
         uploadFileResult = await this.handleFile(
           serial,
           videoFile,
           backgroundFile,
-          horizontalPreviewFile,
           previewFile,
           titleFile,
         );
@@ -211,7 +184,7 @@ export class AdminUpdateSerialCommandHandler
       errorsMessages: [],
     };
 
-    const { videoFile, backgroundFile, horizontalPreviewFile, previewFile, titleFile } = inputDto;
+    const { videoFile, backgroundFile, previewFile, titleFile } = inputDto;
 
     if (
       videoFile &&
@@ -266,20 +239,6 @@ export class AdminUpdateSerialCommandHandler
       });
     }
 
-    if (
-      horizontalPreviewFile &&
-      (!horizontalPreviewFile.mimetype ||
-        !HORIZONTAL_PREVIEW_UPLOAD_INPUT_MIME_TYPES.includes(horizontalPreviewFile.mimetype))
-    ) {
-      errors.errorsMessages.push({
-        errorKey: EXCEPTION_KEYS_ENUM.INVALID_FILE_TYPE,
-        message: `Invalid file type for horizontalPreviewFile. Allowed: ${HORIZONTAL_PREVIEW_UPLOAD_INPUT_MIME_TYPES.join(
-          ', ',
-        )}`,
-        field: 'horizontalPreviewFile',
-      });
-    }
-
     return errors.errorsMessages.length > 0 ? errors : null;
   }
 
@@ -287,7 +246,6 @@ export class AdminUpdateSerialCommandHandler
     serial: Serial,
     videoFile?: Express.Multer.File,
     backgroundFile?: Express.Multer.File,
-    horizontalPreviewFile?: Express.Multer.File,
     previewFile?: Express.Multer.File,
     titleFile?: Express.Multer.File,
   ): Promise<UploadedFilesUrlResult | null> {
@@ -299,34 +257,24 @@ export class AdminUpdateSerialCommandHandler
     if (backgroundFile) backgroundMime = backgroundFile.mimetype as 'image/' | 'video/';
     if (videoFile) videoMime = videoFile.mimetype as 'image/' | 'video/';
 
-    const [titleUrl, previewUrl, horizontalPreviewUrl, backgroundImgUrl, videoUrl] =
-      await Promise.all([
-        titleFile
-          ? this.moviesService.getLogoUrl(titleFile, id, MovieTypesEnum.SERIAL)
-          : Promise.resolve(null),
-        previewFile
-          ? this.moviesService.getPosterUrl(previewFile, id, MovieTypesEnum.SERIAL)
-          : Promise.resolve(null),
-        horizontalPreviewFile
-          ? this.moviesService.getBackgroundContentUrl(
-              horizontalPreviewFile,
-              id,
-              MovieTypesEnum.SERIAL,
-              'horizontal-posters',
-            )
-          : Promise.resolve(null),
-        backgroundFile
-          ? this.moviesService.getBackgroundContentUrl(backgroundFile, id, MovieTypesEnum.SERIAL)
-          : Promise.resolve(null),
-        videoFile
-          ? this.moviesService.getVideoContentUrl(videoFile, id, MovieTypesEnum.SERIAL)
-          : Promise.resolve(null),
-      ]);
+    const [titleUrl, previewUrl, backgroundImgUrl, videoUrl] = await Promise.all([
+      titleFile
+        ? this.moviesService.getLogoUrl(titleFile, id, MovieTypesEnum.SERIAL)
+        : Promise.resolve(null),
+      previewFile
+        ? this.moviesService.getPosterUrl(previewFile, id, MovieTypesEnum.SERIAL)
+        : Promise.resolve(null),
+      backgroundFile
+        ? this.moviesService.getBackgroundContentUrl(backgroundFile, id, MovieTypesEnum.SERIAL)
+        : Promise.resolve(null),
+      videoFile
+        ? this.moviesService.getVideoContentUrl(videoFile, id, MovieTypesEnum.SERIAL)
+        : Promise.resolve(null),
+    ]);
 
     if (
       (titleFile && !titleUrl) ||
       (previewFile && !previewUrl) ||
-      (horizontalPreviewFile && !horizontalPreviewUrl) ||
       (backgroundFile && backgroundMime.startsWith('image/') && !backgroundImgUrl)
     )
       return null;
@@ -341,7 +289,6 @@ export class AdminUpdateSerialCommandHandler
     return {
       titleUploadedUrl: titleUrl || null,
       previewUploadedUrl: previewUrl || null,
-      horizontalPreviewUploadedUrl: horizontalPreviewUrl || null,
       backgroundUploadedUrl: backgroundImgUrl || null,
       videoUploadedUrl: videoUrl || null,
     };
@@ -364,52 +311,6 @@ export class AdminUpdateSerialCommandHandler
       normalizedBackgroundContentUrl,
       serial.id,
       MovieTypesEnum.SERIAL,
-    );
-  }
-
-  private async uploadHorizontalPreviewUrlByInput(
-    serial: Serial,
-    horizontalPreviewUrl?: string,
-  ): Promise<string | null | undefined> {
-    if (typeof horizontalPreviewUrl !== 'string') return undefined;
-
-    const normalizedHorizontalPreviewUrl = horizontalPreviewUrl.trim();
-    if (!normalizedHorizontalPreviewUrl) return null;
-
-    if (this.isLikelyVideoSourceUrl(normalizedHorizontalPreviewUrl)) return null;
-
-    if (normalizedHorizontalPreviewUrl === serial.horizontalPreviewUrl) {
-      return serial.horizontalPreviewUrl;
-    }
-
-    return this.moviesService.getBackgroundContentUrl(
-      normalizedHorizontalPreviewUrl,
-      serial.id,
-      MovieTypesEnum.SERIAL,
-      'horizontal-posters',
-    );
-  }
-
-  private isLikelyVideoSourceUrl(url: string): boolean {
-    const lowerUrl = url.toLowerCase();
-    if (
-      lowerUrl.includes('youtu.be') ||
-      lowerUrl.includes('youtube.com') ||
-      lowerUrl.includes('youtube-nocookie.com')
-    ) {
-      return true;
-    }
-
-    return (
-      lowerUrl.includes('.mp4') ||
-      lowerUrl.includes('.webm') ||
-      lowerUrl.includes('.mov') ||
-      lowerUrl.includes('.avi') ||
-      lowerUrl.includes('.mkv') ||
-      lowerUrl.includes('.mpeg') ||
-      lowerUrl.includes('.mpg') ||
-      lowerUrl.includes('.ogg') ||
-      lowerUrl.includes('.wmv')
     );
   }
 }

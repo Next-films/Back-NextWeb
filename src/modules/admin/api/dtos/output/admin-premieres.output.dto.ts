@@ -13,9 +13,6 @@ class AdminPremiereContentOutputDto {
   previewUrl: string | null;
 
   @ApiProperty({ nullable: true })
-  horizontalPreviewUrl: string | null;
-
-  @ApiProperty({ nullable: true })
   backgroundUrl: string | null;
 }
 

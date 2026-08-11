@@ -114,8 +114,6 @@ export class AdminReprocessPremiereAssetsCommandHandler
           m."trailerUrl" IS NULL
           OR m."previewUrl" IS NULL
           OR lower(split_part(m."previewUrl", '?', 1)) NOT LIKE '%.webp'
-          OR m."horizontalPreviewUrl" IS NULL
-          OR lower(split_part(m."horizontalPreviewUrl", '?', 1)) NOT LIKE '%.webp'
           OR m."backgroundContentUrl" IS NULL
           OR lower(split_part(m."backgroundContentUrl", '?', 1)) NOT LIKE '%.webm'
         )`);

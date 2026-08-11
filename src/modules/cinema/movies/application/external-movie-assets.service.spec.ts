@@ -30,10 +30,7 @@ describe('ExternalMovieAssetsService', () => {
       getAssetCandidates: jest.fn().mockResolvedValue({
         tmdbId: 123,
         mediaType: 'movie',
-        horizontalPreviewUrls: [
-          'https://tmdb.example/backdrop.jpg',
-          'https://kp.example/landscape.jpg',
-        ],
+        backdropUrls: ['https://tmdb.example/backdrop.jpg', 'https://kp.example/landscape.jpg'],
         trailerUrl: 'https://www.youtube.com/watch?v=tmdb',
       }),
     };
@@ -53,7 +50,7 @@ describe('ExternalMovieAssetsService', () => {
     };
   };
 
-  it('adds horizontal preview and trailer fallbacks for upcoming movies', async () => {
+  it('adds backdrop and trailer fallbacks for upcoming movies', async () => {
     const { service, tmdbService, fanartService } = createService();
     const metadata = createMetadata();
 

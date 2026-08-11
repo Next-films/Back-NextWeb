@@ -52,7 +52,7 @@ export class ExternalMovieAssetsService {
 
     metadata.backdropUrls = this.uniqueUrls([
       ...(metadata.backdropUrls || []),
-      ...tmdbAssets.horizontalPreviewUrls,
+      ...tmdbAssets.backdropUrls,
       ...fanartBackgroundUrls,
     ]);
     metadata.backdropUrl = metadata.backdropUrl || metadata.backdropUrls[0] || null;

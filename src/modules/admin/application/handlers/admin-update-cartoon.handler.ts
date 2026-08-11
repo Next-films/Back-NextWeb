@@ -40,8 +40,6 @@ const BACKGROUND_UPLOAD_INPUT_MIME_TYPES = [
   ...POSTER_UPLOAD_INPUT_MIME_TYPES,
 ];
 
-const HORIZONTAL_PREVIEW_UPLOAD_INPUT_MIME_TYPES = [...POSTER_UPLOAD_INPUT_MIME_TYPES];
-
 export class AdminUpdateCartoonCommand implements ICommand {
   constructor(
     public cartoonId: number,
@@ -114,25 +112,6 @@ export class AdminUpdateCartoonCommandHandler
         });
       }
 
-      const uploadedHorizontalPreviewUrl = await this.uploadHorizontalPreviewUrlByInput(
-        cartoon,
-        inputDto.horizontalPreviewUrl,
-      );
-
-      if (typeof inputDto.horizontalPreviewUrl === 'string' && !uploadedHorizontalPreviewUrl) {
-        await queryRunner.rollbackTransaction();
-        return this.appNotification.badRequest({
-          errorsMessages: [
-            {
-              errorKey: EXCEPTION_KEYS_ENUM.INVALID_FILE_TYPE,
-              message:
-                'Failed to upload horizontal preview to file storage. Verify URL/file and retry.',
-              field: 'horizontalPreviewUrl',
-            },
-          ],
-        });
-      }
-
       const mergedInputDto: AdminUpdateCartoonInputDto = {
         ...inputDto,
         videUrl: inputDto.videUrl ?? cartoon.videoUrl ?? undefined,
@@ -140,11 +119,6 @@ export class AdminUpdateCartoonCommandHandler
           uploadedBackgroundContentUrl ??
           inputDto.backgroundContentUrl ??
           cartoon.backgroundContentUrl ??
-          undefined,
-        horizontalPreviewUrl:
-          uploadedHorizontalPreviewUrl ??
-          inputDto.horizontalPreviewUrl ??
-          cartoon.horizontalPreviewUrl ??
           undefined,
         previewUrl: inputDto.previewUrl ?? cartoon.previewUrl ?? undefined,
         titleUrl: inputDto.titleUrl ?? cartoon.titleUrl ?? undefined,
@@ -159,6 +133,7 @@ export class AdminUpdateCartoonCommandHandler
 
       const updateDto: CartonUpdateDto = {
         ...mergedInputDto,
+        horizontalPreviewUrl: null,
         releaseDate: this.dateUtil.formatDateYyMmDd(releaseDate),
         genres,
       };
@@ -167,7 +142,6 @@ export class AdminUpdateCartoonCommandHandler
       if (
         mergedInputDto.titleFile ||
         mergedInputDto.backgroundFile ||
-        mergedInputDto.horizontalPreviewFile ||
         mergedInputDto.previewFile ||
         mergedInputDto.videoFile
       ) {
@@ -175,7 +149,6 @@ export class AdminUpdateCartoonCommandHandler
           cartoon,
           mergedInputDto.videoFile,
           mergedInputDto.backgroundFile,
-          mergedInputDto.horizontalPreviewFile,
           mergedInputDto.previewFile,
           mergedInputDto.titleFile,
         );
@@ -209,7 +182,7 @@ export class AdminUpdateCartoonCommandHandler
       errorsMessages: [],
     };
 
-    const { videoFile, backgroundFile, horizontalPreviewFile, previewFile, titleFile } = inputDto;
+    const { videoFile, backgroundFile, previewFile, titleFile } = inputDto;
 
     if (
       videoFile &&
@@ -264,20 +237,6 @@ export class AdminUpdateCartoonCommandHandler
       });
     }
 
-    if (
-      horizontalPreviewFile &&
-      (!horizontalPreviewFile.mimetype ||
-        !HORIZONTAL_PREVIEW_UPLOAD_INPUT_MIME_TYPES.includes(horizontalPreviewFile.mimetype))
-    ) {
-      errors.errorsMessages.push({
-        errorKey: EXCEPTION_KEYS_ENUM.INVALID_FILE_TYPE,
-        message: `Invalid file type for horizontalPreviewFile. Allowed: ${HORIZONTAL_PREVIEW_UPLOAD_INPUT_MIME_TYPES.join(
-          ', ',
-        )}`,
-        field: 'horizontalPreviewFile',
-      });
-    }
-
     return errors.errorsMessages.length > 0 ? errors : null;
   }
 
@@ -285,7 +244,6 @@ export class AdminUpdateCartoonCommandHandler
     cartoon: Cartoon,
     videoFile?: Express.Multer.File,
     backgroundFile?: Express.Multer.File,
-    horizontalPreviewFile?: Express.Multer.File,
     previewFile?: Express.Multer.File,
     titleFile?: Express.Multer.File,
   ): Promise<UploadedFilesUrlResult | null> {
@@ -297,34 +255,24 @@ export class AdminUpdateCartoonCommandHandler
     if (backgroundFile) backgroundMime = backgroundFile.mimetype as 'image/' | 'video/';
     if (videoFile) videoMime = videoFile.mimetype as 'image/' | 'video/';
 
-    const [titleUrl, previewUrl, horizontalPreviewUrl, backgroundImgUrl, videoUrl] =
-      await Promise.all([
-        titleFile
-          ? this.moviesService.getLogoUrl(titleFile, id, MovieTypesEnum.CARTOON)
-          : Promise.resolve(null),
-        previewFile
-          ? this.moviesService.getPosterUrl(previewFile, id, MovieTypesEnum.CARTOON)
-          : Promise.resolve(null),
-        horizontalPreviewFile
-          ? this.moviesService.getBackgroundContentUrl(
-              horizontalPreviewFile,
-              id,
-              MovieTypesEnum.CARTOON,
-              'horizontal-posters',
-            )
-          : Promise.resolve(null),
-        backgroundFile
-          ? this.moviesService.getBackgroundContentUrl(backgroundFile, id, MovieTypesEnum.CARTOON)
-          : Promise.resolve(null),
-        videoFile
-          ? this.moviesService.getVideoContentUrl(videoFile, id, MovieTypesEnum.CARTOON)
-          : Promise.resolve(null),
-      ]);
+    const [titleUrl, previewUrl, backgroundImgUrl, videoUrl] = await Promise.all([
+      titleFile
+        ? this.moviesService.getLogoUrl(titleFile, id, MovieTypesEnum.CARTOON)
+        : Promise.resolve(null),
+      previewFile
+        ? this.moviesService.getPosterUrl(previewFile, id, MovieTypesEnum.CARTOON)
+        : Promise.resolve(null),
+      backgroundFile
+        ? this.moviesService.getBackgroundContentUrl(backgroundFile, id, MovieTypesEnum.CARTOON)
+        : Promise.resolve(null),
+      videoFile
+        ? this.moviesService.getVideoContentUrl(videoFile, id, MovieTypesEnum.CARTOON)
+        : Promise.resolve(null),
+    ]);
 
     if (
       (titleFile && !titleUrl) ||
       (previewFile && !previewUrl) ||
-      (horizontalPreviewFile && !horizontalPreviewUrl) ||
       (backgroundFile && backgroundMime.startsWith('image/') && !backgroundImgUrl)
     )
       return null;
@@ -339,7 +287,6 @@ export class AdminUpdateCartoonCommandHandler
     return {
       titleUploadedUrl: titleUrl || null,
       previewUploadedUrl: previewUrl || null,
-      horizontalPreviewUploadedUrl: horizontalPreviewUrl || null,
       backgroundUploadedUrl: backgroundImgUrl || null,
       videoUploadedUrl: videoUrl || null,
     };
@@ -362,52 +309,6 @@ export class AdminUpdateCartoonCommandHandler
       normalizedBackgroundContentUrl,
       cartoon.id,
       MovieTypesEnum.CARTOON,
-    );
-  }
-
-  private async uploadHorizontalPreviewUrlByInput(
-    cartoon: Cartoon,
-    horizontalPreviewUrl?: string,
-  ): Promise<string | null | undefined> {
-    if (typeof horizontalPreviewUrl !== 'string') return undefined;
-
-    const normalizedHorizontalPreviewUrl = horizontalPreviewUrl.trim();
-    if (!normalizedHorizontalPreviewUrl) return null;
-
-    if (this.isLikelyVideoSourceUrl(normalizedHorizontalPreviewUrl)) return null;
-
-    if (normalizedHorizontalPreviewUrl === cartoon.horizontalPreviewUrl) {
-      return cartoon.horizontalPreviewUrl;
-    }
-
-    return this.moviesService.getBackgroundContentUrl(
-      normalizedHorizontalPreviewUrl,
-      cartoon.id,
-      MovieTypesEnum.CARTOON,
-      'horizontal-posters',
-    );
-  }
-
-  private isLikelyVideoSourceUrl(url: string): boolean {
-    const lowerUrl = url.toLowerCase();
-    if (
-      lowerUrl.includes('youtu.be') ||
-      lowerUrl.includes('youtube.com') ||
-      lowerUrl.includes('youtube-nocookie.com')
-    ) {
-      return true;
-    }
-
-    return (
-      lowerUrl.includes('.mp4') ||
-      lowerUrl.includes('.webm') ||
-      lowerUrl.includes('.mov') ||
-      lowerUrl.includes('.avi') ||
-      lowerUrl.includes('.mkv') ||
-      lowerUrl.includes('.mpeg') ||
-      lowerUrl.includes('.mpg') ||
-      lowerUrl.includes('.ogg') ||
-      lowerUrl.includes('.wmv')
     );
   }
 }

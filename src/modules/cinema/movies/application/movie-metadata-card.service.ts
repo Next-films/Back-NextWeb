@@ -20,7 +20,6 @@ type UpcomingModerationSnapshot = Pick<
   | 'genres'
   | 'trailerUrl'
   | 'backgroundContentUrl'
-  | 'horizontalPreviewUrl'
   | 'previewUrl'
 >;
 
@@ -75,7 +74,6 @@ export class MovieMetadataCardService {
 
     movie.updateBackgroundUrl(assets.backgroundContentUrl);
     movie.updatePosterUrl(assets.posterUrl);
-    movie.updateHorizontalPreviewUrl(assets.horizontalPreviewUrl);
     movie.updateTitleUrl(assets.titleUrl);
 
     const moderationState = this.getUpcomingModerationState(this.createModerationSnapshot(movie));
@@ -101,7 +99,7 @@ export class MovieMetadataCardService {
       description: metadata.description || movie.description,
       releaseDate: metadata.releaseDate || movie.releaseDate,
       previewUrl: movie.previewUrl || null,
-      horizontalPreviewUrl: movie.horizontalPreviewUrl || null,
+      horizontalPreviewUrl: null,
       backgroundContentUrl: movie.backgroundContentUrl || null,
       trailerUrl: movie.trailerUrl || metadata.trailerUrl,
       titleUrl: movie.titleUrl || metadata.titleUrl,
@@ -119,7 +117,6 @@ export class MovieMetadataCardService {
       this.hasText(movie.releaseDate) &&
       this.hasText(movie.trailerUrl) &&
       this.hasProcessedPreviewClip(movie.backgroundContentUrl) &&
-      this.hasProcessedImage(movie.horizontalPreviewUrl) &&
       this.hasProcessedImage(movie.previewUrl) &&
       movie.genres &&
       movie.genres.length > 0 &&
@@ -168,7 +165,6 @@ export class MovieMetadataCardService {
       genres: movie.genres,
       trailerUrl: movie.trailerUrl,
       backgroundContentUrl: movie.backgroundContentUrl,
-      horizontalPreviewUrl: movie.horizontalPreviewUrl,
       previewUrl: movie.previewUrl,
     };
   }
@@ -179,37 +175,20 @@ export class MovieMetadataCardService {
     movieType: MovieTypesEnum,
   ): Promise<{
     backgroundContentUrl: string | null;
-    horizontalPreviewUrl: string | null;
     posterUrl: string | null;
     titleUrl: string | null;
   }> {
     const movieId = movie.id;
-    const hasDuplicatedPreview = this.hasDuplicatedPreview(movie);
     const shouldHydrateBackground = !this.hasProcessedPreviewClip(movie.backgroundContentUrl);
-    const shouldHydrateHorizontalPreview =
-      !this.hasProcessedImage(movie.horizontalPreviewUrl) || hasDuplicatedPreview;
-    const shouldHydratePoster = !this.hasProcessedImage(movie.previewUrl) || hasDuplicatedPreview;
+    const shouldHydratePoster = !this.hasProcessedImage(movie.previewUrl);
     const shouldHydrateTitle = !this.hasProcessedImage(movie.titleUrl);
     const trailerSourceUrl = metadata.trailerUrl || movie.trailerUrl || movie.backgroundContentUrl;
     const posterSourceUrl = metadata.posterUrl || movie.previewUrl;
 
-    const [backgroundContentUrl, horizontalPreviewUrl, posterUrl, titleUrl] = await Promise.all([
+    const [backgroundContentUrl, posterUrl, titleUrl] = await Promise.all([
       shouldHydrateBackground
         ? this.getAssetUrlOrNull(() =>
             this.moviesService.getBackgroundContentUrl(trailerSourceUrl, movieId, movieType),
-          )
-        : Promise.resolve(null),
-      shouldHydrateHorizontalPreview
-        ? this.getFirstAssetUrlOrNull(
-            this.getHorizontalPreviewSourceUrls(metadata).map(
-              url => () =>
-                this.moviesService.getBackgroundContentUrl(
-                  url,
-                  movieId,
-                  movieType,
-                  'horizontal-posters',
-                ),
-            ),
           )
         : Promise.resolve(null),
       shouldHydratePoster
@@ -224,15 +203,7 @@ export class MovieMetadataCardService {
         : Promise.resolve(null),
     ]);
 
-    return { backgroundContentUrl, horizontalPreviewUrl, posterUrl, titleUrl };
-  }
-
-  private hasDuplicatedPreview(movie: MovieEntity): boolean {
-    return Boolean(
-      movie.previewUrl &&
-        movie.horizontalPreviewUrl &&
-        movie.previewUrl === movie.horizontalPreviewUrl,
-    );
+    return { backgroundContentUrl, posterUrl, titleUrl };
   }
 
   private async getAssetUrlOrNull(action: () => Promise<string | null>): Promise<string | null> {
@@ -241,24 +212,6 @@ export class MovieMetadataCardService {
     } catch {
       return null;
     }
-  }
-
-  private async getFirstAssetUrlOrNull(
-    actions: Array<() => Promise<string | null>>,
-  ): Promise<string | null> {
-    for (const action of actions) {
-      const url = await this.getAssetUrlOrNull(action);
-      if (url) return url;
-    }
-
-    return null;
-  }
-
-  private getHorizontalPreviewSourceUrls(metadata: MovieKpMetadata): string[] {
-    return [metadata.backdropUrl, ...(metadata.backdropUrls || [])]
-      .map(url => url?.trim())
-      .filter((url): url is string => Boolean(url))
-      .filter((url, index, urls) => urls.indexOf(url) === index);
   }
 
   private isForeignCountryList(countries: string[] | null): boolean {

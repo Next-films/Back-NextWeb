@@ -35,7 +35,7 @@ type TmdbImageConfigCacheEntry = {
 const EMPTY_ASSET_CANDIDATES: TmdbAssetCandidates = {
   tmdbId: null,
   mediaType: null,
-  horizontalPreviewUrls: [],
+  backdropUrls: [],
   trailerUrl: null,
 };
 const TMDB_REQUEST_TIMEOUT_MS = 15_000;
@@ -74,7 +74,7 @@ export class TmdbService {
         return {
           tmdbId: resolvedMedia.id,
           mediaType: resolvedMedia.mediaType,
-          horizontalPreviewUrls: this.getHorizontalPreviewUrls(details, imageConfig),
+          backdropUrls: this.getBackdropUrls(details, imageConfig),
           trailerUrl: this.getTrailerUrl(details),
         };
       } catch (error: unknown) {
@@ -294,7 +294,7 @@ export class TmdbService {
     }
   }
 
-  private getHorizontalPreviewUrls(
+  private getBackdropUrls(
     details: TmdbMediaDetails,
     imageConfig: Pick<TmdbImageConfigCacheEntry, 'baseUrl' | 'backdropSize'>,
   ): string[] {
