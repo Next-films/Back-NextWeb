@@ -16,6 +16,8 @@ import { UpsertUpcomingMoviePayloadDto } from '@/movies/api/dtos/input/upsert-up
 import { MovieMetadataCardService } from '@/movies/application/movie-metadata-card.service';
 import { EXCEPTION_KEYS_ENUM } from '@/common/enums/exception-keys.enum';
 import { MovieTypesEnum } from '@/common/types/types';
+import { MovieHandleStatus } from '@/movies/domain/types';
+import { UpsertUpcomingMovieOutputDto } from '@/movies/api/dtos/output/upsert-upcoming-movie.output.dto';
 
 export class UpsertUpcomingCartoonCommand implements ICommand {
   constructor(public inputDto: UpsertUpcomingMoviePayloadDto) {}
@@ -26,7 +28,7 @@ export class UpsertUpcomingCartoonCommandHandler
   implements
     ICommandHandler<
       UpsertUpcomingCartoonCommand,
-      AppNotificationResult<null, ErrorFieldExceptionDto | null>
+      AppNotificationResult<UpsertUpcomingMovieOutputDto, ErrorFieldExceptionDto | null>
     >
 {
   constructor(
@@ -44,7 +46,7 @@ export class UpsertUpcomingCartoonCommandHandler
 
   async execute(
     command: UpsertUpcomingCartoonCommand,
-  ): Promise<AppNotificationResult<null, ErrorFieldExceptionDto | null>> {
+  ): Promise<AppNotificationResult<UpsertUpcomingMovieOutputDto, ErrorFieldExceptionDto | null>> {
     const { kpId } = command.inputDto;
     this.logger.log(`Upsert upcoming cartoon card command`, this.execute.name);
 
@@ -69,13 +71,13 @@ export class UpsertUpcomingCartoonCommandHandler
 
       if (existingCartoon?.videoUrl) {
         await queryRunner.commitTransaction();
-        return this.appNotification.success(null);
+        return this.appNotification.success(new UpsertUpcomingMovieOutputDto(true));
       }
 
       const metadata = await this.moviesService.extractMovieMetadata(kpMovie, queryRunner);
       if (!this.movieMetadataCardService.shouldPublishUpcomingCard(metadata)) {
         await queryRunner.commitTransaction();
-        return this.appNotification.success(null);
+        return this.appNotification.success(new UpsertUpcomingMovieOutputDto(true));
       }
 
       const cartoon = existingCartoon
@@ -84,17 +86,19 @@ export class UpsertUpcomingCartoonCommandHandler
 
       const savedCartoon = await this.cartoonRepository.save(cartoon, queryRunner);
 
-      if (!existingCartoon) {
-        await this.movieMetadataCardService.hydrateNewMovieAssets(
-          savedCartoon,
-          metadata,
-          MovieTypesEnum.CARTOON,
-        );
-        await this.cartoonRepository.save(savedCartoon, queryRunner);
-      }
+      await this.movieMetadataCardService.hydrateNewMovieAssets(
+        savedCartoon,
+        metadata,
+        MovieTypesEnum.CARTOON,
+      );
+      await this.cartoonRepository.save(savedCartoon, queryRunner);
 
       await queryRunner.commitTransaction();
-      return this.appNotification.success(null);
+      return this.appNotification.success(
+        new UpsertUpcomingMovieOutputDto(
+          savedCartoon.handleStatus === MovieHandleStatus.PRODUCTION,
+        ),
+      );
     } catch (e) {
       this.logger.error(e, this.execute.name);
       await queryRunner.rollbackTransaction();

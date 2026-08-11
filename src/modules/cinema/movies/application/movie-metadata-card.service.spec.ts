@@ -52,26 +52,90 @@ describe('MovieMetadataCardService', () => {
     expect(dto.availabilityStatus).toBe(MovieAvailabilityStatus.UPCOMING);
   });
 
-  it('sends upcoming cards with missing images to moderation', () => {
-    const dto = service.createMovieDto(
-      {
-        ...completeMetadata(),
-        posterUrl: null,
-      },
-      '1264562',
-    );
+  it('creates upcoming cards in moderation until assets are processed', () => {
+    const dto = service.createMovieDto(completeMetadata(), '1264562');
 
     expect(dto.handleStatus).toBe(MovieHandleStatus.MODERATE);
     expect(dto.hidden).toBe(true);
+    expect(dto.previewUrl).toBeNull();
+    expect(dto.horizontalPreviewUrl).toBeNull();
+    expect(dto.backgroundContentUrl).toBeNull();
   });
 
-  it('publishes complete upcoming cards to production', () => {
-    const dto = service.createMovieDto(completeMetadata(), '1264562');
+  it('publishes upcoming cards only after required assets are converted', async () => {
+    const moviesService = {
+      getBackgroundContentUrl: jest.fn(
+        (url: string | null, _id: number, _type: MovieTypesEnum, prefix?: string) =>
+          Promise.resolve(
+            url
+              ? `https://cdn.example/${
+                  prefix === 'horizontal-posters' ? 'horizontal.webp' : 'trailer.webm'
+                }`
+              : null,
+          ),
+      ),
+      getPosterUrl: jest.fn(() => Promise.resolve('https://cdn.example/poster.webp')),
+      getLogoUrl: jest.fn(() => Promise.resolve('https://cdn.example/logo.webp')),
+    };
+    const serviceWithMovies = new MovieMetadataCardService(moviesService as never);
+    const movie = {
+      id: 42,
+      ...serviceWithMovies.createMovieDto(completeMetadata(), '1264562'),
+      title: 'Movie',
+      alternativeTitles: 'Movie 2026',
+      isHidden: true,
+      updateBackgroundUrl: jest.fn(function (this: { backgroundContentUrl: string | null }, url) {
+        this.backgroundContentUrl = url;
+      }),
+      updatePosterUrl: jest.fn(function (this: { previewUrl: string | null }, url) {
+        this.previewUrl = url;
+      }),
+      updateHorizontalPreviewUrl: jest.fn(function (
+        this: { horizontalPreviewUrl: string | null },
+        url,
+      ) {
+        this.horizontalPreviewUrl = url;
+      }),
+      updateTitleUrl: jest.fn(function (this: { titleUrl: string | null }, url) {
+        this.titleUrl = url;
+      }),
+      showOrHiddeMovie: jest.fn(function (
+        this: { isHidden: boolean; handleStatus: MovieHandleStatus },
+        isHidden,
+        status,
+      ) {
+        this.isHidden = isHidden;
+        this.handleStatus = status;
+      }),
+    };
 
-    expect(dto.handleStatus).toBe(MovieHandleStatus.PRODUCTION);
-    expect(dto.hidden).toBe(false);
-    expect(dto.previewUrl).toBe('https://image.example/poster.jpg');
-    expect(dto.backgroundContentUrl).toBe('https://image.example/backdrop.jpg');
+    await serviceWithMovies.hydrateNewMovieAssets(
+      movie as never,
+      completeMetadata(),
+      MovieTypesEnum.FILM,
+    );
+
+    expect(moviesService.getBackgroundContentUrl).toHaveBeenCalledWith(
+      'https://youtube.com/watch?v=test',
+      42,
+      MovieTypesEnum.FILM,
+    );
+    expect(moviesService.getBackgroundContentUrl).toHaveBeenCalledWith(
+      'https://image.example/backdrop.jpg',
+      42,
+      MovieTypesEnum.FILM,
+      'horizontal-posters',
+    );
+    expect(moviesService.getPosterUrl).toHaveBeenCalledWith(
+      'https://image.example/poster.jpg',
+      42,
+      MovieTypesEnum.FILM,
+    );
+    expect(movie.handleStatus).toBe(MovieHandleStatus.PRODUCTION);
+    expect(movie.isHidden).toBe(false);
+    expect(movie.previewUrl).toBe('https://cdn.example/poster.webp');
+    expect(movie.horizontalPreviewUrl).toBe('https://cdn.example/horizontal.webp');
+    expect(movie.backgroundContentUrl).toBe('https://cdn.example/trailer.webm');
   });
 
   it('keeps existing metadata cards in upcoming status', () => {
@@ -109,30 +173,43 @@ describe('MovieMetadataCardService', () => {
     expect(existingMovie.showOrHiddeMovie).toHaveBeenCalledWith(true, MovieHandleStatus.MODERATE);
   });
 
-  it('does not hydrate downloader assets for upcoming cards', async () => {
+  it('keeps upcoming cards in moderation when required asset conversion fails', async () => {
     const moviesService = {
-      getBackgroundContentUrl: jest.fn(),
-      getPosterUrl: jest.fn(),
-      getLogoUrl: jest.fn(),
+      getBackgroundContentUrl: jest.fn(() => Promise.resolve(null)),
+      getPosterUrl: jest.fn(() => Promise.resolve('https://cdn.example/poster.webp')),
+      getLogoUrl: jest.fn(() => Promise.resolve(null)),
     };
     const serviceWithMovies = new MovieMetadataCardService(moviesService as never);
     const movie = {
+      id: 42,
+      ...serviceWithMovies.createMovieDto(completeMetadata(), '1264562'),
+      title: 'Movie',
+      alternativeTitles: 'Movie 2026',
       availabilityStatus: MovieAvailabilityStatus.UPCOMING,
+      isHidden: true,
       updateBackgroundUrl: jest.fn(),
-      updatePosterUrl: jest.fn(),
+      updatePosterUrl: jest.fn(function (this: { previewUrl: string | null }, url) {
+        this.previewUrl = url;
+      }),
       updateHorizontalPreviewUrl: jest.fn(),
       updateTitleUrl: jest.fn(),
+      showOrHiddeMovie: jest.fn(function (
+        this: { isHidden: boolean; handleStatus: MovieHandleStatus },
+        isHidden,
+        status,
+      ) {
+        this.isHidden = isHidden;
+        this.handleStatus = status;
+      }),
     };
 
     await serviceWithMovies.hydrateNewMovieAssets(
       movie as never,
-      metadata(['США']),
+      completeMetadata(),
       MovieTypesEnum.FILM,
     );
 
-    expect(moviesService.getBackgroundContentUrl).not.toHaveBeenCalled();
-    expect(moviesService.getPosterUrl).not.toHaveBeenCalled();
-    expect(moviesService.getLogoUrl).not.toHaveBeenCalled();
-    expect(movie.updateBackgroundUrl).not.toHaveBeenCalled();
+    expect(movie.handleStatus).toBe(MovieHandleStatus.MODERATE);
+    expect(movie.isHidden).toBe(true);
   });
 });

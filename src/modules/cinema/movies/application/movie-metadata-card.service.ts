@@ -10,6 +10,20 @@ import {
   MovieUpdateDto,
 } from '@/movies/domain/types';
 
+type UpcomingModerationSnapshot = Pick<
+  MovieCreateDto,
+  | 'name'
+  | 'alternativeName'
+  | 'country'
+  | 'description'
+  | 'releaseDate'
+  | 'genres'
+  | 'trailerUrl'
+  | 'backgroundContentUrl'
+  | 'horizontalPreviewUrl'
+  | 'previewUrl'
+>;
+
 @Injectable()
 export class MovieMetadataCardService {
   constructor(private readonly moviesService: MoviesService) {}
@@ -19,7 +33,7 @@ export class MovieMetadataCardService {
   }
 
   createMovieDto(metadata: MovieKpMetadata, kpId: string): MovieCreateDto {
-    const dto = {
+    return {
       key: null,
       kpId,
       duration: 0,
@@ -34,25 +48,20 @@ export class MovieMetadataCardService {
       releaseDate: metadata.releaseDate,
       availabilityStatus: MovieAvailabilityStatus.UPCOMING,
       trailerUrl: metadata.trailerUrl,
-      backgroundContentUrl: metadata.backdropUrl,
-      horizontalPreviewUrl: metadata.backdropUrl,
-      previewUrl: metadata.posterUrl,
-      titleUrl: metadata.titleUrl,
-    };
-    const moderationState = this.getUpcomingModerationState(dto);
-
-    return {
-      ...dto,
-      ...moderationState,
+      backgroundContentUrl: null,
+      horizontalPreviewUrl: null,
+      previewUrl: null,
+      titleUrl: null,
+      hidden: true,
+      handleStatus: MovieHandleStatus.MODERATE,
     };
   }
 
   updateExistingMovie<T extends MovieEntity>(movie: T, metadata: MovieKpMetadata, kpId: string): T {
     const updateDto = this.createUpdateDto(movie, metadata, kpId);
-    const moderationState = this.getUpcomingModerationState(updateDto);
 
     movie.update(updateDto);
-    movie.showOrHiddeMovie(moderationState.hidden, moderationState.handleStatus);
+    movie.showOrHiddeMovie(true, MovieHandleStatus.MODERATE);
     movie.updateAvailabilityStatus(MovieAvailabilityStatus.UPCOMING);
     return movie;
   }
@@ -62,14 +71,15 @@ export class MovieMetadataCardService {
     metadata: MovieKpMetadata,
     movieType: MovieTypesEnum,
   ): Promise<void> {
-    if (movie.availabilityStatus === MovieAvailabilityStatus.UPCOMING) return;
-
     const assets = await this.getContentUrlForMovie(movie.id, metadata, movieType);
 
     movie.updateBackgroundUrl(assets.backgroundContentUrl);
     movie.updatePosterUrl(assets.posterUrl);
     movie.updateHorizontalPreviewUrl(assets.horizontalPreviewUrl);
     movie.updateTitleUrl(assets.titleUrl);
+
+    const moderationState = this.getUpcomingModerationState(this.createModerationSnapshot(movie));
+    movie.showOrHiddeMovie(moderationState.hidden, moderationState.handleStatus);
   }
 
   private createUpdateDto<T extends MovieEntity>(
@@ -90,36 +100,27 @@ export class MovieMetadataCardService {
       country: metadata.countries || movie.country,
       description: metadata.description || movie.description,
       releaseDate: metadata.releaseDate || movie.releaseDate,
-      previewUrl: movie.previewUrl || metadata.posterUrl,
-      horizontalPreviewUrl: movie.horizontalPreviewUrl || metadata.backdropUrl,
-      backgroundContentUrl: movie.backgroundContentUrl || metadata.backdropUrl,
+      previewUrl: movie.previewUrl || null,
+      horizontalPreviewUrl: movie.horizontalPreviewUrl || null,
+      backgroundContentUrl: movie.backgroundContentUrl || null,
       trailerUrl: movie.trailerUrl || metadata.trailerUrl,
       titleUrl: movie.titleUrl || metadata.titleUrl,
     };
   }
 
-  private getUpcomingModerationState(
-    movie: Pick<
-      MovieCreateDto,
-      | 'name'
-      | 'alternativeName'
-      | 'country'
-      | 'description'
-      | 'releaseDate'
-      | 'genres'
-      | 'trailerUrl'
-      | 'backgroundContentUrl'
-      | 'previewUrl'
-    >,
-  ): { hidden: boolean; handleStatus: MovieHandleStatus } {
+  private getUpcomingModerationState(movie: UpcomingModerationSnapshot): {
+    hidden: boolean;
+    handleStatus: MovieHandleStatus;
+  } {
     const isReadyForProduction = !!(
       this.hasText(movie.name) &&
       this.hasText(movie.alternativeName) &&
       this.hasText(movie.description) &&
       this.hasText(movie.releaseDate) &&
       this.hasText(movie.trailerUrl) &&
-      this.hasText(movie.backgroundContentUrl) &&
-      this.hasText(movie.previewUrl) &&
+      this.hasProcessedPreviewClip(movie.backgroundContentUrl) &&
+      this.hasProcessedImage(movie.horizontalPreviewUrl) &&
+      this.hasProcessedImage(movie.previewUrl) &&
       movie.genres &&
       movie.genres.length > 0 &&
       movie.country &&
@@ -138,6 +139,40 @@ export class MovieMetadataCardService {
     return Boolean(value && value.trim());
   }
 
+  private hasProcessedImage(value: string | null): boolean {
+    return this.hasMediaExtension(value, '.webp');
+  }
+
+  private hasProcessedPreviewClip(value: string | null): boolean {
+    return this.hasMediaExtension(value, '.webm');
+  }
+
+  private hasMediaExtension(value: string | null, extension: string): boolean {
+    if (!value || !value.trim()) return false;
+
+    try {
+      const url = new URL(value);
+      return url.pathname.toLowerCase().endsWith(extension);
+    } catch {
+      return value.toLowerCase().split('?')[0].endsWith(extension);
+    }
+  }
+
+  private createModerationSnapshot(movie: MovieEntity): UpcomingModerationSnapshot {
+    return {
+      name: movie.title,
+      alternativeName: movie.alternativeTitles,
+      country: movie.country,
+      description: movie.description,
+      releaseDate: movie.releaseDate,
+      genres: movie.genres,
+      trailerUrl: movie.trailerUrl,
+      backgroundContentUrl: movie.backgroundContentUrl,
+      horizontalPreviewUrl: movie.horizontalPreviewUrl,
+      previewUrl: movie.previewUrl,
+    };
+  }
+
   private async getContentUrlForMovie(
     movieId: number,
     metadata: MovieKpMetadata,
@@ -148,10 +183,9 @@ export class MovieMetadataCardService {
     posterUrl: string | null;
     titleUrl: string | null;
   }> {
-    const backgroundSourceUrl = metadata.backdropUrl || metadata.trailerUrl;
     const [backgroundContentUrl, horizontalPreviewUrl, posterUrl, titleUrl] = await Promise.all([
       this.getAssetUrlOrNull(() =>
-        this.moviesService.getBackgroundContentUrl(backgroundSourceUrl, movieId, movieType),
+        this.moviesService.getBackgroundContentUrl(metadata.trailerUrl, movieId, movieType),
       ),
       this.getAssetUrlOrNull(() =>
         this.moviesService.getBackgroundContentUrl(

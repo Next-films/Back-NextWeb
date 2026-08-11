@@ -16,6 +16,8 @@ import { UpsertUpcomingMoviePayloadDto } from '@/movies/api/dtos/input/upsert-up
 import { MovieMetadataCardService } from '@/movies/application/movie-metadata-card.service';
 import { EXCEPTION_KEYS_ENUM } from '@/common/enums/exception-keys.enum';
 import { MovieTypesEnum } from '@/common/types/types';
+import { MovieHandleStatus } from '@/movies/domain/types';
+import { UpsertUpcomingMovieOutputDto } from '@/movies/api/dtos/output/upsert-upcoming-movie.output.dto';
 
 export class UpsertUpcomingSerialCommand implements ICommand {
   constructor(public inputDto: UpsertUpcomingMoviePayloadDto) {}
@@ -26,7 +28,7 @@ export class UpsertUpcomingSerialCommandHandler
   implements
     ICommandHandler<
       UpsertUpcomingSerialCommand,
-      AppNotificationResult<null, ErrorFieldExceptionDto | null>
+      AppNotificationResult<UpsertUpcomingMovieOutputDto, ErrorFieldExceptionDto | null>
     >
 {
   constructor(
@@ -44,7 +46,7 @@ export class UpsertUpcomingSerialCommandHandler
 
   async execute(
     command: UpsertUpcomingSerialCommand,
-  ): Promise<AppNotificationResult<null, ErrorFieldExceptionDto | null>> {
+  ): Promise<AppNotificationResult<UpsertUpcomingMovieOutputDto, ErrorFieldExceptionDto | null>> {
     const { kpId } = command.inputDto;
     this.logger.log(`Upsert upcoming serial card command`, this.execute.name);
 
@@ -69,13 +71,13 @@ export class UpsertUpcomingSerialCommandHandler
 
       if (existingSerial && (existingSerial.episodes || []).length > 0) {
         await queryRunner.commitTransaction();
-        return this.appNotification.success(null);
+        return this.appNotification.success(new UpsertUpcomingMovieOutputDto(true));
       }
 
       const metadata = await this.moviesService.extractMovieMetadata(kpMovie, queryRunner);
       if (!this.movieMetadataCardService.shouldPublishUpcomingCard(metadata)) {
         await queryRunner.commitTransaction();
-        return this.appNotification.success(null);
+        return this.appNotification.success(new UpsertUpcomingMovieOutputDto(true));
       }
 
       const serial = existingSerial
@@ -84,17 +86,17 @@ export class UpsertUpcomingSerialCommandHandler
 
       const savedSerial = await this.serialRepository.save(serial, queryRunner);
 
-      if (!existingSerial) {
-        await this.movieMetadataCardService.hydrateNewMovieAssets(
-          savedSerial,
-          metadata,
-          MovieTypesEnum.SERIAL,
-        );
-        await this.serialRepository.save(savedSerial, queryRunner);
-      }
+      await this.movieMetadataCardService.hydrateNewMovieAssets(
+        savedSerial,
+        metadata,
+        MovieTypesEnum.SERIAL,
+      );
+      await this.serialRepository.save(savedSerial, queryRunner);
 
       await queryRunner.commitTransaction();
-      return this.appNotification.success(null);
+      return this.appNotification.success(
+        new UpsertUpcomingMovieOutputDto(savedSerial.handleStatus === MovieHandleStatus.PRODUCTION),
+      );
     } catch (e) {
       this.logger.error(e, this.execute.name);
       await queryRunner.rollbackTransaction();

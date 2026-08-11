@@ -1,9 +1,20 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Trim } from '@/common/decorators/transform/trim.decorator';
 import { QuerySortFilterUtil } from '@/common/utils/query-filter.util';
-import { MovieAvailabilityStatus } from '@/movies/domain/types';
-import { IsEnum, IsNotEmpty, IsOptional, IsString, Length } from 'class-validator';
+import { MovieAvailabilityStatus, MovieHandleStatus } from '@/movies/domain/types';
+import {
+  IsBoolean,
+  IsEnum,
+  IsInt,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  Length,
+  Max,
+  Min,
+} from 'class-validator';
 import { FILMS_VALIDATION_RULES } from '@/common/constants/validation-rules.constants';
+import { Type } from 'class-transformer';
 
 export enum AdminPremiereTypeEnum {
   ALL = 'all',
@@ -29,6 +40,13 @@ export enum AdminGetPremieresSortFieldEnum {
   TITLE = 'title',
   CREATED_AT = 'createdAt',
   UPDATED_AT = 'updatedAt',
+}
+
+export enum AdminPremiereHandleStatusEnum {
+  ALL = 'all',
+  PROCESSING = MovieHandleStatus.PROCESSING,
+  MODERATE = MovieHandleStatus.MODERATE,
+  PRODUCTION = MovieHandleStatus.PRODUCTION,
 }
 
 export class AdminGetPremieresInputQueryDto extends QuerySortFilterUtil {
@@ -79,4 +97,35 @@ export class AdminUpsertPremiereInputDto {
   @IsString()
   @IsNotEmpty()
   kpId: string;
+}
+
+export class AdminReprocessPremiereAssetsInputDto {
+  @ApiPropertyOptional({
+    enum: AdminPremiereTypeEnum,
+    default: AdminPremiereTypeEnum.ALL,
+  })
+  @IsOptional()
+  @IsEnum(AdminPremiereTypeEnum)
+  type?: AdminPremiereTypeEnum = AdminPremiereTypeEnum.ALL;
+
+  @ApiPropertyOptional({
+    enum: AdminPremiereHandleStatusEnum,
+    default: AdminPremiereHandleStatusEnum.MODERATE,
+  })
+  @IsOptional()
+  @IsEnum(AdminPremiereHandleStatusEnum)
+  handleStatus?: AdminPremiereHandleStatusEnum = AdminPremiereHandleStatusEnum.MODERATE;
+
+  @ApiPropertyOptional({ default: true })
+  @IsOptional()
+  @IsBoolean()
+  onlyMissingAssets?: boolean = true;
+
+  @ApiPropertyOptional({ default: 10, minimum: 1, maximum: 50 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(50)
+  limit?: number = 10;
 }

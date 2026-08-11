@@ -84,6 +84,7 @@ import { AdminGetSerialByIdQueryHandler } from '@/admin/application/query-handle
 import { AdminMediaUrlSigningService } from '@/admin/application/services/admin-media-url-signing.service';
 import { AdminRemoveAdminCommandHandler } from '@/admin/application/handlers/admin-remove-admin.handler';
 import { AdminGetPremieresQueryHandler } from '@/admin/application/query-handlers/admin-get-premieres.query-handler';
+import { AdminReprocessPremiereAssetsCommandHandler } from '@/admin/application/handlers/admin-reprocess-premiere-assets.handler';
 
 export const AdminProvider = {
   provide: 'Admin',
@@ -121,6 +122,7 @@ const handlers = [
   AdminUpdateCommandHandler,
   AdminUpdateAvatarCommandHandler,
   AdminRemoveAdminCommandHandler,
+  AdminReprocessPremiereAssetsCommandHandler,
 ];
 
 const queryHandlers = [

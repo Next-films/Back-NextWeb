@@ -39,6 +39,7 @@ import { NewBackGroundContentCartoonCommand } from '@/cartoons/application/handl
 import { SwaggerDecoratorNewBackgroundContentForCartoon } from '@/cartoons/api/swagger/new-background-content-private.swagger.decorator';
 import { UpsertUpcomingMoviePayloadDto } from '@/movies/api/dtos/input/upsert-upcoming-movie.input.dto';
 import { UpsertUpcomingCartoonCommand } from '@/cartoons/application/handlers/upsert-upcoming-cartoon.handler';
+import { UpsertUpcomingMovieOutputDto } from '@/movies/api/dtos/output/upsert-upcoming-movie.output.dto';
 
 @ApiBearerAuth(BACKEND_TO_BACKEND_AUTH_JWT_SCHEMA_NAME)
 @ApiUnauthorizedResponse({ description: 'Unauthorized', type: HttpPrivateExceptionDto })
@@ -80,12 +81,15 @@ export class CartoonPrivateController {
   @Post(`${PRIVATE_CARTOONS_ROUTE.UPCOMING}`)
   async upsertUpcomingCartoon(
     @Body() body: UpsertUpcomingMoviePayloadDto,
-  ): Promise<AppNotificationResult<null, ErrorFieldExceptionDto | null> | void> {
+  ): Promise<AppNotificationResult<
+    UpsertUpcomingMovieOutputDto,
+    ErrorFieldExceptionDto | null
+  > | void> {
     this.logger.log(`Execute: Upsert upcoming cartoon`, this.upsertUpcomingCartoon.name);
 
     const result = await this.commandBus.execute<
       UpsertUpcomingCartoonCommand,
-      AppNotificationResult<null, ErrorFieldExceptionDto | null>
+      AppNotificationResult<UpsertUpcomingMovieOutputDto, ErrorFieldExceptionDto | null>
     >(new UpsertUpcomingCartoonCommand(body));
 
     this.logger.log(result.appResult, this.upsertUpcomingCartoon.name);

@@ -23,6 +23,7 @@ import { ErrorFieldExceptionDto } from '@/common/exception-filters/http/http-exc
 import { PaginationUtil } from '@/common/utils/pagination.util';
 import {
   AdminGetPremieresInputQueryDto,
+  AdminReprocessPremiereAssetsInputDto,
   AdminUpsertPremiereInputDto,
   AdminUpsertPremiereTypeEnum,
 } from '@/admin/api/dtos/input/admin-get-premieres.input-query.dto';
@@ -31,6 +32,9 @@ import { AdminGetPremieresQuery } from '@/admin/application/query-handlers/admin
 import { UpsertUpcomingFilmCommand } from '@/films/application/handlers/upsert-upcoming-film.handler';
 import { UpsertUpcomingCartoonCommand } from '@/cartoons/application/handlers/upsert-upcoming-cartoon.handler';
 import { UpsertUpcomingSerialCommand } from '@/serials/application/handlers/upsert-upcoming-serial.handler';
+import { AdminReprocessPremiereAssetsCommand } from '@/admin/application/handlers/admin-reprocess-premiere-assets.handler';
+import { AdminReprocessPremiereAssetsOutputDto } from '@/admin/api/dtos/output/admin-reprocess-premiere-assets.output.dto';
+import { UpsertUpcomingMovieOutputDto } from '@/movies/api/dtos/output/upsert-upcoming-movie.output.dto';
 
 @ApiTags('Admin cinema - premieres')
 @ApiBearerAuth(ADMIN_AUTH_JWT_SCHEMA_NAME)
@@ -68,12 +72,38 @@ export class AdminCinemaPremieresController {
   async upsertPremiere(@Body() body: AdminUpsertPremiereInputDto): Promise<void> {
     this.logger.log('Execute: upsert premiere by admin', this.upsertPremiere.name);
 
-    const result = await this.commandBus.execute(this.createUpsertCommand(body.type, body.kpId));
+    const result = await this.commandBus.execute<
+      UpsertUpcomingFilmCommand | UpsertUpcomingCartoonCommand | UpsertUpcomingSerialCommand,
+      AppNotificationResult<UpsertUpcomingMovieOutputDto, ErrorFieldExceptionDto | null>
+    >(this.createUpsertCommand(body.type, body.kpId));
 
     this.appNotification.handleHttpResult(result);
   }
 
-  private createUpsertCommand(type: AdminUpsertPremiereTypeEnum, kpId: string) {
+  @Post('reprocess-assets')
+  @HttpCode(HttpStatus.OK)
+  async reprocessPremiereAssets(
+    @Body() body: AdminReprocessPremiereAssetsInputDto,
+  ): Promise<AdminReprocessPremiereAssetsOutputDto | void> {
+    this.logger.log(
+      'Execute: reprocess premiere assets by admin',
+      this.reprocessPremiereAssets.name,
+    );
+
+    const result = await this.commandBus.execute<
+      AdminReprocessPremiereAssetsCommand,
+      AppNotificationResult<AdminReprocessPremiereAssetsOutputDto, ErrorFieldExceptionDto | null>
+    >(new AdminReprocessPremiereAssetsCommand(body));
+
+    if (result.appResult === AppNotificationResultEnum.Success) return result.data!;
+
+    this.appNotification.handleHttpResult(result);
+  }
+
+  private createUpsertCommand(
+    type: AdminUpsertPremiereTypeEnum,
+    kpId: string,
+  ): UpsertUpcomingFilmCommand | UpsertUpcomingCartoonCommand | UpsertUpcomingSerialCommand {
     switch (type) {
       case AdminUpsertPremiereTypeEnum.CARTOON:
         return new UpsertUpcomingCartoonCommand({ kpId });

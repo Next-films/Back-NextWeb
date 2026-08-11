@@ -39,6 +39,7 @@ import { NewSerialBackGroundContentPayloadDto } from '@/serials/api/dtos/input/n
 import { NewBackGroundContentSerialCommand } from '@/serials/application/handlers/new-background-content-serial.handler';
 import { UpsertUpcomingMoviePayloadDto } from '@/movies/api/dtos/input/upsert-upcoming-movie.input.dto';
 import { UpsertUpcomingSerialCommand } from '@/serials/application/handlers/upsert-upcoming-serial.handler';
+import { UpsertUpcomingMovieOutputDto } from '@/movies/api/dtos/output/upsert-upcoming-movie.output.dto';
 
 @ApiBearerAuth(BACKEND_TO_BACKEND_AUTH_JWT_SCHEMA_NAME)
 @ApiUnauthorizedResponse({ description: 'Unauthorized', type: HttpPrivateExceptionDto })
@@ -77,12 +78,15 @@ export class SerialPrivateController {
   @Post(`${PRIVATE_SERIALS_ROUTE.UPCOMING}`)
   async upsertUpcomingSerial(
     @Body() body: UpsertUpcomingMoviePayloadDto,
-  ): Promise<AppNotificationResult<null, ErrorFieldExceptionDto | null> | void> {
+  ): Promise<AppNotificationResult<
+    UpsertUpcomingMovieOutputDto,
+    ErrorFieldExceptionDto | null
+  > | void> {
     this.logger.log(`Execute: Upsert upcoming serial`, this.upsertUpcomingSerial.name);
 
     const result = await this.commandBus.execute<
       UpsertUpcomingSerialCommand,
-      AppNotificationResult<null, ErrorFieldExceptionDto | null>
+      AppNotificationResult<UpsertUpcomingMovieOutputDto, ErrorFieldExceptionDto | null>
     >(new UpsertUpcomingSerialCommand(body));
 
     this.logger.log(result.appResult, this.upsertUpcomingSerial.name);
