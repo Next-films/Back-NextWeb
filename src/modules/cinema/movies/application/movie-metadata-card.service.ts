@@ -116,7 +116,6 @@ export class MovieMetadataCardService {
       this.hasText(movie.description) &&
       this.hasText(movie.releaseDate) &&
       this.hasText(movie.trailerUrl) &&
-      this.hasProcessedPreviewClip(movie.backgroundContentUrl) &&
       this.hasProcessedImage(movie.previewUrl) &&
       movie.genres &&
       movie.genres.length > 0 &&

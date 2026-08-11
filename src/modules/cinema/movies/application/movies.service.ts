@@ -101,7 +101,6 @@ export class MoviesService {
       alternativeTitles,
       releaseDate,
       trailerUrl,
-      backgroundContentUrl,
       previewUrl,
       titleUrl,
       videoUrl,
@@ -117,7 +116,6 @@ export class MoviesService {
       trailerUrl &&
       videoUrl &&
       previewUrl &&
-      backgroundContentUrl &&
       titleUrl &&
       duration &&
       duration !== 0 &&

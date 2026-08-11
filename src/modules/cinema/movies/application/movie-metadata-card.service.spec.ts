@@ -160,11 +160,11 @@ describe('MovieMetadataCardService', () => {
     expect(existingMovie.showOrHiddeMovie).toHaveBeenCalledWith(true, MovieHandleStatus.MODERATE);
   });
 
-  it('keeps upcoming cards in moderation when required asset conversion fails', async () => {
+  it('publishes upcoming cards when only background conversion fails', async () => {
     const moviesService = {
       getBackgroundContentUrl: jest.fn(() => Promise.resolve(null)),
       getPosterUrl: jest.fn(() => Promise.resolve('https://cdn.example/poster.webp')),
-      getLogoUrl: jest.fn(() => Promise.resolve(null)),
+      getLogoUrl: jest.fn(() => Promise.resolve('https://cdn.example/logo.webp')),
     };
     const serviceWithMovies = new MovieMetadataCardService(moviesService as never);
     const movie = {
@@ -179,7 +179,9 @@ describe('MovieMetadataCardService', () => {
         if (url) this.previewUrl = url;
       }),
       updateHorizontalPreviewUrl: jest.fn(),
-      updateTitleUrl: jest.fn(),
+      updateTitleUrl: jest.fn(function (this: { titleUrl: string | null }, url) {
+        if (url) this.titleUrl = url;
+      }),
       showOrHiddeMovie: jest.fn(function (
         this: { isHidden: boolean; handleStatus: MovieHandleStatus },
         isHidden,
@@ -196,8 +198,9 @@ describe('MovieMetadataCardService', () => {
       MovieTypesEnum.FILM,
     );
 
-    expect(movie.handleStatus).toBe(MovieHandleStatus.MODERATE);
-    expect(movie.isHidden).toBe(true);
+    expect(movie.handleStatus).toBe(MovieHandleStatus.PRODUCTION);
+    expect(movie.isHidden).toBe(false);
+    expect(movie.backgroundContentUrl).toBeNull();
   });
 
   it('does not hydrate horizontal preview for upcoming cards', async () => {
