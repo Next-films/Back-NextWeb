@@ -187,12 +187,15 @@ export class MovieMetadataCardService {
       this.getAssetUrlOrNull(() =>
         this.moviesService.getBackgroundContentUrl(metadata.trailerUrl, movieId, movieType),
       ),
-      this.getAssetUrlOrNull(() =>
-        this.moviesService.getBackgroundContentUrl(
-          metadata.backdropUrl,
-          movieId,
-          movieType,
-          'horizontal-posters',
+      this.getFirstAssetUrlOrNull(
+        this.getHorizontalPreviewSourceUrls(metadata).map(
+          url => () =>
+            this.moviesService.getBackgroundContentUrl(
+              url,
+              movieId,
+              movieType,
+              'horizontal-posters',
+            ),
         ),
       ),
       this.getAssetUrlOrNull(() =>
@@ -212,6 +215,24 @@ export class MovieMetadataCardService {
     } catch {
       return null;
     }
+  }
+
+  private async getFirstAssetUrlOrNull(
+    actions: Array<() => Promise<string | null>>,
+  ): Promise<string | null> {
+    for (const action of actions) {
+      const url = await this.getAssetUrlOrNull(action);
+      if (url) return url;
+    }
+
+    return null;
+  }
+
+  private getHorizontalPreviewSourceUrls(metadata: MovieKpMetadata): string[] {
+    return [metadata.backdropUrl, ...(metadata.backdropUrls || [])]
+      .map(url => url?.trim())
+      .filter((url): url is string => Boolean(url))
+      .filter((url, index, urls) => urls.indexOf(url) === index);
   }
 
   private isForeignCountryList(countries: string[] | null): boolean {

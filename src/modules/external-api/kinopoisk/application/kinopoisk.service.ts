@@ -3,7 +3,11 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 import { KINOPOISK_METHODS_CONSTANTS } from '@/external-api/kinopoisk/domain/kinopoisk.constants';
-import { KinopoiskMovie } from '@/external-api/kinopoisk/domain/types';
+import {
+  KinopoiskImage,
+  KinopoiskMovie,
+  KinopoiskPaginatedResponse,
+} from '@/external-api/kinopoisk/domain/types';
 import { LoggerService } from '@/common/utils/logger/logger.service';
 import { ConfigurationType } from '@/settings/configuration';
 import { ExternalApiConfigService } from '@/external-api-config/application/external-api-config.service';
@@ -13,6 +17,7 @@ import { KINOPOISK_AUTH_HEADER } from '@/external-api/kinopoisk/domain/kinopoisk
 @Injectable()
 export class KinopoiskService {
   private readonly MOVIES: string = `/${KINOPOISK_METHODS_CONSTANTS.MOVIE.MOVIE}`;
+  private readonly IMAGES = '/image';
   private fallbackTokenIndex = 0;
   constructor(
     protected readonly logger: LoggerService,
@@ -118,6 +123,83 @@ export class KinopoiskService {
 
     return null;
   }
+
+  async getImagesByMovieId(movieId: number, limit = 50): Promise<KinopoiskImage[]> {
+    const requestConfigs = await this.getRequestConfigs();
+
+    for (const requestConfig of requestConfigs) {
+      try {
+        const response = await this.httpService.axiosRef.get<
+          KinopoiskPaginatedResponse<KinopoiskImage>
+        >(this.IMAGES, {
+          ...requestConfig,
+          params: {
+            movieId,
+            limit,
+            page: 1,
+          },
+        });
+
+        return response.data?.docs || [];
+      } catch (error: unknown) {
+        if (!this.shouldRetryRequest(error)) {
+          this.logger.error(error, this.getImagesByMovieId.name);
+          return [];
+        }
+        const message = error instanceof Error ? error.message : String(error);
+        this.logger.warn(message, this.getImagesByMovieId.name);
+      }
+    }
+
+    return [];
+  }
+
+  async getBestLandscapeImageByMovieId(movieId: number): Promise<string | null> {
+    return (await this.getLandscapeImageUrlsByMovieId(movieId))[0] || null;
+  }
+
+  async getLandscapeImageUrlsByMovieId(movieId: number): Promise<string[]> {
+    const images = await this.getImagesByMovieId(movieId);
+
+    return images
+      .map((image, index) => ({
+        url: this.getImageUrl(image),
+        score: this.getLandscapeImageScore(image, index),
+      }))
+      .filter(candidate => candidate.url && candidate.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .map(candidate => candidate.url as string)
+      .filter((url, index, allUrls) => allUrls.indexOf(url) === index);
+  }
+
+  private getImageUrl(image: KinopoiskImage): string | null {
+    const url = image.url || image.previewUrl;
+    return url?.trim() || null;
+  }
+
+  private getLandscapeImageScore(image: KinopoiskImage, index: number): number {
+    const typePriority: Record<string, number> = {
+      cover: 10,
+      wallpaper: 9,
+      screenshot: 8,
+      frame: 7,
+      promo: 6,
+      concept: 5,
+      fan_art: 4,
+    };
+    const type = (image.type || '').toLowerCase();
+    const width = Number(image.width) || 0;
+    const height = Number(image.height) || 0;
+
+    if (width > 0 && height > 0) {
+      if (width <= height) return 0;
+      return width * height + (typePriority[type] || 1) * 100_000 - index;
+    }
+
+    if (!typePriority[type]) return 0;
+
+    return typePriority[type] * 100_000 - index;
+  }
 }
 
 export class KinopoiskServiceMock extends KinopoiskService {
@@ -139,5 +221,11 @@ export class KinopoiskServiceMock extends KinopoiskService {
       name: 'Film name',
       description: 'desc',
     };
+  }
+
+  async getImagesByMovieId(): Promise<KinopoiskImage[]> {
+    this.logger.log('Get images by movie id (mock)', this.getImagesByMovieId.name);
+    await new Promise(resolve => resolve(null));
+    return [];
   }
 }

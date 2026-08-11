@@ -212,4 +212,77 @@ describe('MovieMetadataCardService', () => {
     expect(movie.handleStatus).toBe(MovieHandleStatus.MODERATE);
     expect(movie.isHidden).toBe(true);
   });
+
+  it('tries the next horizontal preview source when the first one fails', async () => {
+    const moviesService = {
+      getBackgroundContentUrl: jest.fn(
+        (url: string | null, _id: number, _type: MovieTypesEnum, prefix?: string) => {
+          if (prefix === 'horizontal-posters' && url === 'https://image.example/broken.jpg') {
+            return Promise.resolve(null);
+          }
+
+          return Promise.resolve(
+            url
+              ? `https://cdn.example/${
+                  prefix === 'horizontal-posters' ? 'horizontal.webp' : 'trailer.webm'
+                }`
+              : null,
+          );
+        },
+      ),
+      getPosterUrl: jest.fn(() => Promise.resolve('https://cdn.example/poster.webp')),
+      getLogoUrl: jest.fn(() => Promise.resolve('https://cdn.example/logo.webp')),
+    };
+    const serviceWithMovies = new MovieMetadataCardService(moviesService as never);
+    const movie = {
+      id: 42,
+      ...serviceWithMovies.createMovieDto(completeMetadata(), '1264562'),
+      title: 'Movie',
+      alternativeTitles: 'Movie 2026',
+      isHidden: true,
+      updateBackgroundUrl: jest.fn(function (this: { backgroundContentUrl: string | null }, url) {
+        this.backgroundContentUrl = url;
+      }),
+      updatePosterUrl: jest.fn(function (this: { previewUrl: string | null }, url) {
+        this.previewUrl = url;
+      }),
+      updateHorizontalPreviewUrl: jest.fn(function (
+        this: { horizontalPreviewUrl: string | null },
+        url,
+      ) {
+        this.horizontalPreviewUrl = url;
+      }),
+      updateTitleUrl: jest.fn(function (this: { titleUrl: string | null }, url) {
+        this.titleUrl = url;
+      }),
+      showOrHiddeMovie: jest.fn(function (
+        this: { isHidden: boolean; handleStatus: MovieHandleStatus },
+        isHidden,
+        status,
+      ) {
+        this.isHidden = isHidden;
+        this.handleStatus = status;
+      }),
+    };
+    const metadataWithFallback = {
+      ...completeMetadata(),
+      backdropUrl: 'https://image.example/broken.jpg',
+      backdropUrls: ['https://image.example/broken.jpg', 'https://image.example/good.jpg'],
+    };
+
+    await serviceWithMovies.hydrateNewMovieAssets(
+      movie as never,
+      metadataWithFallback,
+      MovieTypesEnum.FILM,
+    );
+
+    expect(moviesService.getBackgroundContentUrl).toHaveBeenCalledWith(
+      'https://image.example/good.jpg',
+      42,
+      MovieTypesEnum.FILM,
+      'horizontal-posters',
+    );
+    expect(movie.horizontalPreviewUrl).toBe('https://cdn.example/horizontal.webp');
+    expect(movie.handleStatus).toBe(MovieHandleStatus.PRODUCTION);
+  });
 });

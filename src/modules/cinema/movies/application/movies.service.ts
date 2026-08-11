@@ -1,5 +1,11 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { KinopoiskItemName, KinopoiskMovie } from '@/external-api/kinopoisk/domain/types';
+import {
+  KinopoiskItemName,
+  KinopoiskMovie,
+  KinopoiskShortImage,
+  KinopoiskVideo,
+  KinopoiskVideoTypes,
+} from '@/external-api/kinopoisk/domain/types';
 import { Genre } from '@/movies/domain/genre.entity';
 import { GenreRepository } from '@/movies/infrastructure/genre.repository';
 import { QueryRunner } from 'typeorm';
@@ -181,6 +187,8 @@ export class MoviesService {
     const name = rawName || rawAlternativeName || enName || null;
     const originalName = enName || rawAlternativeName || null;
     const alternativeName = [rawName, rawAlternativeName, enName, year].filter(Boolean).join(' ');
+    const posterUrl = this.selectKinopoiskImageUrl(poster);
+    const backdropUrl = this.selectKinopoiskImageUrl(backdrop);
 
     const genres = rawGenres
       ? await this.getOrCreateGenreFromKinopoisk(rawGenres, queryRunner)
@@ -198,11 +206,47 @@ export class MoviesService {
       countries: countries?.map(c => c.name) || null,
       description: description || null,
       releaseDate: worldReleaseDate ? this.dateUtil.formatDateYyMmDd(worldReleaseDate) : null,
-      posterUrl: poster?.url || null,
-      backdropUrl: backdrop?.url || backdrop?.previewUrl || null,
-      trailerUrl: videos?.trailers?.find(t => t.site === 'youtube')?.url || null,
+      posterUrl,
+      backdropUrl,
+      backdropUrls: backdropUrl ? [backdropUrl] : [],
+      trailerUrl: this.selectTrailerUrl(videos),
       titleUrl: logo?.url || null,
     };
+  }
+
+  private selectKinopoiskImageUrl(image?: KinopoiskShortImage | null): string | null {
+    return image?.url?.trim() || image?.previewUrl?.trim() || null;
+  }
+
+  private selectTrailerUrl(videos?: KinopoiskVideoTypes): string | null {
+    const trailers = (videos?.trailers || []).filter(
+      trailer => trailer.url?.trim() && this.isYoutubeTrailerSource(trailer),
+    );
+    if (!trailers.length) return null;
+
+    return (
+      trailers
+        .map((trailer, index) => ({
+          url: trailer.url!.trim(),
+          score: this.getTrailerScore(trailer, index),
+        }))
+        .sort((a, b) => b.score - a.score)[0]?.url || null
+    );
+  }
+
+  private getTrailerScore(trailer: KinopoiskVideo, index: number): number {
+    const text = `${trailer.name || ''} ${trailer.type || ''}`.toLowerCase();
+    const isTrailer = text.includes('trailer') || text.includes('трейлер');
+    const isTeaser = text.includes('teaser') || text.includes('тизер');
+
+    return (isTrailer ? 1_000 : 0) + (isTeaser ? 500 : 0) + 100 - index;
+  }
+
+  private isYoutubeTrailerSource(trailer: KinopoiskVideo): boolean {
+    const url = trailer.url?.toLowerCase() || '';
+    const site = trailer.site?.toLowerCase() || '';
+
+    return site.includes('youtube') || url.includes('youtube.com') || url.includes('youtu.be');
   }
 
   // ─── Universe & studio detection ───────────────────────────────

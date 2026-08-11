@@ -69,6 +69,22 @@ export interface KinopoiskShortImage {
   previewUrl?: string;
 }
 
+export interface KinopoiskImage extends KinopoiskShortImage {
+  movieId?: number;
+  type?: string;
+  width?: number;
+  height?: number;
+  language?: string | null;
+}
+
+export interface KinopoiskPaginatedResponse<T> {
+  docs?: T[];
+  total?: number;
+  limit?: number;
+  page?: number;
+  pages?: number;
+}
+
 export interface KinopoiskVideo {
   url?: string;
   name?: string;

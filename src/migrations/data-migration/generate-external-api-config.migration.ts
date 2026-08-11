@@ -82,6 +82,30 @@ export class GenerateExternalApiConfigMigration implements OnModuleInit {
       });
     }
 
+    const tmdbApiUrl = process.env.TMDB_API_URL;
+    const tmdbApiToken = process.env.TMDB_API_TOKEN;
+    if (tmdbApiUrl && tmdbApiToken) {
+      seedConfigs.push({
+        provider: ExternalApiProviderEnum.TMDB,
+        target: ExternalApiTargetEnum.BACK,
+        baseUrl: tmdbApiUrl,
+        token: tmdbApiToken,
+        isEnabled: true,
+      });
+    }
+
+    const fanartApiUrl = process.env.FANART_TV_API_URL;
+    const fanartApiToken = process.env.FANART_TV_API_TOKEN;
+    if (fanartApiUrl && fanartApiToken) {
+      seedConfigs.push({
+        provider: ExternalApiProviderEnum.FANART_TV,
+        target: ExternalApiTargetEnum.BACK,
+        baseUrl: fanartApiUrl,
+        token: fanartApiToken,
+        isEnabled: true,
+      });
+    }
+
     return seedConfigs;
   }
 

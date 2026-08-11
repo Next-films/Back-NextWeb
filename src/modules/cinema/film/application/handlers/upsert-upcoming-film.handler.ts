@@ -18,6 +18,7 @@ import { EXCEPTION_KEYS_ENUM } from '@/common/enums/exception-keys.enum';
 import { MovieTypesEnum } from '@/common/types/types';
 import { MovieHandleStatus } from '@/movies/domain/types';
 import { UpsertUpcomingMovieOutputDto } from '@/movies/api/dtos/output/upsert-upcoming-movie.output.dto';
+import { ExternalMovieAssetsService } from '@/movies/application/external-movie-assets.service';
 
 export class UpsertUpcomingFilmCommand implements ICommand {
   constructor(public inputDto: UpsertUpcomingMoviePayloadDto) {}
@@ -39,6 +40,7 @@ export class UpsertUpcomingFilmCommandHandler
     private readonly kinopoiskService: KinopoiskService,
     private readonly moviesService: MoviesService,
     private readonly movieMetadataCardService: MovieMetadataCardService,
+    private readonly externalMovieAssetsService: ExternalMovieAssetsService,
     @InjectDataSource() private readonly dataSource: DataSource,
   ) {
     this.logger.setContext(UpsertUpcomingFilmCommandHandler.name);
@@ -75,6 +77,12 @@ export class UpsertUpcomingFilmCommandHandler
       }
 
       const metadata = await this.moviesService.extractMovieMetadata(kpMovie, queryRunner);
+      await this.externalMovieAssetsService.enrichUpcomingMetadata(
+        metadata,
+        kpMovie,
+        MovieTypesEnum.FILM,
+      );
+
       if (!this.movieMetadataCardService.shouldPublishUpcomingCard(metadata)) {
         await queryRunner.commitTransaction();
         return this.appNotification.success(new UpsertUpcomingMovieOutputDto(true));

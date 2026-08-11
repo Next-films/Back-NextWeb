@@ -13,6 +13,10 @@ import { MoviesService } from '@/movies/application/movies.service';
 import { MovieRpcOutputDtoMapper } from '@/movies/api/dtos/output/movie-rpc.output.dto';
 import { MoviePrivateOutputDtoMapper } from '@/movies/api/dtos/output/movie-private.output.dto';
 import { MovieMetadataCardService } from '@/movies/application/movie-metadata-card.service';
+import { ExternalMovieAssetsService } from '@/movies/application/external-movie-assets.service';
+import { KinopoiskModule } from '@/external-api/kinopoisk/kinopoisk.module';
+import { TmdbModule } from '@/external-api/tmdb/tmdb.module';
+import { FanartModule } from '@/external-api/fanart/fanart.module';
 
 export const GenreProvider = {
   provide: 'Genre',
@@ -27,12 +31,13 @@ const exportProviders = [
   GenreRepository,
   MoviesService,
   MovieMetadataCardService,
+  ExternalMovieAssetsService,
 ];
 
 const queryCommands = [GetGenreByIdQueryHandler, GetAllGenreQueryHandler];
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Genre])],
+  imports: [TypeOrmModule.forFeature([Genre]), KinopoiskModule, TmdbModule, FanartModule],
   controllers: [MoviesController],
   providers: [
     MoviePublicOutputDtoMapper,
@@ -44,6 +49,7 @@ const queryCommands = [GetGenreByIdQueryHandler, GetAllGenreQueryHandler];
     MoviePrivateOutputDtoMapper,
     MoviesService,
     MovieMetadataCardService,
+    ExternalMovieAssetsService,
     ...providers,
     ...queryCommands,
   ],
