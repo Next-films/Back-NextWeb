@@ -27,6 +27,7 @@ describe('ExternalMovieAssetsService', () => {
         .mockResolvedValue(['https://kp.example/primary.jpg', 'https://kp.example/landscape.jpg']),
     };
     const tmdbService = {
+      getDescriptionCandidate: jest.fn().mockResolvedValue(null),
       getTrailerCandidate: jest.fn().mockResolvedValue('https://www.youtube.com/watch?v=tmdb'),
     };
 
@@ -66,6 +67,34 @@ describe('ExternalMovieAssetsService', () => {
       'https://kp.example/primary.jpg',
       'https://kp.example/landscape.jpg',
     ]);
+  });
+
+  it('adds description fallback for upcoming movies', async () => {
+    const { service, tmdbService } = createService();
+    tmdbService.getDescriptionCandidate.mockResolvedValue('TMDB description');
+    const metadata = createMetadata();
+
+    await service.enrichUpcomingMetadata(
+      metadata,
+      {
+        id: 42,
+        externalId: { tmdb: 100500, imdb: 'tt1234567' },
+        year: 2026,
+        name: 'Movie',
+        enName: 'Original Movie',
+      },
+      MovieTypesEnum.FILM,
+    );
+
+    expect(tmdbService.getDescriptionCandidate).toHaveBeenCalledWith({
+      movieType: MovieTypesEnum.FILM,
+      tmdbId: 100500,
+      imdbId: 'tt1234567',
+      title: 'Movie',
+      originalTitle: 'Original Movie',
+      year: 2026,
+    });
+    expect(metadata.description).toBe('TMDB description');
   });
 
   it('does not call fallback providers when trailer already exists', async () => {

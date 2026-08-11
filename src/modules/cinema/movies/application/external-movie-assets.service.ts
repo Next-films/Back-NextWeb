@@ -28,8 +28,30 @@ export class ExternalMovieAssetsService {
       ...kinopoiskLandscapeUrls,
     ]);
     metadata.backdropUrl = metadata.backdropUrl || metadata.backdropUrls[0] || null;
+    await this.enrichUpcomingDescription(metadata, kpMovie, movieType);
 
     await this.enrichUpcomingTrailer(metadata, kpMovie, movieType);
+
+    return metadata;
+  }
+
+  async enrichUpcomingDescription(
+    metadata: MovieKpMetadata,
+    kpMovie: KinopoiskMovie,
+    movieType: MovieTypesEnum,
+  ): Promise<MovieKpMetadata> {
+    if (metadata.description?.trim()) return metadata;
+
+    const description = await this.tmdbService.getDescriptionCandidate({
+      movieType,
+      tmdbId: kpMovie.externalId?.tmdb || null,
+      imdbId: kpMovie.externalId?.imdb || null,
+      title: metadata.name || kpMovie.name || null,
+      originalTitle: metadata.originalName || kpMovie.enName || kpMovie.alternativeName || null,
+      year: kpMovie.year || null,
+    });
+
+    metadata.description = description || metadata.description;
 
     return metadata;
   }

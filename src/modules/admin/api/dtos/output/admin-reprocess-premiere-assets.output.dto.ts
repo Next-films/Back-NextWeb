@@ -8,6 +8,15 @@ export class AdminReprocessPremiereAssetsOutputDto {
   processed: number;
 
   @ApiProperty()
+  trailersUpdated: number;
+
+  @ApiProperty()
+  descriptionsUpdated: number;
+
+  @ApiProperty()
+  unchanged: number;
+
+  @ApiProperty()
   published: number;
 
   @ApiProperty()

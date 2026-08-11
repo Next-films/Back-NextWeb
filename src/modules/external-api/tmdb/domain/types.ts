@@ -47,6 +47,7 @@ export type TmdbVideo = {
 export type TmdbMediaDetails = {
   id?: number;
   backdrop_path?: string | null;
+  overview?: string | null;
   images?: {
     backdrops?: TmdbImage[];
   };

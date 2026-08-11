@@ -124,6 +124,44 @@ export class TmdbService {
     return null;
   }
 
+  async getDescriptionCandidate(input: TmdbAssetLookupInput): Promise<string | null> {
+    const requestConfigs = await this.getRequestConfigs();
+    if (!requestConfigs.length) return null;
+
+    for (const requestConfig of requestConfigs) {
+      try {
+        const resolvedMedia = await this.resolveMedia(requestConfig, input);
+        if (!resolvedMedia) continue;
+
+        const description =
+          (await this.getDescriptionByLanguage(
+            requestConfig,
+            resolvedMedia.mediaType,
+            resolvedMedia.id,
+            'ru-RU',
+          )) ||
+          (await this.getDescriptionByLanguage(
+            requestConfig,
+            resolvedMedia.mediaType,
+            resolvedMedia.id,
+            'en-US',
+          ));
+
+        if (description) return description;
+      } catch (error: unknown) {
+        if (!this.shouldRetryRequest(error)) {
+          this.logger.error(error, this.getDescriptionCandidate.name);
+          return null;
+        }
+
+        const message = error instanceof Error ? error.message : String(error);
+        this.logger.warn(message, this.getDescriptionCandidate.name);
+      }
+    }
+
+    return null;
+  }
+
   private async getRequestConfigs(): Promise<TmdbRequestConfig[]> {
     const configs = await this.externalApiConfigService.getRotatedConfigs(
       ExternalApiProviderEnum.TMDB,
@@ -267,6 +305,7 @@ export class TmdbService {
     mediaType: TmdbMediaType,
     tmdbId: number,
     includeImages = true,
+    language = 'en-US',
   ): Promise<TmdbMediaDetails | null> {
     const response = await this.httpService.axiosRef.get<TmdbMediaDetails>(
       `/${mediaType}/${tmdbId}`,
@@ -276,12 +315,22 @@ export class TmdbService {
           ...requestConfig.params,
           append_to_response: includeImages ? 'images,videos' : 'videos',
           ...(includeImages ? { include_image_language: 'en,null,ru' } : {}),
-          language: 'en-US',
+          language,
         },
       },
     );
 
     return response.data || null;
+  }
+
+  private async getDescriptionByLanguage(
+    requestConfig: TmdbRequestConfig,
+    mediaType: TmdbMediaType,
+    tmdbId: number,
+    language: string,
+  ): Promise<string | null> {
+    const details = await this.getMediaDetails(requestConfig, mediaType, tmdbId, false, language);
+    return details?.overview?.trim() || null;
   }
 
   private async getImageConfig(

@@ -20,12 +20,14 @@ import { KinopoiskMovie } from '@/external-api/kinopoisk/domain/types';
 import { MovieKpMetadata } from '@/movies/domain/types';
 import { MovieTypesEnum } from '@/common/types/types';
 
-const REPROCESS_TRAILER_CONCURRENCY = 5;
+const REPROCESS_METADATA_CONCURRENCY = 5;
 
 type ReprocessPremiereRow = {
   id: number | string;
   type: Exclude<AdminPremiereTypeEnum, AdminPremiereTypeEnum.ALL>;
   kpId: string | null;
+  trailerUrl: string | null;
+  description: string | null;
 };
 
 export class AdminReprocessPremiereAssetsCommand implements ICommand {
@@ -56,22 +58,25 @@ export class AdminReprocessPremiereAssetsCommandHandler
   ): Promise<
     AppNotificationResult<AdminReprocessPremiereAssetsOutputDto, ErrorFieldExceptionDto | null>
   > {
-    this.logger.log('Reprocess premiere trailers command', this.execute.name);
+    this.logger.log('Reprocess premiere metadata command', this.execute.name);
 
     try {
       const rows = await this.getPremieresForReprocess(command.inputDto);
       const result: AdminReprocessPremiereAssetsOutputDto = {
         selected: rows.length,
         processed: 0,
+        trailersUpdated: 0,
+        descriptionsUpdated: 0,
+        unchanged: 0,
         published: 0,
         moderated: 0,
         failed: 0,
         errors: [],
       };
-      const onlyMissingTrailers = command.inputDto.onlyMissingAssets ?? true;
+      const onlyMissingMetadata = command.inputDto.onlyMissingAssets ?? true;
 
       await this.processInChunks(rows, row =>
-        this.reprocessPremiereTrailer(row, result, onlyMissingTrailers),
+        this.reprocessPremiereMetadata(row, result, onlyMissingMetadata),
       );
 
       return this.appNotification.success(result);
@@ -89,7 +94,7 @@ export class AdminReprocessPremiereAssetsCommandHandler
     const handleStatus = inputDto.handleStatus ?? AdminPremiereHandleStatusEnum.MODERATE;
     const values: unknown[] = [];
     const queries = this.tables(type).map(table => {
-      const conditions = [`m."availabilityStatus" = 'upcoming'`];
+      const conditions = [`m."availabilityStatus" IN ('upcoming', 'released_no_video')`];
 
       if (handleStatus !== AdminPremiereHandleStatusEnum.ALL) {
         values.push(handleStatus);
@@ -100,6 +105,8 @@ export class AdminReprocessPremiereAssetsCommandHandler
         conditions.push(`(
           m."trailerUrl" IS NULL
           OR btrim(m."trailerUrl") = ''
+          OR m."description" IS NULL
+          OR btrim(m."description") = ''
         )`);
       }
 
@@ -108,6 +115,8 @@ export class AdminReprocessPremiereAssetsCommandHandler
           m."id" AS "id",
           '${table.type}' AS "type",
           m."kpId" AS "kpId",
+          m."trailerUrl" AS "trailerUrl",
+          m."description" AS "description",
           m."releaseDate" AS "releaseDate",
           m."updatedAt" AS "updatedAt"
         FROM "${table.table}" m
@@ -118,7 +127,7 @@ export class AdminReprocessPremiereAssetsCommandHandler
     values.push(limit);
     return this.dataSource.query<ReprocessPremiereRow[]>(
       `
-        SELECT "id", "type", "kpId"
+        SELECT "id", "type", "kpId", "trailerUrl", "description"
         FROM (${queries.join(' UNION ALL ')}) premieres
         ORDER BY "updatedAt" ASC NULLS FIRST, "releaseDate" ASC NULLS LAST, "id" ASC
         LIMIT $${values.length}
@@ -141,10 +150,10 @@ export class AdminReprocessPremiereAssetsCommandHandler
     return all.filter(item => item.type === type);
   }
 
-  private async reprocessPremiereTrailer(
+  private async reprocessPremiereMetadata(
     row: ReprocessPremiereRow,
     result: AdminReprocessPremiereAssetsOutputDto,
-    onlyMissingTrailers: boolean,
+    onlyMissingMetadata: boolean,
   ): Promise<void> {
     if (!row.kpId) {
       result.failed++;
@@ -159,7 +168,12 @@ export class AdminReprocessPremiereAssetsCommandHandler
       return;
     }
 
-    const metadata = this.createTrailerMetadata(kpMovie);
+    const metadata = this.createMetadata(kpMovie);
+    await this.externalMovieAssetsService.enrichUpcomingDescription(
+      metadata,
+      kpMovie,
+      this.movieType(row.type),
+    );
     await this.externalMovieAssetsService.enrichUpcomingTrailer(
       metadata,
       kpMovie,
@@ -167,50 +181,135 @@ export class AdminReprocessPremiereAssetsCommandHandler
     );
 
     const trailerUrl = metadata.trailerUrl?.trim() || null;
-    if (!trailerUrl) {
-      result.moderated++;
-      result.errors.push(`${row.type}:${row.kpId} trailer not found`);
-      return;
-    }
+    const description = metadata.description?.trim() || null;
+    this.collectMissingMetadataErrors(
+      row,
+      result,
+      { trailerUrl, description },
+      onlyMissingMetadata,
+    );
 
-    const updated = await this.updateTrailerUrl(row, trailerUrl, onlyMissingTrailers);
-    if (!updated) {
+    const updated = await this.updatePremiereMetadata(
+      row,
+      { trailerUrl, description },
+      onlyMissingMetadata,
+    );
+
+    if (!updated.trailerUpdated && !updated.descriptionUpdated) {
       result.moderated++;
+      result.unchanged++;
       return;
     }
 
     result.processed++;
+    if (updated.trailerUpdated) result.trailersUpdated++;
+    if (updated.descriptionUpdated) result.descriptionsUpdated++;
   }
 
   private async processInChunks<T>(items: T[], handler: (item: T) => Promise<void>): Promise<void> {
-    for (let index = 0; index < items.length; index += REPROCESS_TRAILER_CONCURRENCY) {
-      await Promise.all(items.slice(index, index + REPROCESS_TRAILER_CONCURRENCY).map(handler));
+    for (let index = 0; index < items.length; index += REPROCESS_METADATA_CONCURRENCY) {
+      await Promise.all(items.slice(index, index + REPROCESS_METADATA_CONCURRENCY).map(handler));
     }
   }
 
-  private async updateTrailerUrl(
+  private async updatePremiereMetadata(
     row: ReprocessPremiereRow,
-    trailerUrl: string,
-    onlyMissingTrailers: boolean,
-  ): Promise<boolean> {
+    metadata: Pick<MovieKpMetadata, 'trailerUrl' | 'description'>,
+    onlyMissingMetadata: boolean,
+  ): Promise<{ trailerUpdated: boolean; descriptionUpdated: boolean }> {
     const tableName = this.tableName(row.type);
-    const onlyMissingCondition = onlyMissingTrailers
-      ? `AND ("trailerUrl" IS NULL OR btrim("trailerUrl") = '')`
-      : '';
+    const params: unknown[] = [];
+    const setClauses: string[] = [];
+    const trailerUpdated = this.shouldUpdateField(
+      row.trailerUrl,
+      metadata.trailerUrl,
+      onlyMissingMetadata,
+    );
+    const descriptionUpdated = this.shouldUpdateField(
+      row.description,
+      metadata.description,
+      onlyMissingMetadata,
+    );
+
+    if (trailerUpdated) {
+      params.push(metadata.trailerUrl!.trim());
+      setClauses.push(`"trailerUrl" = $${params.length}`);
+    }
+
+    if (descriptionUpdated) {
+      params.push(metadata.description!.trim());
+      setClauses.push(`"description" = $${params.length}`);
+    }
+
+    if (!setClauses.length) return { trailerUpdated: false, descriptionUpdated: false };
+
+    setClauses.push(`"updatedAt" = CURRENT_TIMESTAMP`);
+    params.push(row.id);
+
     const updatedRows = await this.dataSource.query<Array<{ id: number | string }>>(
       `
         UPDATE "${tableName}"
-        SET "trailerUrl" = $1, "updatedAt" = CURRENT_TIMESTAMP
-        WHERE "id" = $2 ${onlyMissingCondition}
+        SET ${setClauses.join(', ')}
+        WHERE "id" = $${params.length}
         RETURNING "id"
       `,
-      [trailerUrl, row.id],
+      params,
     );
 
-    return updatedRows.length > 0;
+    if (!updatedRows.length) return { trailerUpdated: false, descriptionUpdated: false };
+
+    return { trailerUpdated, descriptionUpdated };
   }
 
-  private createTrailerMetadata(kpMovie: KinopoiskMovie): MovieKpMetadata {
+  private collectMissingMetadataErrors(
+    row: ReprocessPremiereRow,
+    result: AdminReprocessPremiereAssetsOutputDto,
+    metadata: Pick<MovieKpMetadata, 'trailerUrl' | 'description'>,
+    onlyMissingMetadata: boolean,
+  ): void {
+    const missingFields: string[] = [];
+
+    if (
+      !this.hasText(metadata.trailerUrl) &&
+      this.shouldLookupMissingField(row.trailerUrl, onlyMissingMetadata)
+    ) {
+      missingFields.push('trailer');
+    }
+
+    if (
+      !this.hasText(metadata.description) &&
+      this.shouldLookupMissingField(row.description, onlyMissingMetadata)
+    ) {
+      missingFields.push('description');
+    }
+
+    if (missingFields.length > 0) {
+      result.errors.push(`${row.type}:${row.kpId} ${missingFields.join(', ')} not found`);
+    }
+  }
+
+  private shouldUpdateField(
+    currentValue: string | null,
+    nextValue: string | null,
+    onlyMissingMetadata: boolean,
+  ): boolean {
+    if (!this.hasText(nextValue)) return false;
+    if (onlyMissingMetadata && this.hasText(currentValue)) return false;
+    return currentValue?.trim() !== nextValue?.trim();
+  }
+
+  private shouldLookupMissingField(
+    currentValue: string | null,
+    onlyMissingMetadata: boolean,
+  ): boolean {
+    return !onlyMissingMetadata || !this.hasText(currentValue);
+  }
+
+  private hasText(value: string | null | undefined): boolean {
+    return Boolean(value?.trim());
+  }
+
+  private createMetadata(kpMovie: KinopoiskMovie): MovieKpMetadata {
     return {
       name: kpMovie.name || kpMovie.alternativeName || kpMovie.enName || null,
       originalName: kpMovie.enName || kpMovie.alternativeName || null,
@@ -219,7 +318,7 @@ export class AdminReprocessPremiereAssetsCommandHandler
       studio: null,
       genres: null,
       countries: null,
-      description: null,
+      description: kpMovie.description || kpMovie.shortDescription || null,
       releaseDate: null,
       posterUrl: null,
       backdropUrl: null,
