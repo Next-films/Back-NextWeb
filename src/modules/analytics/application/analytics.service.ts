@@ -263,7 +263,7 @@ export class AnalyticsService {
     return rows.map(row => ({
       id: row.id,
       title: row.title,
-      previewUrl: row.previewUrl || row.backgroundContentUrl || row.titleUrl || null,
+      previewUrl: row.previewUrl || null,
       cardImg:
         row.horizontalPreviewUrl ||
         row.previewUrl ||
@@ -343,7 +343,7 @@ export class AnalyticsService {
     return rows.map(row => ({
       id: row.id,
       title: row.title,
-      previewUrl: row.previewUrl || row.backgroundContentUrl || row.titleUrl || null,
+      previewUrl: row.previewUrl || null,
       cardImg:
         row.horizontalPreviewUrl ||
         row.previewUrl ||
