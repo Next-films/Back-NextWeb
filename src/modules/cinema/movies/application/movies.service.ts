@@ -218,6 +218,10 @@ export class MoviesService {
     return image?.url?.trim() || image?.previewUrl?.trim() || null;
   }
 
+  getKinopoiskTrailerUrl(kpMovie: KinopoiskMovie | null): string | null {
+    return kpMovie ? this.selectTrailerUrl(kpMovie.videos) : null;
+  }
+
   private selectTrailerUrl(videos?: KinopoiskVideoTypes): string | null {
     const trailers = (videos?.trailers || []).filter(
       trailer => trailer.url?.trim() && this.isYoutubeTrailerSource(trailer),

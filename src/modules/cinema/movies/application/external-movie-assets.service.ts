@@ -29,9 +29,19 @@ export class ExternalMovieAssetsService {
     ]);
     metadata.backdropUrl = metadata.backdropUrl || metadata.backdropUrls[0] || null;
 
+    await this.enrichUpcomingTrailer(metadata, kpMovie, movieType);
+
+    return metadata;
+  }
+
+  async enrichUpcomingTrailer(
+    metadata: MovieKpMetadata,
+    kpMovie: KinopoiskMovie,
+    movieType: MovieTypesEnum,
+  ): Promise<MovieKpMetadata> {
     if (!this.shouldQueryFallbackProviders(metadata)) return metadata;
 
-    const tmdbAssets = await this.tmdbService.getAssetCandidates({
+    const trailerUrl = await this.tmdbService.getTrailerCandidate({
       movieType,
       tmdbId: kpMovie.externalId?.tmdb || null,
       imdbId: kpMovie.externalId?.imdb || null,
@@ -40,7 +50,7 @@ export class ExternalMovieAssetsService {
       year: kpMovie.year || null,
     });
 
-    metadata.trailerUrl = metadata.trailerUrl || tmdbAssets.trailerUrl;
+    metadata.trailerUrl = metadata.trailerUrl || trailerUrl;
 
     return metadata;
   }

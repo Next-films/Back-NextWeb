@@ -27,12 +27,7 @@ describe('ExternalMovieAssetsService', () => {
         .mockResolvedValue(['https://kp.example/primary.jpg', 'https://kp.example/landscape.jpg']),
     };
     const tmdbService = {
-      getAssetCandidates: jest.fn().mockResolvedValue({
-        tmdbId: 123,
-        mediaType: 'movie',
-        backdropUrls: ['https://tmdb.example/backdrop.jpg', 'https://kp.example/landscape.jpg'],
-        trailerUrl: 'https://www.youtube.com/watch?v=tmdb',
-      }),
+      getTrailerCandidate: jest.fn().mockResolvedValue('https://www.youtube.com/watch?v=tmdb'),
     };
 
     return {
@@ -58,7 +53,7 @@ describe('ExternalMovieAssetsService', () => {
       MovieTypesEnum.FILM,
     );
 
-    expect(tmdbService.getAssetCandidates).toHaveBeenCalledWith({
+    expect(tmdbService.getTrailerCandidate).toHaveBeenCalledWith({
       movieType: MovieTypesEnum.FILM,
       tmdbId: null,
       imdbId: 'tt1234567',
@@ -83,7 +78,7 @@ describe('ExternalMovieAssetsService', () => {
 
     await service.enrichUpcomingMetadata(metadata, { id: 42 }, MovieTypesEnum.CARTOON);
 
-    expect(tmdbService.getAssetCandidates).not.toHaveBeenCalled();
+    expect(tmdbService.getTrailerCandidate).not.toHaveBeenCalled();
     expect(metadata.trailerUrl).toBe('https://www.youtube.com/watch?v=kp');
   });
 });

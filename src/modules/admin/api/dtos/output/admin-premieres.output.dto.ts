@@ -2,6 +2,14 @@ import { ApiProperty } from '@nestjs/swagger';
 import { MovieAvailabilityStatus, MovieHandleStatus } from '@/movies/domain/types';
 import { AdminPremiereTypeEnum } from '@/admin/api/dtos/input/admin-get-premieres.input-query.dto';
 
+class AdminPremiereGenreOutputDto {
+  @ApiProperty()
+  id: number;
+
+  @ApiProperty()
+  name: string;
+}
+
 class AdminPremiereContentOutputDto {
   @ApiProperty({ nullable: true })
   movieUrl: string | null;
@@ -14,6 +22,9 @@ class AdminPremiereContentOutputDto {
 
   @ApiProperty({ nullable: true })
   backgroundUrl: string | null;
+
+  @ApiProperty({ nullable: true })
+  titleUrl: string | null;
 }
 
 export class AdminPremiereOutputDto {
@@ -31,6 +42,24 @@ export class AdminPremiereOutputDto {
 
   @ApiProperty({ nullable: true })
   originalTitle: string | null;
+
+  @ApiProperty({ nullable: true })
+  alternativeTitles: string | null;
+
+  @ApiProperty({ nullable: true })
+  description: string | null;
+
+  @ApiProperty({ nullable: true })
+  duration: number | null;
+
+  @ApiProperty({ type: AdminPremiereGenreOutputDto, isArray: true })
+  genres: AdminPremiereGenreOutputDto[];
+
+  @ApiProperty({ nullable: true })
+  universe: string | null;
+
+  @ApiProperty({ nullable: true })
+  studio: string | null;
 
   @ApiProperty({ nullable: true })
   releaseDate: string | null;

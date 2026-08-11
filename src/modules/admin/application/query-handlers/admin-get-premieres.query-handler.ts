@@ -17,6 +17,7 @@ import { EXCEPTION_KEYS_ENUM } from '@/common/enums/exception-keys.enum';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { MovieAvailabilityStatus } from '@/movies/domain/types';
+import { Genre } from '@/movies/domain/genre.entity';
 
 export class AdminGetPremieresQuery implements IQuery {
   constructor(public query: AdminGetPremieresInputQueryDto) {}
@@ -28,6 +29,12 @@ type PremiereRow = {
   kpId: string | null;
   name: string | null;
   originalTitle: string | null;
+  alternativeTitles: string | null;
+  description: string | null;
+  duration: number | null;
+  genres: Genre[] | null;
+  universe: string | null;
+  studio: string | null;
   releaseDate: string | null;
   country: string[] | null;
   isHidden: boolean;
@@ -39,6 +46,7 @@ type PremiereRow = {
   trailerUrl: string | null;
   previewUrl: string | null;
   backgroundUrl: string | null;
+  titleUrl: string | null;
 };
 
 @QueryHandler(AdminGetPremieresQuery)
@@ -172,6 +180,17 @@ export class AdminGetPremieresQueryHandler
         m."kpId" AS "kpId",
         m."title" AS "name",
         m."originalTitle" AS "originalTitle",
+        m."alternativeTitles" AS "alternativeTitles",
+        m."description" AS "description",
+        m."duration" AS "duration",
+        COALESCE(
+          jsonb_agg(
+            DISTINCT jsonb_build_object('id', g."id", 'name', g."name")
+          ) FILTER (WHERE g."id" IS NOT NULL),
+          '[]'::jsonb
+        ) AS "genres",
+        m."universe" AS "universe",
+        m."studio" AS "studio",
         m."releaseDate"::text AS "releaseDate",
         m."country" AS "country",
         m."isHidden" AS "isHidden",
@@ -182,9 +201,13 @@ export class AdminGetPremieresQueryHandler
         m."videoUrl" AS "movieUrl",
         m."trailerUrl" AS "trailerUrl",
         m."previewUrl" AS "previewUrl",
-        m."backgroundContentUrl" AS "backgroundUrl"
+        m."backgroundContentUrl" AS "backgroundUrl",
+        m."titleUrl" AS "titleUrl"
       FROM "${table.table}" m
+      LEFT JOIN "${table.table}_genres_genre" mg ON mg."${table.table}Id" = m."id"
+      LEFT JOIN "genre" g ON g."id" = mg."genreId"
       WHERE ${where}
+      GROUP BY m."id"
     `;
   }
 
@@ -209,6 +232,12 @@ export class AdminGetPremieresQueryHandler
       kpId: row.kpId,
       name: row.name,
       originalTitle: row.originalTitle,
+      alternativeTitles: row.alternativeTitles,
+      description: row.description,
+      duration: row.duration,
+      genres: row.genres || [],
+      universe: row.universe,
+      studio: row.studio,
       releaseDate: row.releaseDate,
       country: row.country,
       isHidden: row.isHidden,
@@ -221,6 +250,7 @@ export class AdminGetPremieresQueryHandler
         trailerUrl: row.trailerUrl,
         previewUrl: row.previewUrl,
         backgroundUrl: row.backgroundUrl,
+        titleUrl: row.titleUrl,
       },
     };
   }

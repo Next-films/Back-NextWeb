@@ -91,6 +91,39 @@ export class TmdbService {
     return EMPTY_ASSET_CANDIDATES;
   }
 
+  async getTrailerCandidate(input: TmdbAssetLookupInput): Promise<string | null> {
+    const requestConfigs = await this.getRequestConfigs();
+    if (!requestConfigs.length) return null;
+
+    for (const requestConfig of requestConfigs) {
+      try {
+        const resolvedMedia = await this.resolveMedia(requestConfig, input);
+        if (!resolvedMedia) continue;
+
+        const details = await this.getMediaDetails(
+          requestConfig,
+          resolvedMedia.mediaType,
+          resolvedMedia.id,
+          false,
+        );
+        if (!details) continue;
+
+        const trailerUrl = this.getTrailerUrl(details);
+        if (trailerUrl) return trailerUrl;
+      } catch (error: unknown) {
+        if (!this.shouldRetryRequest(error)) {
+          this.logger.error(error, this.getTrailerCandidate.name);
+          return null;
+        }
+
+        const message = error instanceof Error ? error.message : String(error);
+        this.logger.warn(message, this.getTrailerCandidate.name);
+      }
+    }
+
+    return null;
+  }
+
   private async getRequestConfigs(): Promise<TmdbRequestConfig[]> {
     const configs = await this.externalApiConfigService.getRotatedConfigs(
       ExternalApiProviderEnum.TMDB,
@@ -233,6 +266,7 @@ export class TmdbService {
     requestConfig: TmdbRequestConfig,
     mediaType: TmdbMediaType,
     tmdbId: number,
+    includeImages = true,
   ): Promise<TmdbMediaDetails | null> {
     const response = await this.httpService.axiosRef.get<TmdbMediaDetails>(
       `/${mediaType}/${tmdbId}`,
@@ -240,8 +274,8 @@ export class TmdbService {
         ...requestConfig,
         params: {
           ...requestConfig.params,
-          append_to_response: 'images,videos',
-          include_image_language: 'en,null,ru',
+          append_to_response: includeImages ? 'images,videos' : 'videos',
+          ...(includeImages ? { include_image_language: 'en,null,ru' } : {}),
           language: 'en-US',
         },
       },

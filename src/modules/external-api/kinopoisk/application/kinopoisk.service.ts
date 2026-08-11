@@ -18,6 +18,7 @@ import { KINOPOISK_AUTH_HEADER } from '@/external-api/kinopoisk/domain/kinopoisk
 export class KinopoiskService {
   private readonly MOVIES: string = `/${KINOPOISK_METHODS_CONSTANTS.MOVIE.MOVIE}`;
   private readonly IMAGES = '/image';
+  private readonly requestTimeoutMs = 15_000;
   private fallbackTokenIndex = 0;
   constructor(
     protected readonly logger: LoggerService,
@@ -54,7 +55,7 @@ export class KinopoiskService {
   }
 
   private async getRequestConfigs(): Promise<
-    Array<{ baseURL: string; headers: Record<string, string> }>
+    Array<{ baseURL: string; headers: Record<string, string>; timeout: number }>
   > {
     const apiSettings = this.configService.get('apiSettings', { infer: true });
     const envTokens = this.parseTokens(apiSettings.KINOPOISK_API_TOKEN);
@@ -63,7 +64,11 @@ export class KinopoiskService {
       ExternalApiTargetEnum.BACK,
     );
 
-    const requestConfigs: Array<{ baseURL: string; headers: Record<string, string> }> = [];
+    const requestConfigs: Array<{
+      baseURL: string;
+      headers: Record<string, string>;
+      timeout: number;
+    }> = [];
     const dedupe = new Set<string>();
     const pushConfig = (baseURL: string, token: string | null) => {
       const key = `${baseURL}|${token ?? ''}`;
@@ -72,7 +77,7 @@ export class KinopoiskService {
 
       const headers: Record<string, string> = {};
       if (token) headers[KINOPOISK_AUTH_HEADER] = token;
-      requestConfigs.push({ baseURL, headers });
+      requestConfigs.push({ baseURL, headers, timeout: this.requestTimeoutMs });
     };
 
     const rotatedEnvTokens = this.rotateTokens(envTokens);

@@ -5,6 +5,7 @@ import { SortDirectionEnum } from '@/common/utils/query-filter.util';
 import { Cartoon } from '@/cartoons/domain/cartoon.entity';
 import { GetCartoonSortFieldEnum } from '@/cartoons/api/dtos/input/get-cartoon.input-query';
 import { AdminGetFilmsStatusEnum } from '@/admin/api/dtos/input/admin-get-all-films.input-query.dto';
+import { MovieAvailabilityStatus } from '@/movies/domain/types';
 
 @Injectable()
 export class CartoonQueryRepository {
@@ -51,6 +52,10 @@ export class CartoonQueryRepository {
       if (status !== AdminGetFilmsStatusEnum.ALL)
         qb.andWhere('f.handleStatus = :status', { status });
     }
+
+    qb.andWhere('f.availabilityStatus = :availabilityStatus', {
+      availabilityStatus: MovieAvailabilityStatus.AVAILABLE,
+    });
 
     return qb;
   }

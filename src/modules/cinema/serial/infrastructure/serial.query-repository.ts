@@ -7,6 +7,7 @@ import { Serial } from '@/serials/domain/serial.entity';
 import { SerialEpisode } from '@/serials/domain/serial-episode.entity';
 import { AdminGetFilmsStatusEnum } from '@/admin/api/dtos/input/admin-get-all-films.input-query.dto';
 import { AdminGetFilmsSortFieldEnum } from '@/admin/api/dtos/input/admin-get-all-films.input-query.dto';
+import { MovieAvailabilityStatus } from '@/movies/domain/types';
 
 @Injectable()
 export class SerialQueryRepository {
@@ -56,6 +57,10 @@ export class SerialQueryRepository {
       if (status !== AdminGetFilmsStatusEnum.ALL)
         qb.andWhere('f.handleStatus = :status', { status });
     }
+
+    qb.andWhere('f.availabilityStatus = :availabilityStatus', {
+      availabilityStatus: MovieAvailabilityStatus.AVAILABLE,
+    });
 
     return qb;
   }

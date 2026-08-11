@@ -1,10 +1,9 @@
-import { CommandBus, CommandHandler, ICommand, ICommandHandler } from '@nestjs/cqrs';
+import { CommandHandler, ICommand, ICommandHandler } from '@nestjs/cqrs';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import {
   ApplicationNotification,
   AppNotificationResult,
-  AppNotificationResultEnum,
 } from '@/common/utils/app-notification.util';
 import { ErrorFieldExceptionDto } from '@/common/exception-filters/http/http-exception.filter';
 import { LoggerService } from '@/common/utils/logger/logger.service';
@@ -14,10 +13,14 @@ import {
   AdminReprocessPremiereAssetsInputDto,
 } from '@/admin/api/dtos/input/admin-get-premieres.input-query.dto';
 import { AdminReprocessPremiereAssetsOutputDto } from '@/admin/api/dtos/output/admin-reprocess-premiere-assets.output.dto';
-import { UpsertUpcomingFilmCommand } from '@/films/application/handlers/upsert-upcoming-film.handler';
-import { UpsertUpcomingCartoonCommand } from '@/cartoons/application/handlers/upsert-upcoming-cartoon.handler';
-import { UpsertUpcomingSerialCommand } from '@/serials/application/handlers/upsert-upcoming-serial.handler';
-import { UpsertUpcomingMovieOutputDto } from '@/movies/api/dtos/output/upsert-upcoming-movie.output.dto';
+import { KinopoiskService } from '@/external-api/kinopoisk/application/kinopoisk.service';
+import { MoviesService } from '@/movies/application/movies.service';
+import { ExternalMovieAssetsService } from '@/movies/application/external-movie-assets.service';
+import { KinopoiskMovie } from '@/external-api/kinopoisk/domain/types';
+import { MovieKpMetadata } from '@/movies/domain/types';
+import { MovieTypesEnum } from '@/common/types/types';
+
+const REPROCESS_TRAILER_CONCURRENCY = 5;
 
 type ReprocessPremiereRow = {
   id: number | string;
@@ -40,7 +43,9 @@ export class AdminReprocessPremiereAssetsCommandHandler
   constructor(
     private readonly logger: LoggerService,
     private readonly appNotification: ApplicationNotification,
-    private readonly commandBus: CommandBus,
+    private readonly kinopoiskService: KinopoiskService,
+    private readonly moviesService: MoviesService,
+    private readonly externalMovieAssetsService: ExternalMovieAssetsService,
     @InjectDataSource() private readonly dataSource: DataSource,
   ) {
     this.logger.setContext(AdminReprocessPremiereAssetsCommandHandler.name);
@@ -63,29 +68,11 @@ export class AdminReprocessPremiereAssetsCommandHandler
         failed: 0,
         errors: [],
       };
+      const onlyMissingTrailers = command.inputDto.onlyMissingAssets ?? true;
 
-      for (const row of rows) {
-        if (!row.kpId) {
-          result.failed++;
-          result.errors.push(`${row.type}:${row.id} has empty kpId`);
-          continue;
-        }
-
-        const reprocessResult = await this.commandBus.execute<
-          UpsertUpcomingFilmCommand | UpsertUpcomingCartoonCommand | UpsertUpcomingSerialCommand,
-          AppNotificationResult<UpsertUpcomingMovieOutputDto, ErrorFieldExceptionDto | null>
-        >(this.createUpsertCommand(row.type, row.kpId));
-
-        if (reprocessResult.appResult !== AppNotificationResultEnum.Success) {
-          result.failed++;
-          result.errors.push(`${row.type}:${row.kpId} failed with ${reprocessResult.appResult}`);
-          continue;
-        }
-
-        result.processed++;
-        if (reprocessResult.data?.published) result.published++;
-        else result.moderated++;
-      }
+      await this.processInChunks(rows, row =>
+        this.reprocessPremiereTrailer(row, result, onlyMissingTrailers),
+      );
 
       return this.appNotification.success(result);
     } catch (error) {
@@ -154,18 +141,119 @@ export class AdminReprocessPremiereAssetsCommandHandler
     return all.filter(item => item.type === type);
   }
 
-  private createUpsertCommand(
+  private async reprocessPremiereTrailer(
+    row: ReprocessPremiereRow,
+    result: AdminReprocessPremiereAssetsOutputDto,
+    onlyMissingTrailers: boolean,
+  ): Promise<void> {
+    if (!row.kpId) {
+      result.failed++;
+      result.errors.push(`${row.type}:${row.id} has empty kpId`);
+      return;
+    }
+
+    const kpMovie = await this.kinopoiskService.getMovieById(Number(row.kpId));
+    if (!kpMovie) {
+      result.failed++;
+      result.errors.push(`${row.type}:${row.kpId} not found in kinopoisk`);
+      return;
+    }
+
+    const metadata = this.createTrailerMetadata(kpMovie);
+    await this.externalMovieAssetsService.enrichUpcomingTrailer(
+      metadata,
+      kpMovie,
+      this.movieType(row.type),
+    );
+
+    const trailerUrl = metadata.trailerUrl?.trim() || null;
+    if (!trailerUrl) {
+      result.moderated++;
+      result.errors.push(`${row.type}:${row.kpId} trailer not found`);
+      return;
+    }
+
+    const updated = await this.updateTrailerUrl(row, trailerUrl, onlyMissingTrailers);
+    if (!updated) {
+      result.moderated++;
+      return;
+    }
+
+    result.processed++;
+  }
+
+  private async processInChunks<T>(items: T[], handler: (item: T) => Promise<void>): Promise<void> {
+    for (let index = 0; index < items.length; index += REPROCESS_TRAILER_CONCURRENCY) {
+      await Promise.all(items.slice(index, index + REPROCESS_TRAILER_CONCURRENCY).map(handler));
+    }
+  }
+
+  private async updateTrailerUrl(
+    row: ReprocessPremiereRow,
+    trailerUrl: string,
+    onlyMissingTrailers: boolean,
+  ): Promise<boolean> {
+    const tableName = this.tableName(row.type);
+    const onlyMissingCondition = onlyMissingTrailers
+      ? `AND ("trailerUrl" IS NULL OR btrim("trailerUrl") = '')`
+      : '';
+    const updatedRows = await this.dataSource.query<Array<{ id: number | string }>>(
+      `
+        UPDATE "${tableName}"
+        SET "trailerUrl" = $1, "updatedAt" = CURRENT_TIMESTAMP
+        WHERE "id" = $2 ${onlyMissingCondition}
+        RETURNING "id"
+      `,
+      [trailerUrl, row.id],
+    );
+
+    return updatedRows.length > 0;
+  }
+
+  private createTrailerMetadata(kpMovie: KinopoiskMovie): MovieKpMetadata {
+    return {
+      name: kpMovie.name || kpMovie.alternativeName || kpMovie.enName || null,
+      originalName: kpMovie.enName || kpMovie.alternativeName || null,
+      alternativeName: kpMovie.alternativeName || null,
+      universe: null,
+      studio: null,
+      genres: null,
+      countries: null,
+      description: null,
+      releaseDate: null,
+      posterUrl: null,
+      backdropUrl: null,
+      backdropUrls: [],
+      titleUrl: null,
+      trailerUrl: this.moviesService.getKinopoiskTrailerUrl(kpMovie),
+    };
+  }
+
+  private movieType(
     type: Exclude<AdminPremiereTypeEnum, AdminPremiereTypeEnum.ALL>,
-    kpId: string,
-  ) {
+  ): MovieTypesEnum {
     switch (type) {
       case AdminPremiereTypeEnum.CARTOON:
-        return new UpsertUpcomingCartoonCommand({ kpId });
+        return MovieTypesEnum.CARTOON;
       case AdminPremiereTypeEnum.SERIAL:
-        return new UpsertUpcomingSerialCommand({ kpId });
+        return MovieTypesEnum.SERIAL;
       case AdminPremiereTypeEnum.FILM:
       default:
-        return new UpsertUpcomingFilmCommand({ kpId });
+        return MovieTypesEnum.FILM;
+    }
+  }
+
+  private tableName(
+    type: Exclude<AdminPremiereTypeEnum, AdminPremiereTypeEnum.ALL>,
+  ): 'film' | 'cartoon' | 'serial' {
+    switch (type) {
+      case AdminPremiereTypeEnum.CARTOON:
+        return 'cartoon';
+      case AdminPremiereTypeEnum.SERIAL:
+        return 'serial';
+      case AdminPremiereTypeEnum.FILM:
+      default:
+        return 'film';
     }
   }
 }

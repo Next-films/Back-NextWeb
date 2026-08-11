@@ -7,6 +7,7 @@ import {
   AdminGetFilmsSortFieldEnum,
   AdminGetFilmsStatusEnum,
 } from '@/admin/api/dtos/input/admin-get-all-films.input-query.dto';
+import { MovieAvailabilityStatus } from '@/movies/domain/types';
 
 @Injectable()
 export class FilmQueryRepository {
@@ -53,6 +54,10 @@ export class FilmQueryRepository {
       if (status !== AdminGetFilmsStatusEnum.ALL)
         qb.andWhere('f.handleStatus = :status', { status });
     }
+
+    qb.andWhere('f.availabilityStatus = :availabilityStatus', {
+      availabilityStatus: MovieAvailabilityStatus.AVAILABLE,
+    });
 
     return qb;
   }

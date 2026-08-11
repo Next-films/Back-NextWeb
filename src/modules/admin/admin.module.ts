@@ -85,6 +85,7 @@ import { AdminMediaUrlSigningService } from '@/admin/application/services/admin-
 import { AdminRemoveAdminCommandHandler } from '@/admin/application/handlers/admin-remove-admin.handler';
 import { AdminGetPremieresQueryHandler } from '@/admin/application/query-handlers/admin-get-premieres.query-handler';
 import { AdminReprocessPremiereAssetsCommandHandler } from '@/admin/application/handlers/admin-reprocess-premiere-assets.handler';
+import { KinopoiskModule } from '@/external-api/kinopoisk/kinopoisk.module';
 
 export const AdminProvider = {
   provide: 'Admin',
@@ -162,6 +163,7 @@ const exportProviders = [
     FilmModule,
     CartoonModule,
     SerialModule,
+    KinopoiskModule,
     ModerationMovieModule,
   ],
   controllers: [
