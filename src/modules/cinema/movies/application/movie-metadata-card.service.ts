@@ -71,7 +71,7 @@ export class MovieMetadataCardService {
     metadata: MovieKpMetadata,
     movieType: MovieTypesEnum,
   ): Promise<void> {
-    const assets = await this.getContentUrlForMovie(movie.id, metadata, movieType);
+    const assets = await this.getContentUrlForMovie(movie, metadata, movieType);
 
     movie.updateBackgroundUrl(assets.backgroundContentUrl);
     movie.updatePosterUrl(assets.posterUrl);
@@ -174,7 +174,7 @@ export class MovieMetadataCardService {
   }
 
   private async getContentUrlForMovie(
-    movieId: number,
+    movie: MovieEntity,
     metadata: MovieKpMetadata,
     movieType: MovieTypesEnum,
   ): Promise<{
@@ -183,30 +183,56 @@ export class MovieMetadataCardService {
     posterUrl: string | null;
     titleUrl: string | null;
   }> {
+    const movieId = movie.id;
+    const hasDuplicatedPreview = this.hasDuplicatedPreview(movie);
+    const shouldHydrateBackground = !this.hasProcessedPreviewClip(movie.backgroundContentUrl);
+    const shouldHydrateHorizontalPreview =
+      !this.hasProcessedImage(movie.horizontalPreviewUrl) || hasDuplicatedPreview;
+    const shouldHydratePoster = !this.hasProcessedImage(movie.previewUrl) || hasDuplicatedPreview;
+    const shouldHydrateTitle = !this.hasProcessedImage(movie.titleUrl);
+    const trailerSourceUrl = metadata.trailerUrl || movie.trailerUrl || movie.backgroundContentUrl;
+    const posterSourceUrl = metadata.posterUrl || movie.previewUrl;
+
     const [backgroundContentUrl, horizontalPreviewUrl, posterUrl, titleUrl] = await Promise.all([
-      this.getAssetUrlOrNull(() =>
-        this.moviesService.getBackgroundContentUrl(metadata.trailerUrl, movieId, movieType),
-      ),
-      this.getFirstAssetUrlOrNull(
-        this.getHorizontalPreviewSourceUrls(metadata).map(
-          url => () =>
-            this.moviesService.getBackgroundContentUrl(
-              url,
-              movieId,
-              movieType,
-              'horizontal-posters',
+      shouldHydrateBackground
+        ? this.getAssetUrlOrNull(() =>
+            this.moviesService.getBackgroundContentUrl(trailerSourceUrl, movieId, movieType),
+          )
+        : Promise.resolve(null),
+      shouldHydrateHorizontalPreview
+        ? this.getFirstAssetUrlOrNull(
+            this.getHorizontalPreviewSourceUrls(metadata).map(
+              url => () =>
+                this.moviesService.getBackgroundContentUrl(
+                  url,
+                  movieId,
+                  movieType,
+                  'horizontal-posters',
+                ),
             ),
-        ),
-      ),
-      this.getAssetUrlOrNull(() =>
-        this.moviesService.getPosterUrl(metadata.posterUrl, movieId, movieType),
-      ),
-      this.getAssetUrlOrNull(() =>
-        this.moviesService.getLogoUrl(metadata.titleUrl, movieId, movieType),
-      ),
+          )
+        : Promise.resolve(null),
+      shouldHydratePoster
+        ? this.getAssetUrlOrNull(() =>
+            this.moviesService.getPosterUrl(posterSourceUrl, movieId, movieType),
+          )
+        : Promise.resolve(null),
+      shouldHydrateTitle
+        ? this.getAssetUrlOrNull(() =>
+            this.moviesService.getLogoUrl(metadata.titleUrl, movieId, movieType),
+          )
+        : Promise.resolve(null),
     ]);
 
     return { backgroundContentUrl, horizontalPreviewUrl, posterUrl, titleUrl };
+  }
+
+  private hasDuplicatedPreview(movie: MovieEntity): boolean {
+    return Boolean(
+      movie.previewUrl &&
+        movie.horizontalPreviewUrl &&
+        movie.previewUrl === movie.horizontalPreviewUrl,
+    );
   }
 
   private async getAssetUrlOrNull(action: () => Promise<string | null>): Promise<string | null> {

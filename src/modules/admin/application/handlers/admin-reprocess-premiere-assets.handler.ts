@@ -97,7 +97,7 @@ export class AdminReprocessPremiereAssetsCommandHandler
   private async getPremieresForReprocess(
     inputDto: AdminReprocessPremiereAssetsInputDto,
   ): Promise<ReprocessPremiereRow[]> {
-    const limit = inputDto.limit ?? 10;
+    const limit = inputDto.limit ?? 3;
     const type = inputDto.type ?? AdminPremiereTypeEnum.ALL;
     const handleStatus = inputDto.handleStatus ?? AdminPremiereHandleStatusEnum.MODERATE;
     const values: unknown[] = [];
