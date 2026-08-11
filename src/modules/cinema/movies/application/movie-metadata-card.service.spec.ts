@@ -33,14 +33,30 @@ describe('MovieMetadataCardService', () => {
     trailerUrl: 'https://youtube.com/watch?v=test',
   });
 
-  it('allows upcoming cards for foreign movies', () => {
-    expect(service.shouldPublishUpcomingCard(metadata(['США']))).toBe(true);
+  it('allows upcoming cards only for complete foreign metadata', () => {
+    expect(service.shouldPublishUpcomingCard(completeMetadata())).toBe(true);
   });
 
-  it('blocks upcoming cards for Russian or unknown origin', () => {
-    expect(service.shouldPublishUpcomingCard(metadata(['Россия']))).toBe(false);
-    expect(service.shouldPublishUpcomingCard(metadata(['США', 'Россия']))).toBe(false);
-    expect(service.shouldPublishUpcomingCard(metadata(null))).toBe(false);
+  it('blocks upcoming cards for Russian, unknown, or incomplete metadata', () => {
+    expect(
+      service.shouldPublishUpcomingCard({ ...completeMetadata(), countries: ['Россия'] }),
+    ).toBe(false);
+    expect(
+      service.shouldPublishUpcomingCard({ ...completeMetadata(), countries: ['США', 'Россия'] }),
+    ).toBe(false);
+    expect(service.shouldPublishUpcomingCard({ ...completeMetadata(), countries: null })).toBe(
+      false,
+    );
+    expect(service.shouldPublishUpcomingCard({ ...completeMetadata(), description: null })).toBe(
+      false,
+    );
+    expect(service.shouldPublishUpcomingCard({ ...completeMetadata(), trailerUrl: null })).toBe(
+      false,
+    );
+    expect(service.shouldPublishUpcomingCard({ ...completeMetadata(), posterUrl: null })).toBe(
+      false,
+    );
+    expect(service.shouldPublishUpcomingCard({ ...completeMetadata(), genres: [] })).toBe(false);
   });
 
   it('creates upcoming cards even when source release date is in the past', () => {

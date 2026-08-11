@@ -28,7 +28,9 @@ export class MovieMetadataCardService {
   constructor(private readonly moviesService: MoviesService) {}
 
   shouldPublishUpcomingCard(metadata: MovieKpMetadata): boolean {
-    return this.isForeignCountryList(metadata.countries);
+    return (
+      this.isForeignCountryList(metadata.countries) && this.hasRequiredUpcomingMetadata(metadata)
+    );
   }
 
   createMovieDto(metadata: MovieKpMetadata, kpId: string): MovieCreateDto {
@@ -133,6 +135,19 @@ export class MovieMetadataCardService {
 
   private hasText(value: string | null): boolean {
     return Boolean(value && value.trim());
+  }
+
+  private hasRequiredUpcomingMetadata(metadata: MovieKpMetadata): boolean {
+    return !!(
+      this.hasText(metadata.name) &&
+      this.hasText(metadata.alternativeName) &&
+      this.hasText(metadata.description) &&
+      this.hasText(metadata.releaseDate) &&
+      this.hasText(metadata.trailerUrl) &&
+      this.hasText(metadata.posterUrl) &&
+      metadata.genres &&
+      metadata.genres.length > 0
+    );
   }
 
   private hasProcessedImage(value: string | null): boolean {

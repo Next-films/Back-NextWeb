@@ -173,6 +173,8 @@ export class AdminGetPremieresQueryHandler
     },
     where: string,
   ): string {
+    const readyWhere = this.requiredPremiereWhere(table.table);
+
     return `
       SELECT
         m."id" AS "id",
@@ -206,8 +208,31 @@ export class AdminGetPremieresQueryHandler
       FROM "${table.table}" m
       LEFT JOIN "${table.table}_genres_genre" mg ON mg."${table.table}Id" = m."id"
       LEFT JOIN "genre" g ON g."id" = mg."genreId"
-      WHERE ${where}
+      WHERE ${where} AND ${readyWhere}
       GROUP BY m."id"
+    `;
+  }
+
+  private requiredPremiereWhere(table: string): string {
+    return `
+      m."title" IS NOT NULL
+      AND btrim(m."title") <> ''
+      AND m."alternativeTitles" IS NOT NULL
+      AND btrim(m."alternativeTitles") <> ''
+      AND m."description" IS NOT NULL
+      AND btrim(m."description") <> ''
+      AND m."releaseDate" IS NOT NULL
+      AND m."country" IS NOT NULL
+      AND cardinality(m."country") > 0
+      AND m."trailerUrl" IS NOT NULL
+      AND btrim(m."trailerUrl") <> ''
+      AND m."previewUrl" IS NOT NULL
+      AND lower(split_part(m."previewUrl", '?', 1)) LIKE '%.webp'
+      AND EXISTS (
+        SELECT 1
+        FROM "${table}_genres_genre" required_mg
+        WHERE required_mg."${table}Id" = m."id"
+      )
     `;
   }
 
