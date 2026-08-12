@@ -177,9 +177,6 @@ jobs:
               echo "Freeing occupied port $EXPECTED_HOST_PORT..."
               while IFS= read -r occupied; do
                 [ -n "$occupied" ] || continue
-                if [ "$occupied" = "$CONTAINER_NAME" ]; then
-                  continue
-                fi
                 echo "Removing container using port $EXPECTED_HOST_PORT: $occupied"
                 docker rm -f "$occupied" || true
               done <<< "$OCCUPIED_CONTAINERS"
@@ -187,6 +184,16 @@ jobs:
           fi
 
           dc down --remove-orphans
+
+          # dc down only removes containers compose recognizes as part of this
+          # project. If a stale/orphaned container still holds our name (e.g.
+          # left over from a manual run or a project label mismatch), compose
+          # silently no-ops ("No resource found to remove") and `dc up` then
+          # fails with a name conflict. Force-remove it defensively.
+          if docker inspect "$CONTAINER_NAME" >/dev/null 2>&1; then
+            echo "Removing stale container not tracked by compose project: $CONTAINER_NAME"
+            docker rm -f "$CONTAINER_NAME" || true
+          fi
           dc up -d --remove-orphans --no-build
 
           if check_container_stable "$CONTAINER_NAME"; then
