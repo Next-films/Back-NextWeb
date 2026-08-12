@@ -193,9 +193,16 @@ export class AdminReprocessPremiereAssetsCommandHandler
     const effectiveTrailerUrl =
       this.normalizePoiskkinoEmbedUrl(row.trailerUrl) ||
       this.normalizePoiskkinoEmbedUrl(trailerUrl);
-    const backgroundSourceUrl = effectiveTrailerUrl
-      ? this.buildPoiskkinoCdnHlsUrl(row.kpId, row.type) || effectiveTrailerUrl
-      : null;
+    // Prefer the poiskkino CDN clip built directly from kpId, same as the regular
+    // moderation flow (movie-metadata-card.service.ts). trailerUrl coming from
+    // Kinopoisk/TMDB is always a YouTube link, so gating this on effectiveTrailerUrl
+    // (poiskkino-shaped only) meant reprocessing never actually downloaded anything.
+    const backgroundSourceUrl =
+      this.buildPoiskkinoCdnHlsUrl(row.kpId, row.type) ||
+      effectiveTrailerUrl ||
+      trailerUrl ||
+      row.trailerUrl?.trim() ||
+      null;
     const backgroundContentUrl = await this.reprocessBackgroundContentUrl(
       row,
       backgroundSourceUrl,
