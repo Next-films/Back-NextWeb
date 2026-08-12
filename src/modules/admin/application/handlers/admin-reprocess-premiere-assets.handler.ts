@@ -161,37 +161,44 @@ export class AdminReprocessPremiereAssetsCommandHandler
     result: AdminReprocessPremiereAssetsOutputDto,
     onlyMissingMetadata: boolean,
   ): Promise<void> {
-    if (!row.kpId) {
-      result.failed++;
-      result.errors.push(`${row.type}:${row.id} has empty kpId`);
-      return;
-    }
+    const metadata = this.createEmptyMetadata();
+    const shouldLoadMetadata = this.shouldLoadMetadata(row, onlyMissingMetadata);
 
-    const kpMovie = await this.kinopoiskService.getMovieById(Number(row.kpId));
-    if (!kpMovie) {
-      result.failed++;
-      result.errors.push(`${row.type}:${row.kpId} not found in kinopoisk`);
-      return;
-    }
+    if (shouldLoadMetadata) {
+      if (!row.kpId) {
+        result.errors.push(`${row.type}:${row.id} has empty kpId`);
+      } else {
+        const kpMovie = await this.kinopoiskService.getMovieById(Number(row.kpId));
 
-    const metadata = this.createMetadata(kpMovie);
-    await this.externalMovieAssetsService.enrichUpcomingDescription(
-      metadata,
-      kpMovie,
-      this.movieType(row.type),
-    );
-    await this.externalMovieAssetsService.enrichUpcomingTrailer(
-      metadata,
-      kpMovie,
-      this.movieType(row.type),
-    );
+        if (!kpMovie) {
+          result.errors.push(`${row.type}:${row.kpId} not found in kinopoisk`);
+        } else {
+          Object.assign(metadata, this.createMetadata(kpMovie));
+          await this.externalMovieAssetsService.enrichUpcomingDescription(
+            metadata,
+            kpMovie,
+            this.movieType(row.type),
+          );
+          await this.externalMovieAssetsService.enrichUpcomingTrailer(
+            metadata,
+            kpMovie,
+            this.movieType(row.type),
+          );
+        }
+      }
+    }
 
     const trailerUrl = metadata.trailerUrl?.trim() || null;
     const description = metadata.description?.trim() || null;
-    const effectiveTrailerUrl = trailerUrl || row.trailerUrl?.trim() || null;
+    const effectiveTrailerUrl =
+      this.normalizePoiskkinoEmbedUrl(row.trailerUrl) ||
+      this.normalizePoiskkinoEmbedUrl(trailerUrl);
+    const backgroundSourceUrl = effectiveTrailerUrl
+      ? this.buildPoiskkinoCdnHlsUrl(row.kpId, row.type) || effectiveTrailerUrl
+      : null;
     const backgroundContentUrl = await this.reprocessBackgroundContentUrl(
       row,
-      effectiveTrailerUrl,
+      backgroundSourceUrl,
       onlyMissingMetadata,
     );
 
@@ -205,6 +212,7 @@ export class AdminReprocessPremiereAssetsCommandHandler
     const updated = await this.updatePremiereMetadata(
       row,
       { trailerUrl, description, backgroundContentUrl },
+      { trailerUrl: effectiveTrailerUrl, description, backgroundContentUrl },
       onlyMissingMetadata,
     );
 
@@ -228,6 +236,9 @@ export class AdminReprocessPremiereAssetsCommandHandler
 
   private async updatePremiereMetadata(
     row: ReprocessPremiereRow,
+    rawMetadata: Pick<MovieKpMetadata, 'trailerUrl' | 'description'> & {
+      backgroundContentUrl: string | null;
+    },
     metadata: Pick<MovieKpMetadata, 'trailerUrl' | 'description'> & {
       backgroundContentUrl: string | null;
     },
@@ -240,7 +251,7 @@ export class AdminReprocessPremiereAssetsCommandHandler
     const tableName = this.tableName(row.type);
     const params: unknown[] = [];
     const setClauses: string[] = [];
-    const trailerUpdated = this.shouldUpdateField(
+    const trailerUpdated = this.shouldUpdateTrailerUrl(
       row.trailerUrl,
       metadata.trailerUrl,
       onlyMissingMetadata,
@@ -262,7 +273,7 @@ export class AdminReprocessPremiereAssetsCommandHandler
     }
 
     if (descriptionUpdated) {
-      params.push(metadata.description!.trim());
+      params.push(rawMetadata.description!.trim());
       setClauses.push(`"description" = $${params.length}`);
     }
 
@@ -340,6 +351,17 @@ export class AdminReprocessPremiereAssetsCommandHandler
     if (!this.hasText(nextValue)) return false;
     if (onlyMissingMetadata && this.hasText(currentValue)) return false;
     return currentValue?.trim() !== nextValue?.trim();
+  }
+
+  private shouldUpdateTrailerUrl(
+    currentValue: string | null,
+    nextValue: string | null,
+    onlyMissingMetadata: boolean,
+  ): boolean {
+    const normalizedNextValue = this.normalizePoiskkinoEmbedUrl(nextValue);
+    if (!normalizedNextValue) return false;
+    if (onlyMissingMetadata && this.normalizePoiskkinoEmbedUrl(currentValue)) return false;
+    return this.normalizePoiskkinoEmbedUrl(currentValue) !== normalizedNextValue;
   }
 
   private shouldUpdateBackgroundContentUrl(
@@ -425,6 +447,65 @@ export class AdminReprocessPremiereAssetsCommandHandler
       titleUrl: null,
       trailerUrl: this.moviesService.getKinopoiskTrailerUrl(kpMovie),
     };
+  }
+
+  private createEmptyMetadata(): MovieKpMetadata {
+    return {
+      name: null,
+      originalName: null,
+      alternativeName: null,
+      universe: null,
+      studio: null,
+      genres: null,
+      countries: null,
+      description: null,
+      releaseDate: null,
+      posterUrl: null,
+      backdropUrl: null,
+      backdropUrls: [],
+      titleUrl: null,
+      trailerUrl: null,
+    };
+  }
+
+  private shouldLoadMetadata(row: ReprocessPremiereRow, onlyMissingMetadata: boolean): boolean {
+    const needsDescription = this.shouldLookupMissingField(row.description, onlyMissingMetadata);
+    const needsPoiskkinoTrailer =
+      !this.normalizePoiskkinoEmbedUrl(row.trailerUrl) &&
+      this.shouldLookupMissingField(row.trailerUrl, onlyMissingMetadata);
+
+    return needsDescription || needsPoiskkinoTrailer;
+  }
+
+  private normalizePoiskkinoEmbedUrl(value: string | null | undefined): string | null {
+    if (!value?.trim()) return null;
+
+    try {
+      const url = new URL(value.trim());
+      if (url.hostname !== 'play.poiskkino.dev' || !url.pathname.startsWith('/embed/')) {
+        return null;
+      }
+
+      url.protocol = 'https:';
+      return url.toString();
+    } catch {
+      return null;
+    }
+  }
+
+  private buildPoiskkinoCdnHlsUrl(
+    kpId: string | null | undefined,
+    type: Exclude<AdminPremiereTypeEnum, AdminPremiereTypeEnum.ALL>,
+  ): string | null {
+    const normalizedKpId = kpId?.trim();
+
+    if (!normalizedKpId || !/^\d{4,}$/.test(normalizedKpId)) return null;
+
+    const directory = type === AdminPremiereTypeEnum.SERIAL ? 'tv' : 'film';
+    const firstPart = normalizedKpId.slice(0, 2);
+    const secondPart = normalizedKpId.slice(2, 4);
+
+    return `https://lbu.vcdn.elvd.tech/hls/${directory}/${firstPart}/${secondPart}/${normalizedKpId}.mp4/master.m3u8`;
   }
 
   private movieType(

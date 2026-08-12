@@ -196,7 +196,11 @@ export class MovieMetadataCardService {
     const shouldHydrateBackground = !this.hasProcessedPreviewClip(movie.backgroundContentUrl);
     const shouldHydratePoster = !this.hasProcessedImage(movie.previewUrl);
     const shouldHydrateTitle = !this.hasProcessedImage(movie.titleUrl);
-    const trailerSourceUrl = metadata.trailerUrl || movie.trailerUrl || movie.backgroundContentUrl;
+    const trailerSourceUrl =
+      this.buildPoiskkinoCdnHlsUrl(movie.kpId, movieType) ||
+      metadata.trailerUrl ||
+      movie.trailerUrl ||
+      movie.backgroundContentUrl;
     const posterSourceUrl = metadata.posterUrl || movie.previewUrl;
 
     const [backgroundContentUrl, posterUrl, titleUrl] = await Promise.all([
@@ -226,6 +230,18 @@ export class MovieMetadataCardService {
     } catch {
       return null;
     }
+  }
+
+  private buildPoiskkinoCdnHlsUrl(kpId: string | null, movieType: MovieTypesEnum): string | null {
+    const normalizedKpId = kpId?.trim();
+
+    if (!normalizedKpId || !/^\d{4,}$/.test(normalizedKpId)) return null;
+
+    const directory = movieType === MovieTypesEnum.SERIAL ? 'tv' : 'film';
+    const firstPart = normalizedKpId.slice(0, 2);
+    const secondPart = normalizedKpId.slice(2, 4);
+
+    return `https://lbu.vcdn.elvd.tech/hls/${directory}/${firstPart}/${secondPart}/${normalizedKpId}.mp4/master.m3u8`;
   }
 
   private isForeignCountryList(countries: string[] | null): boolean {
