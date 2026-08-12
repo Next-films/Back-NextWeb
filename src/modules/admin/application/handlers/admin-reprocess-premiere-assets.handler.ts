@@ -28,6 +28,7 @@ type ReprocessPremiereRow = {
   kpId: string | null;
   trailerUrl: string | null;
   description: string | null;
+  backgroundContentUrl: string | null;
 };
 
 export class AdminReprocessPremiereAssetsCommand implements ICommand {
@@ -67,6 +68,7 @@ export class AdminReprocessPremiereAssetsCommandHandler
         processed: 0,
         trailersUpdated: 0,
         descriptionsUpdated: 0,
+        backgroundsUpdated: 0,
         unchanged: 0,
         published: 0,
         moderated: 0,
@@ -107,6 +109,9 @@ export class AdminReprocessPremiereAssetsCommandHandler
           OR btrim(m."trailerUrl") = ''
           OR m."description" IS NULL
           OR btrim(m."description") = ''
+          OR m."backgroundContentUrl" IS NULL
+          OR btrim(m."backgroundContentUrl") = ''
+          OR lower(split_part(m."backgroundContentUrl", '?', 1)) NOT LIKE '%.webm'
         )`);
       }
 
@@ -117,6 +122,7 @@ export class AdminReprocessPremiereAssetsCommandHandler
           m."kpId" AS "kpId",
           m."trailerUrl" AS "trailerUrl",
           m."description" AS "description",
+          m."backgroundContentUrl" AS "backgroundContentUrl",
           m."releaseDate" AS "releaseDate",
           m."updatedAt" AS "updatedAt"
         FROM "${table.table}" m
@@ -127,7 +133,7 @@ export class AdminReprocessPremiereAssetsCommandHandler
     values.push(limit);
     return this.dataSource.query<ReprocessPremiereRow[]>(
       `
-        SELECT "id", "type", "kpId", "trailerUrl", "description"
+        SELECT "id", "type", "kpId", "trailerUrl", "description", "backgroundContentUrl"
         FROM (${queries.join(' UNION ALL ')}) premieres
         ORDER BY "updatedAt" ASC NULLS FIRST, "releaseDate" ASC NULLS LAST, "id" ASC
         LIMIT $${values.length}
@@ -182,20 +188,27 @@ export class AdminReprocessPremiereAssetsCommandHandler
 
     const trailerUrl = metadata.trailerUrl?.trim() || null;
     const description = metadata.description?.trim() || null;
+    const effectiveTrailerUrl = trailerUrl || row.trailerUrl?.trim() || null;
+    const backgroundContentUrl = await this.reprocessBackgroundContentUrl(
+      row,
+      effectiveTrailerUrl,
+      onlyMissingMetadata,
+    );
+
     this.collectMissingMetadataErrors(
       row,
       result,
-      { trailerUrl, description },
+      { trailerUrl: effectiveTrailerUrl, description, backgroundContentUrl },
       onlyMissingMetadata,
     );
 
     const updated = await this.updatePremiereMetadata(
       row,
-      { trailerUrl, description },
+      { trailerUrl, description, backgroundContentUrl },
       onlyMissingMetadata,
     );
 
-    if (!updated.trailerUpdated && !updated.descriptionUpdated) {
+    if (!updated.trailerUpdated && !updated.descriptionUpdated && !updated.backgroundUpdated) {
       result.moderated++;
       result.unchanged++;
       return;
@@ -204,6 +217,7 @@ export class AdminReprocessPremiereAssetsCommandHandler
     result.processed++;
     if (updated.trailerUpdated) result.trailersUpdated++;
     if (updated.descriptionUpdated) result.descriptionsUpdated++;
+    if (updated.backgroundUpdated) result.backgroundsUpdated++;
   }
 
   private async processInChunks<T>(items: T[], handler: (item: T) => Promise<void>): Promise<void> {
@@ -214,9 +228,15 @@ export class AdminReprocessPremiereAssetsCommandHandler
 
   private async updatePremiereMetadata(
     row: ReprocessPremiereRow,
-    metadata: Pick<MovieKpMetadata, 'trailerUrl' | 'description'>,
+    metadata: Pick<MovieKpMetadata, 'trailerUrl' | 'description'> & {
+      backgroundContentUrl: string | null;
+    },
     onlyMissingMetadata: boolean,
-  ): Promise<{ trailerUpdated: boolean; descriptionUpdated: boolean }> {
+  ): Promise<{
+    trailerUpdated: boolean;
+    descriptionUpdated: boolean;
+    backgroundUpdated: boolean;
+  }> {
     const tableName = this.tableName(row.type);
     const params: unknown[] = [];
     const setClauses: string[] = [];
@@ -230,6 +250,11 @@ export class AdminReprocessPremiereAssetsCommandHandler
       metadata.description,
       onlyMissingMetadata,
     );
+    const backgroundUpdated = this.shouldUpdateBackgroundContentUrl(
+      row.backgroundContentUrl,
+      metadata.backgroundContentUrl,
+      onlyMissingMetadata,
+    );
 
     if (trailerUpdated) {
       params.push(metadata.trailerUrl!.trim());
@@ -241,7 +266,14 @@ export class AdminReprocessPremiereAssetsCommandHandler
       setClauses.push(`"description" = $${params.length}`);
     }
 
-    if (!setClauses.length) return { trailerUpdated: false, descriptionUpdated: false };
+    if (backgroundUpdated) {
+      params.push(metadata.backgroundContentUrl!.trim());
+      setClauses.push(`"backgroundContentUrl" = $${params.length}`);
+    }
+
+    if (!setClauses.length) {
+      return { trailerUpdated: false, descriptionUpdated: false, backgroundUpdated: false };
+    }
 
     setClauses.push(`"updatedAt" = CURRENT_TIMESTAMP`);
     params.push(row.id);
@@ -256,15 +288,19 @@ export class AdminReprocessPremiereAssetsCommandHandler
       params,
     );
 
-    if (!updatedRows.length) return { trailerUpdated: false, descriptionUpdated: false };
+    if (!updatedRows.length) {
+      return { trailerUpdated: false, descriptionUpdated: false, backgroundUpdated: false };
+    }
 
-    return { trailerUpdated, descriptionUpdated };
+    return { trailerUpdated, descriptionUpdated, backgroundUpdated };
   }
 
   private collectMissingMetadataErrors(
     row: ReprocessPremiereRow,
     result: AdminReprocessPremiereAssetsOutputDto,
-    metadata: Pick<MovieKpMetadata, 'trailerUrl' | 'description'>,
+    metadata: Pick<MovieKpMetadata, 'trailerUrl' | 'description'> & {
+      backgroundContentUrl: string | null;
+    },
     onlyMissingMetadata: boolean,
   ): void {
     const missingFields: string[] = [];
@@ -286,6 +322,14 @@ export class AdminReprocessPremiereAssetsCommandHandler
     if (missingFields.length > 0) {
       result.errors.push(`${row.type}:${row.kpId} ${missingFields.join(', ')} not found`);
     }
+
+    if (
+      !this.hasProcessedPreviewClip(metadata.backgroundContentUrl) &&
+      this.shouldLookupMissingBackground(row.backgroundContentUrl, onlyMissingMetadata) &&
+      this.hasText(metadata.trailerUrl)
+    ) {
+      result.errors.push(`${row.type}:${row.kpId} background clip not downloaded`);
+    }
   }
 
   private shouldUpdateField(
@@ -296,6 +340,61 @@ export class AdminReprocessPremiereAssetsCommandHandler
     if (!this.hasText(nextValue)) return false;
     if (onlyMissingMetadata && this.hasText(currentValue)) return false;
     return currentValue?.trim() !== nextValue?.trim();
+  }
+
+  private shouldUpdateBackgroundContentUrl(
+    currentValue: string | null,
+    nextValue: string | null,
+    onlyMissingMetadata: boolean,
+  ): boolean {
+    if (!this.hasProcessedPreviewClip(nextValue)) return false;
+    if (onlyMissingMetadata && this.hasProcessedPreviewClip(currentValue)) return false;
+    return currentValue?.trim() !== nextValue?.trim();
+  }
+
+  private shouldLookupMissingBackground(
+    currentValue: string | null,
+    onlyMissingMetadata: boolean,
+  ): boolean {
+    return !onlyMissingMetadata || !this.hasProcessedPreviewClip(currentValue);
+  }
+
+  private hasProcessedPreviewClip(value: string | null | undefined): boolean {
+    return this.hasMediaExtension(value, '.webm');
+  }
+
+  private hasMediaExtension(value: string | null | undefined, extension: string): boolean {
+    if (!value?.trim()) return false;
+
+    try {
+      const url = new URL(value);
+      return url.pathname.toLowerCase().endsWith(extension);
+    } catch {
+      return value.toLowerCase().split('?')[0].endsWith(extension);
+    }
+  }
+
+  private async reprocessBackgroundContentUrl(
+    row: ReprocessPremiereRow,
+    trailerUrl: string | null,
+    onlyMissingMetadata: boolean,
+  ): Promise<string | null> {
+    if (!this.hasText(trailerUrl)) return null;
+    if (onlyMissingMetadata && this.hasProcessedPreviewClip(row.backgroundContentUrl)) return null;
+
+    const movieId = Number(row.id);
+    if (!Number.isFinite(movieId)) return null;
+
+    try {
+      return await this.moviesService.getBackgroundContentUrl(
+        trailerUrl,
+        movieId,
+        this.movieType(row.type),
+      );
+    } catch (error) {
+      this.logger.warn(String(error), this.reprocessBackgroundContentUrl.name);
+      return null;
+    }
   }
 
   private shouldLookupMissingField(

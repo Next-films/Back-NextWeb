@@ -14,6 +14,9 @@ export class AdminReprocessPremiereAssetsOutputDto {
   descriptionsUpdated: number;
 
   @ApiProperty()
+  backgroundsUpdated: number;
+
+  @ApiProperty()
   unchanged: number;
 
   @ApiProperty()
