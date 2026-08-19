@@ -9,6 +9,8 @@ export const MODERATE_MOVIE_CMD = 'moderate_movie_cmd';
 export const NEW_FILM_CMD = 'new_film_cmd';
 export const NEW_CARTOON_CMD = 'new_cartoon_cmd';
 export const NEW_SERIAL_CMD = 'new_serial_cmd';
+export const REPLACE_FILM_SOURCE_CMD = 'replace_film_source_cmd';
+export const REPLACE_CARTOON_SOURCE_CMD = 'replace_cartoon_source_cmd';
 
 /*
  *

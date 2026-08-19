@@ -116,6 +116,7 @@ export const PRIVATE_FILMS_ROUTE = {
   NEW_FILM: 'new-film',
   UPCOMING: 'new-film/upcoming',
   NEW_FILM_IS_HANDLE: 'new-film/is-handle',
+  REPLACE_SOURCE: 'replace-source',
   KP: `kp`,
   NEW_BACKGROUND_CONTENT: 'new-background-content',
 };
@@ -160,6 +161,7 @@ export const PRIVATE_CARTOONS_ROUTE = {
   NEW_CARTOON: 'new-cartoon',
   UPCOMING: 'new-cartoon/upcoming',
   NEW_CARTOON_IS_HANDLE: 'new-cartoon/is-handle',
+  REPLACE_SOURCE: 'replace-source',
   NEW_BACKGROUND_CONTENT: 'new-background-content',
 };
 
