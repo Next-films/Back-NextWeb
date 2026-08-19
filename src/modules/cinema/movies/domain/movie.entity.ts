@@ -246,4 +246,10 @@ export class MovieEntity {
   updateTitleUrl(url: string | null): void {
     if (url) this.titleUrl = url;
   }
+
+  replaceVideoSource(videoUrl: string, duration: number): void {
+    this.videoUrl = videoUrl;
+    this.duration = duration;
+    this.updatedAt = new Date();
+  }
 }

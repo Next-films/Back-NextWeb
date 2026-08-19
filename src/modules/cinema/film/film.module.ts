@@ -23,6 +23,7 @@ import { FilmsPrivateOutputDtoMapper } from '@/films/api/dtos/output/films-priva
 import { ModerationMovieModule } from '@/moderation-movie/moderation-movie.module';
 import { NewBackGroundContentFilmCommandHandler } from '@/films/application/handlers/new-background-content-film.handler';
 import { UpsertUpcomingFilmCommandHandler } from '@/films/application/handlers/upsert-upcoming-film.handler';
+import { ReplaceFilmSourceCommandHandler } from '@/films/application/handlers/replace-film-source.handler';
 
 const queryHandlers = [
   GetPublicFilmByIdQueryHandler,
@@ -43,6 +44,7 @@ const handlers = [
   NewFilmIsHandleNotificationCommandHandler,
   NewBackGroundContentFilmCommandHandler,
   UpsertUpcomingFilmCommandHandler,
+  ReplaceFilmSourceCommandHandler,
 ];
 
 const exportProviders = [FilmRepository, filmProvider, FilmQueryRepository];
