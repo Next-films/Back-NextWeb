@@ -11,6 +11,10 @@ import {
   NewFilmNotificationCommandHandler,
 } from '@/films/application/handlers/new-film-notification.handler';
 import {
+  NewFilmIsHandleNotificationCommand,
+  NewFilmIsHandleNotificationCommandHandler,
+} from '@/films/application/handlers/new-film-is-handle-notification.handler';
+import {
   ReplaceFilmSourceCommand,
   ReplaceFilmSourceCommandHandler,
 } from '@/films/application/handlers/replace-film-source.handler';
@@ -19,6 +23,7 @@ describe('ReplaceFilmSourceCommandHandler (integration)', () => {
   let app: INestApplication;
   let handler: ReplaceFilmSourceCommandHandler;
   let newFilmHandler: NewFilmNotificationCommandHandler;
+  let newFilmIsHandleHandler: NewFilmIsHandleNotificationCommandHandler;
   let filmRepository: FilmRepository;
   let kinopoiskService: KinopoiskService;
   let testService: TestService;
@@ -44,6 +49,7 @@ describe('ReplaceFilmSourceCommandHandler (integration)', () => {
 
     handler = app.get(ReplaceFilmSourceCommandHandler);
     newFilmHandler = app.get(NewFilmNotificationCommandHandler);
+    newFilmIsHandleHandler = app.get(NewFilmIsHandleNotificationCommandHandler);
     filmRepository = app.get(FilmRepository);
     kinopoiskService = app.get(KinopoiskService);
   });
@@ -82,9 +88,10 @@ describe('ReplaceFilmSourceCommandHandler (integration)', () => {
     expect(film?.duration).toBe(7200);
   });
 
-  it('не трогает метаданные, постеры и статус', async () => {
+  it('не трогает метаданные, постеры, статус и жанры', async () => {
     await publishFilm('1', 'https://s3/films/aaa_1/master.m3u8', 6000);
-    const before = await filmRepository.getFilmByKinopoiskId('1');
+    const beforeShallow = await filmRepository.getFilmByKinopoiskId('1');
+    const before = await filmRepository.getFilmById(beforeShallow!.id);
 
     await handler.execute(
       new ReplaceFilmSourceCommand({
@@ -94,7 +101,7 @@ describe('ReplaceFilmSourceCommandHandler (integration)', () => {
       }),
     );
 
-    const after = await filmRepository.getFilmByKinopoiskId('1');
+    const after = await filmRepository.getFilmById(beforeShallow!.id);
     expect(after?.title).toBe(before?.title);
     expect(after?.description).toBe(before?.description);
     expect(after?.previewUrl).toBe(before?.previewUrl);
@@ -103,6 +110,9 @@ describe('ReplaceFilmSourceCommandHandler (integration)', () => {
     expect(after?.releaseDate).toBe(before?.releaseDate);
     expect(after?.handleStatus).toBe(MovieHandleStatus.PRODUCTION);
     expect(after?.isHidden).toBe(before?.isHidden);
+    expect(after?.genres?.map(genre => genre.name).sort()).toEqual(
+      before?.genres?.map(genre => genre.name).sort(),
+    );
   });
 
   it('возвращает NotFound, если фильма нет', async () => {
@@ -154,5 +164,60 @@ describe('ReplaceFilmSourceCommandHandler (integration)', () => {
 
     const after = await filmRepository.getFilmByKinopoiskId('2');
     expect(after?.videoUrl).toBe(before?.videoUrl);
+  });
+
+  it('отказывает, если фильм ещё не опубликован (PROCESSING), и не меняет videoUrl', async () => {
+    const spy = jest.spyOn(kinopoiskService, 'getMovieById');
+    spy.mockResolvedValueOnce({ name: 'Фильм 3', enName: 'Film 3', year: 2026 });
+    await newFilmIsHandleHandler.execute(new NewFilmIsHandleNotificationCommand({ kpIds: ['3'] }));
+    spy.mockRestore();
+
+    const before = await filmRepository.getFilmByKinopoiskId('3');
+    expect(before?.handleStatus).toBe(MovieHandleStatus.PROCESSING);
+    expect(before?.videoUrl).toBeNull();
+
+    const result = await handler.execute(
+      new ReplaceFilmSourceCommand({
+        kpId: '3',
+        key: 'https://s3/films/bbb_3/master.m3u8',
+        duration: 300,
+      }),
+    );
+
+    expect(result.appResult).toBe(AppNotificationResultEnum.BadRequest);
+    expect(result.errorField).toEqual({
+      errorKey: EXCEPTION_KEYS_ENUM.FILM_SOURCE_NOT_REPLACEABLE,
+      message: expect.any(String),
+      field: 'kpId',
+    });
+
+    const after = await filmRepository.getFilmByKinopoiskId('3');
+    expect(after?.videoUrl).toBe(before?.videoUrl);
+  });
+
+  it('откатывает транзакцию при ошибке сохранения, не меняя videoUrl и duration', async () => {
+    await publishFilm('5', 'https://s3/films/aaa_5/master.m3u8', 6000);
+    const before = await filmRepository.getFilmByKinopoiskId('5');
+
+    const saveSpy = jest.spyOn(filmRepository, 'save').mockRejectedValueOnce(new Error('boom'));
+
+    let result;
+    try {
+      result = await handler.execute(
+        new ReplaceFilmSourceCommand({
+          kpId: '5',
+          key: 'https://s3/films/bbb_5/master.m3u8',
+          duration: 9000,
+        }),
+      );
+    } finally {
+      saveSpy.mockRestore();
+    }
+
+    expect(result.appResult).toBe(AppNotificationResultEnum.InternalError);
+
+    const after = await filmRepository.getFilmByKinopoiskId('5');
+    expect(after?.videoUrl).toBe(before?.videoUrl);
+    expect(after?.duration).toBe(before?.duration);
   });
 });
