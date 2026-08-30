@@ -92,6 +92,11 @@ export class MoviesService {
 
   // ─── Movie validation ──────────────────────────────────────────
 
+  /**
+   * titleUrl (обложка-заголовок) намеренно не входит в список: готовой картинки с названием
+   * для большинства фильмов просто не существует, и обязательность этого поля блокировала
+   * публикацию полностью готовых карточек. Витрина всё равно рисует название текстом.
+   */
   isValidMovieForProduction<T extends MovieEntity>(movie: T): boolean {
     const {
       title,
@@ -102,7 +107,6 @@ export class MoviesService {
       releaseDate,
       trailerUrl,
       previewUrl,
-      titleUrl,
       videoUrl,
       duration,
       genres,
@@ -116,7 +120,6 @@ export class MoviesService {
       trailerUrl &&
       videoUrl &&
       previewUrl &&
-      titleUrl &&
       duration &&
       duration !== 0 &&
       genres &&
