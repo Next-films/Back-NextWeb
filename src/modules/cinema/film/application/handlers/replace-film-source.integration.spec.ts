@@ -290,4 +290,34 @@ describe('ReplaceFilmSourceCommandHandler (integration)', () => {
     expect(after?.videoUrl).toBe(before?.videoUrl);
     expect(after?.duration).toBe(before?.duration);
   });
+
+  it('не обнуляет известную длительность, если duration пришёл нулевым или null', async () => {
+    await publishFilm('9', 'https://s3/films/aaa_9/master.m3u8', 6000);
+
+    const zeroResult = await handler.execute(
+      new ReplaceFilmSourceCommand({
+        kpId: '9',
+        key: 'https://s3/films/bbb_9/master.m3u8',
+        duration: 0,
+      }),
+    );
+
+    expect(zeroResult.appResult).toBe(AppNotificationResultEnum.Success);
+
+    const afterZero = await filmRepository.getFilmByKinopoiskId('9');
+    expect(afterZero?.videoUrl).toBe('https://s3/films/bbb_9/master.m3u8');
+    expect(afterZero?.duration).toBe(6000);
+
+    await handler.execute(
+      new ReplaceFilmSourceCommand({
+        kpId: '9',
+        key: 'https://s3/films/ccc_9/master.m3u8',
+        duration: null,
+      }),
+    );
+
+    const afterNull = await filmRepository.getFilmByKinopoiskId('9');
+    expect(afterNull?.videoUrl).toBe('https://s3/films/ccc_9/master.m3u8');
+    expect(afterNull?.duration).toBe(6000);
+  });
 });

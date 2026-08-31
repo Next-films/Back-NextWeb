@@ -106,7 +106,14 @@ export class ReplaceFilmSourceCommandHandler
 
       // Меняем только источник. Метаданные, постеры, жанры и статус не трогаем:
       // фильм уже прошёл модерацию, для зрителя меняется лишь файл.
-      film.replaceVideoSource(normalizedKey, duration || 0);
+      // Некорректная длительность (0, отрицательная или, по RMQ, вовсе не число)
+      // не должна стирать уже известную: оставляем прежнее значение.
+      const nextDuration =
+        typeof duration === 'number' && Number.isFinite(duration) && duration > 0
+          ? duration
+          : film.duration;
+
+      film.replaceVideoSource(normalizedKey, nextDuration);
 
       await this.filmRepository.save(film, queryRunner);
       await queryRunner.commitTransaction();

@@ -109,7 +109,14 @@ export class ReplaceCartoonSourceCommandHandler
 
       // Меняем только источник. Метаданные, постеры, жанры и статус не трогаем:
       // мультфильм уже прошёл модерацию, для зрителя меняется лишь файл.
-      cartoon.replaceVideoSource(normalizedKey, duration || 0);
+      // Некорректная длительность (0, отрицательная или, по RMQ, вовсе не число)
+      // не должна стирать уже известную: оставляем прежнее значение.
+      const nextDuration =
+        typeof duration === 'number' && Number.isFinite(duration) && duration > 0
+          ? duration
+          : cartoon.duration;
+
+      cartoon.replaceVideoSource(normalizedKey, nextDuration);
 
       await this.cartoonRepository.save(cartoon, queryRunner);
       await queryRunner.commitTransaction();

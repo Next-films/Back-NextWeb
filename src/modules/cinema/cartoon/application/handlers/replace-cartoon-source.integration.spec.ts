@@ -292,4 +292,34 @@ describe('ReplaceCartoonSourceCommandHandler (integration)', () => {
     expect(after?.videoUrl).toBe(before?.videoUrl);
     expect(after?.duration).toBe(before?.duration);
   });
+
+  it('не обнуляет известную длительность, если duration пришёл нулевым или null', async () => {
+    await publishCartoon('9', 'https://s3/cartoons/aaa_9/master.m3u8', 6000);
+
+    const zeroResult = await handler.execute(
+      new ReplaceCartoonSourceCommand({
+        kpId: '9',
+        key: 'https://s3/cartoons/bbb_9/master.m3u8',
+        duration: 0,
+      }),
+    );
+
+    expect(zeroResult.appResult).toBe(AppNotificationResultEnum.Success);
+
+    const afterZero = await cartoonRepository.getCartoonByKinopoiskId('9');
+    expect(afterZero?.videoUrl).toBe('https://s3/cartoons/bbb_9/master.m3u8');
+    expect(afterZero?.duration).toBe(6000);
+
+    await handler.execute(
+      new ReplaceCartoonSourceCommand({
+        kpId: '9',
+        key: 'https://s3/cartoons/ccc_9/master.m3u8',
+        duration: null,
+      }),
+    );
+
+    const afterNull = await cartoonRepository.getCartoonByKinopoiskId('9');
+    expect(afterNull?.videoUrl).toBe('https://s3/cartoons/ccc_9/master.m3u8');
+    expect(afterNull?.duration).toBe(6000);
+  });
 });
