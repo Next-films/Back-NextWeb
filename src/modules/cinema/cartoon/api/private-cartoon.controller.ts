@@ -44,6 +44,7 @@ import { UpsertUpcomingMovieOutputDto } from '@/movies/api/dtos/output/upsert-up
 import { ReplaceMovieSourcePayloadDto } from '@/movies/api/dtos/input/replace-movie-source.input.dto';
 import { ReplaceMovieSourceOutputDto } from '@/movies/api/dtos/output/replace-movie-source.output.dto';
 import { ReplaceCartoonSourceCommand } from '@/cartoons/application/handlers/replace-cartoon-source.handler';
+import { SwaggerDecoratorReplaceCartoonSource } from '@/cartoons/api/swagger/replace-cartoon-source-private.swagger.decorator';
 
 @ApiBearerAuth(BACKEND_TO_BACKEND_AUTH_JWT_SCHEMA_NAME)
 @ApiUnauthorizedResponse({ description: 'Unauthorized', type: HttpPrivateExceptionDto })
@@ -121,6 +122,7 @@ export class CartoonPrivateController {
 
   @HttpCode(HttpStatus.OK)
   @Post(`${PRIVATE_CARTOONS_ROUTE.REPLACE_SOURCE}`)
+  @SwaggerDecoratorReplaceCartoonSource()
   async replaceCartoonSource(
     @Body() body: ReplaceMovieSourcePayloadDto,
   ): Promise<AppNotificationResult<

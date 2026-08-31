@@ -44,6 +44,7 @@ import { UpsertUpcomingMovieOutputDto } from '@/movies/api/dtos/output/upsert-up
 import { ReplaceMovieSourcePayloadDto } from '@/movies/api/dtos/input/replace-movie-source.input.dto';
 import { ReplaceMovieSourceOutputDto } from '@/movies/api/dtos/output/replace-movie-source.output.dto';
 import { ReplaceFilmSourceCommand } from '@/films/application/handlers/replace-film-source.handler';
+import { SwaggerDecoratorReplaceFilmSource } from '@/films/api/swagger/replace-film-source-private.swagger.decorator';
 
 @ApiBearerAuth(BACKEND_TO_BACKEND_AUTH_JWT_SCHEMA_NAME)
 @ApiUnauthorizedResponse({ description: 'Unauthorized', type: HttpPrivateExceptionDto })
@@ -136,6 +137,7 @@ export class FilmPrivateController {
 
   @HttpCode(HttpStatus.OK)
   @Post(`${PRIVATE_FILMS_ROUTE.REPLACE_SOURCE}`)
+  @SwaggerDecoratorReplaceFilmSource()
   async replaceFilmSource(
     @Body() body: ReplaceMovieSourcePayloadDto,
   ): Promise<AppNotificationResult<
