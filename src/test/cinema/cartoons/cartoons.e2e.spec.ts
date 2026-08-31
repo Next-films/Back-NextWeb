@@ -43,7 +43,7 @@ describe('Cartoons public', () => {
   let adminCinemaCartoonsUrl: string;
   let loginByMainAdmin: () => Promise<AdminLoginOutputDto>;
   const mainAdminLoginData: AdminLoginInputModel = {
-    email: '',
+    login: '',
     password: '',
   };
   let kinopoiskService: KinopoiskService;
@@ -62,7 +62,7 @@ describe('Cartoons public', () => {
       .get(ConfigService<ConfigurationType, true>)
       .get('apiSettings', { infer: true });
 
-    mainAdminLoginData.email = apiSettings.ADMIN_EMAIL;
+    mainAdminLoginData.login = apiSettings.ADMIN_EMAIL;
     mainAdminLoginData.password = apiSettings.ADMIN_PASSWORD;
 
     baseUri = appUri + CARTOONS_ROUTE.MAIN;

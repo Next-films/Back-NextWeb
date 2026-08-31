@@ -13,6 +13,7 @@ export const adminLogin = async (
 
   expect(result.body).toEqual({
     accessToken: expect.any(String),
+    isPasswordSet: expect.any(Boolean),
   });
 
   const setCookieHeader = result.headers['set-cookie'];
@@ -28,5 +29,6 @@ export const adminLogin = async (
   return {
     accessToken: result.body.accessToken,
     refreshToken: refreshToken,
+    isPasswordSet: result.body.isPasswordSet,
   };
 };

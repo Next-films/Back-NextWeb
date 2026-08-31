@@ -21,6 +21,7 @@ export function registerAdminAuthLoginSuite({
 
       expect(result.body).toEqual({
         accessToken: expect.any(String),
+        isPasswordSet: expect.any(Boolean),
       });
 
       const setCookieHeader = result.headers['set-cookie'];

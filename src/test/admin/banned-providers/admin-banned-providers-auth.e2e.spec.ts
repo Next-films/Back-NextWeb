@@ -20,7 +20,7 @@ describe('Admin banned providers movies', () => {
   let testService: TestService;
   let baseUri: string;
   const mainAdminLoginData: AdminLoginInputModel = {
-    email: '',
+    login: '',
     password: '',
   };
   let loginByMainAdmin: () => Promise<AdminLoginOutputDto>;
@@ -37,7 +37,7 @@ describe('Admin banned providers movies', () => {
       .get(ConfigService<ConfigurationType, true>)
       .get('apiSettings', { infer: true });
 
-    mainAdminLoginData.email = apiSettings.ADMIN_EMAIL;
+    mainAdminLoginData.login = apiSettings.ADMIN_EMAIL;
     mainAdminLoginData.password = apiSettings.ADMIN_PASSWORD;
 
     baseUri = appUri + ADMIN_AUTH_ROUTES.MAIN;

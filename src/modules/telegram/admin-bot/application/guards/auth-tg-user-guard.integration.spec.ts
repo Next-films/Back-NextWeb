@@ -45,18 +45,13 @@ describe('AuthAdminTgUserHandler (integration)', () => {
 
   it('should successfully login', async () => {
     const tg_msg: TelegramIncomingMessage = {
-      message_id: 123,
-      date: 1234,
       chat: {
         id: 1,
         type: 'private',
       },
       from: {
         id: admin_tg_id,
-        is_bot: false,
         username: admin_tg_username,
-        first_name: 'First',
-        last_name: 'Last',
       },
     };
 
@@ -67,18 +62,13 @@ describe('AuthAdminTgUserHandler (integration)', () => {
 
   it('should not login if chat id not passed', async () => {
     const tg_msg: TelegramIncomingMessage = {
-      message_id: 123,
-      date: 1234,
       chat: {
         id: 1,
         type: 'private',
       },
       from: {
         id: null as unknown as number,
-        is_bot: false,
         username: admin_tg_username,
-        first_name: 'First',
-        last_name: 'Last',
       },
     };
 
@@ -89,18 +79,13 @@ describe('AuthAdminTgUserHandler (integration)', () => {
 
   it('should not login if user not found', async () => {
     const tg_msg: TelegramIncomingMessage = {
-      message_id: 123,
-      date: 1234,
       chat: {
         id: 1,
         type: 'private',
       },
       from: {
         id: 1,
-        is_bot: false,
         username: admin_tg_username,
-        first_name: 'First',
-        last_name: 'Last',
       },
     };
 

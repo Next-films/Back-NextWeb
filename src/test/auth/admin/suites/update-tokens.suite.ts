@@ -26,9 +26,8 @@ export function registerAdminAuthUpdateTokensSuite({
           regUri,
           {
             ...TEST_ADMIN_REG_DATA,
-            email: 'second@mail.ru',
             username: 'secondname',
-            telegramId: '1234567',
+            telegramUsername: 'secondname_tg',
           },
           accessToken,
         ),
@@ -37,9 +36,8 @@ export function registerAdminAuthUpdateTokensSuite({
           regUri,
           {
             ...TEST_ADMIN_REG_DATA,
-            email: 'second2@mail.ru',
             username: 'secondname2',
-            telegramId: '13748383',
+            telegramUsername: 'secondname2_tg',
           },
           accessToken,
         ),
@@ -52,11 +50,11 @@ export function registerAdminAuthUpdateTokensSuite({
           .expect(201),
         request(getApp().getHttpServer())
           .post(`${getBaseUri()}/${ADMIN_AUTH_ROUTES.LOGIN}`)
-          .send({ ...TEST_ADMIN_LOGIN_DATA, email: 'second@mail.ru' })
+          .send({ ...TEST_ADMIN_LOGIN_DATA, login: 'secondname' })
           .expect(201),
         request(getApp().getHttpServer())
           .post(`${getBaseUri()}/${ADMIN_AUTH_ROUTES.LOGIN}`)
-          .send({ ...TEST_ADMIN_LOGIN_DATA, email: 'second2@mail.ru' })
+          .send({ ...TEST_ADMIN_LOGIN_DATA, login: 'secondname2' })
           .expect(201),
       ]);
 
@@ -186,9 +184,8 @@ export function registerAdminAuthUpdateTokensSuite({
           regUri,
           {
             ...TEST_ADMIN_REG_DATA,
-            email: 'second@mail.ru',
             username: 'secondname',
-            telegramId: '2744635353',
+            telegramUsername: 'secondname_tg',
           },
           accessToken,
         ),
@@ -197,9 +194,8 @@ export function registerAdminAuthUpdateTokensSuite({
           regUri,
           {
             ...TEST_ADMIN_REG_DATA,
-            email: 'second2@mail.ru',
             username: 'secondname2',
-            telegramId: '2922817475',
+            telegramUsername: 'secondname2_tg',
           },
           accessToken,
         ),
@@ -212,11 +208,11 @@ export function registerAdminAuthUpdateTokensSuite({
           .expect(201),
         request(getApp().getHttpServer())
           .post(`${getBaseUri()}/${ADMIN_AUTH_ROUTES.LOGIN}`)
-          .send({ ...TEST_ADMIN_LOGIN_DATA, email: 'second@mail.ru' })
+          .send({ ...TEST_ADMIN_LOGIN_DATA, login: 'secondname' })
           .expect(201),
         request(getApp().getHttpServer())
           .post(`${getBaseUri()}/${ADMIN_AUTH_ROUTES.LOGIN}`)
-          .send({ ...TEST_ADMIN_LOGIN_DATA, email: 'second2@mail.ru' })
+          .send({ ...TEST_ADMIN_LOGIN_DATA, login: 'secondname2' })
           .expect(201),
       ]);
 

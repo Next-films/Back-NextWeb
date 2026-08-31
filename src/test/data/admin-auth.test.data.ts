@@ -1,14 +1,16 @@
 import { AdminLoginInputModel } from '@/admin-auth/api/dtos/input/admin-login.input.model';
 import { AdminRegisterInputModel } from '@/admin-auth/api/dtos/input/admin-register.input.model';
+import { AdminRoleEnum } from '@/common/enums/admin-role.enum';
+
+export const TEST_ADMIN_PASSWORD = 'Password123456&';
 
 export const TEST_ADMIN_REG_DATA: AdminRegisterInputModel = {
-  password: 'Password123456&',
-  email: 'test@test.com',
   username: 'adminka',
-  telegramId: '5123374373',
+  telegramUsername: 'adminka_tg',
+  roles: [AdminRoleEnum.ADMIN],
 };
 
 export const TEST_ADMIN_LOGIN_DATA: AdminLoginInputModel = {
-  password: TEST_ADMIN_REG_DATA.password,
-  email: TEST_ADMIN_REG_DATA.email,
+  login: TEST_ADMIN_REG_DATA.username,
+  password: TEST_ADMIN_PASSWORD,
 };

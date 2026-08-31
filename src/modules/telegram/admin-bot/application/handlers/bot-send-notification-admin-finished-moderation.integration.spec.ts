@@ -120,6 +120,7 @@ describe('TelegramAdminBotSendNotificationAdminFinishedModerationCommandHandler 
       name: movieName,
       hidden,
       titleUrl: null,
+      horizontalPreviewUrl: null,
       previewUrl: null,
       trailerUrl: null,
       backgroundContentUrl: null,

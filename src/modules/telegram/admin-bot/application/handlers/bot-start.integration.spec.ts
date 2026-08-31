@@ -55,18 +55,13 @@ describe('TelegramAdminBotStartCommandHandler (integration)', () => {
 
   it('should send welcome message', async () => {
     const tg_msg: TelegramIncomingMessage = {
-      message_id: 123,
-      date: 1234,
       chat: {
         id: 1,
         type: 'private',
       },
       from: {
         id: admin_tg_id,
-        is_bot: false,
         username: admin_tg_username,
-        first_name: 'First',
-        last_name: 'Last',
       },
     };
 
@@ -104,18 +99,13 @@ describe('TelegramAdminBotStartCommandHandler (integration)', () => {
 
   it('should send welcome message and update username if admin does not has username', async () => {
     const tg_msg: TelegramIncomingMessage = {
-      message_id: 123,
-      date: 1234,
       chat: {
         id: 1,
         type: 'private',
       },
       from: {
         id: admin_tg_id,
-        is_bot: false,
         username: admin_tg_username,
-        first_name: 'First',
-        last_name: 'Last',
       },
     };
 
@@ -168,18 +158,13 @@ describe('TelegramAdminBotStartCommandHandler (integration)', () => {
 
   it('should not send welcome message chat id into message not found', async () => {
     const tg_msg: TelegramIncomingMessage = {
-      message_id: 123,
-      date: 1234,
       chat: {
         id: 1,
         type: 'private',
       },
       from: {
         id: null as unknown as number,
-        is_bot: false,
         username: admin_tg_username,
-        first_name: 'First',
-        last_name: 'Last',
       },
     };
 
@@ -200,18 +185,13 @@ describe('TelegramAdminBotStartCommandHandler (integration)', () => {
 
   it('should not send welcome message, user not found', async () => {
     const tg_msg: TelegramIncomingMessage = {
-      message_id: 123,
-      date: 1234,
       chat: {
         id: 1,
         type: 'private',
       },
       from: {
         id: 9999,
-        is_bot: false,
         username: admin_tg_username,
-        first_name: 'First',
-        last_name: 'Last',
       },
     };
 
@@ -220,7 +200,7 @@ describe('TelegramAdminBotStartCommandHandler (integration)', () => {
     };
 
     const expectedPayload: BotSendMessagePayloadDto = {
-      chatId: tg_msg.from!.id,
+      chatId: tg_msg.from!.id!,
       template: ADMIN_BOT_TEMPLATES_NAME_ENUM.I_DONT_KNOW_YOU,
     };
 

@@ -19,10 +19,10 @@ export function createMainAdminLogin(
     infer: true,
   });
 
-  const loginData = {
-    email: apiSettings.ADMIN_EMAIL,
+  const loginData: AdminLoginInputModel = {
+    login: apiSettings.ADMIN_EMAIL,
     password: apiSettings.ADMIN_PASSWORD,
-  } as unknown as AdminLoginInputModel;
+  };
 
   const baseUri = appUri + ADMIN_AUTH_ROUTES.MAIN;
 

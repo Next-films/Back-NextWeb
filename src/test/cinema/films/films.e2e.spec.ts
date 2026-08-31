@@ -42,7 +42,7 @@ describe('Films public', () => {
   let adminCinemaFilmsUrl: string;
   let loginByMainAdmin: () => Promise<AdminLoginOutputDto>;
   const mainAdminLoginData: AdminLoginInputModel = {
-    email: '',
+    login: '',
     password: '',
   };
   let kinopoiskService: KinopoiskService;
@@ -59,7 +59,7 @@ describe('Films public', () => {
       .get(ConfigService<ConfigurationType, true>)
       .get('apiSettings', { infer: true });
 
-    mainAdminLoginData.email = apiSettings.ADMIN_EMAIL;
+    mainAdminLoginData.login = apiSettings.ADMIN_EMAIL;
     mainAdminLoginData.password = apiSettings.ADMIN_PASSWORD;
 
     baseUri = appUri + FILMS_ROUTE.MAIN;
