@@ -222,4 +222,34 @@ describe('ReplaceCartoonSourceCommandHandler (integration)', () => {
     expect(after?.videoUrl).toBe(before?.videoUrl);
     expect(after?.duration).toBe(before?.duration);
   });
+
+  it('повторный вызов с тем же ключом идемпотентен: Success, previousVideoUrl = null', async () => {
+    await publishCartoon('7', 'https://s3/cartoons/aaa_7/master.m3u8', 6000);
+
+    const first = await handler.execute(
+      new ReplaceCartoonSourceCommand({
+        kpId: '7',
+        key: 'https://s3/cartoons/bbb_7/master.m3u8',
+        duration: 7200,
+      }),
+    );
+
+    expect(first.appResult).toBe(AppNotificationResultEnum.Success);
+    expect(first.data).toEqual({ previousVideoUrl: 'https://s3/cartoons/aaa_7/master.m3u8' });
+
+    const replay = await handler.execute(
+      new ReplaceCartoonSourceCommand({
+        kpId: '7',
+        key: 'https://s3/cartoons/bbb_7/master.m3u8',
+        duration: 7200,
+      }),
+    );
+
+    expect(replay.appResult).toBe(AppNotificationResultEnum.Success);
+    expect(replay.data).toEqual({ previousVideoUrl: null });
+
+    const cartoon = await cartoonRepository.getCartoonByKinopoiskId('7');
+    expect(cartoon?.videoUrl).toBe('https://s3/cartoons/bbb_7/master.m3u8');
+    expect(cartoon?.duration).toBe(7200);
+  });
 });

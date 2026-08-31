@@ -58,6 +58,15 @@ export class ReplaceCartoonSourceCommandHandler
         });
       }
 
+      // Повторный вызов с тем же ключом: нужное состояние уже достигнуто.
+      // Отдаём success и previousVideoUrl = null — вызывающей стороне нечего удалять,
+      // иначе она снесёт файл, который прямо сейчас играет.
+      if (cartoon.videoUrl === key) {
+        await queryRunner.commitTransaction();
+
+        return this.appNotification.success({ previousVideoUrl: null });
+      }
+
       // Мультфильм на модерации — там уже идёт ручная работа, не вмешиваемся.
       if (cartoon.handleStatus === MovieHandleStatus.MODERATE) {
         await queryRunner.rollbackTransaction();
