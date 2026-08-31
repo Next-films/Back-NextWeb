@@ -25,6 +25,19 @@ export class CartoonRepository {
     return this.cartoonRepository.findOne({ where: { kpId } });
   }
 
+  // Читает строку под блокировкой на запись. Нужно для замены источника: два
+  // параллельных вызова иначе прочитают одну и ту же ссылку, и вызывающая сторона
+  // удалит из хранилища файл, на который уже ссылается вторая транзакция.
+  async getCartoonByKinopoiskIdForUpdate(
+    kpId: string,
+    queryRunner: QueryRunner,
+  ): Promise<Cartoon | null> {
+    return queryRunner.manager.findOne(this.cartoonRepository.target, {
+      where: { kpId },
+      lock: { mode: 'pessimistic_write' },
+    });
+  }
+
   async getCartoonById(id: number, queryRunner?: QueryRunner): Promise<Cartoon | null> {
     if (queryRunner) {
       return queryRunner.manager.findOne(this.cartoonRepository.target, {

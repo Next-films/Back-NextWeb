@@ -59,7 +59,10 @@ export class ReplaceCartoonSourceCommandHandler
       await queryRunner.connect();
       await queryRunner.startTransaction();
 
-      const cartoon = await this.cartoonRepository.getCartoonByKinopoiskId(kpId, queryRunner);
+      const cartoon = await this.cartoonRepository.getCartoonByKinopoiskIdForUpdate(
+        kpId,
+        queryRunner,
+      );
 
       if (!cartoon) {
         await queryRunner.rollbackTransaction();

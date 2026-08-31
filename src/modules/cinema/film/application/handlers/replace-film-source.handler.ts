@@ -59,7 +59,7 @@ export class ReplaceFilmSourceCommandHandler
       await queryRunner.connect();
       await queryRunner.startTransaction();
 
-      const film = await this.filmRepository.getFilmByKinopoiskId(kpId, queryRunner);
+      const film = await this.filmRepository.getFilmByKinopoiskIdForUpdate(kpId, queryRunner);
 
       if (!film) {
         await queryRunner.rollbackTransaction();

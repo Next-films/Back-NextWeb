@@ -25,6 +25,19 @@ export class FilmRepository {
     return this.filmRepository.findOne({ where: { kpId } });
   }
 
+  // Читает строку под блокировкой на запись. Нужно для замены источника: два
+  // параллельных вызова иначе прочитают одну и ту же ссылку, и вызывающая сторона
+  // удалит из хранилища файл, на который уже ссылается вторая транзакция.
+  async getFilmByKinopoiskIdForUpdate(
+    kpId: string,
+    queryRunner: QueryRunner,
+  ): Promise<Film | null> {
+    return queryRunner.manager.findOne(this.filmRepository.target, {
+      where: { kpId },
+      lock: { mode: 'pessimistic_write' },
+    });
+  }
+
   async getFilmById(id: number, queryRunner?: QueryRunner): Promise<Film | null> {
     if (queryRunner) {
       return queryRunner.manager.findOne(this.filmRepository.target, {
