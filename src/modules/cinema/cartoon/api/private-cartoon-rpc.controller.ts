@@ -10,6 +10,7 @@ import {
   GET_CARTOON_BY_KP_ID_CMD,
   NEW_CARTOON_CMD,
   NEW_CARTOON_IS_HANDLE_CMD,
+  REPLACE_CARTOON_SOURCE_CMD,
 } from '@/common/constants/rmq.constants';
 import { RpcPayload } from '@/common/decorators/rpc-payload.decorator';
 import { RpcExceptionsFilter } from '@/common/exception-filters/rpc/rpc-exception.filter';
@@ -19,6 +20,9 @@ import { CartoonsRpcOutputDto } from '@/cartoons/api/dtos/output/cartoons-rpc.ou
 import { GetRpcCartoonsByKinopoiskIdQuery } from '@/cartoons/application/query-handlers/get-rpc-cartoons-by-kinopoisk-id.query-handler';
 import { NewMovieIsHandleNotificationPayloadDto } from '@/movies/api/dtos/input/new-movie-is-handle-notification.input.dto';
 import { NewCartoonNotificationPayloadDto } from '@/cartoons/api/dtos/input/new-cartoon-notification.input.dto';
+import { ReplaceMovieSourcePayloadDto } from '@/movies/api/dtos/input/replace-movie-source.input.dto';
+import { ReplaceMovieSourceOutputDto } from '@/movies/api/dtos/output/replace-movie-source.output.dto';
+import { ReplaceCartoonSourceCommand } from '@/cartoons/application/handlers/replace-cartoon-source.handler';
 
 @ApiExcludeController()
 @UseFilters(RpcExceptionsFilter)
@@ -59,6 +63,22 @@ export class CartoonPrivateRpcController {
     >(new NewCartoonNotificationCommand(payload));
 
     this.logger.log(result.appResult, this.newCartoon.name);
+  }
+
+  @MessagePattern({ cmd: REPLACE_CARTOON_SOURCE_CMD })
+  async replaceCartoonSource(
+    @RpcPayload() payload: ReplaceMovieSourcePayloadDto,
+  ): Promise<AppNotificationResult<ReplaceMovieSourceOutputDto, ErrorFieldExceptionDto | null>> {
+    this.logger.log(`Execute: Replace cartoon source`, this.replaceCartoonSource.name);
+
+    const result = await this.commandBus.execute<
+      ReplaceCartoonSourceCommand,
+      AppNotificationResult<ReplaceMovieSourceOutputDto, ErrorFieldExceptionDto | null>
+    >(new ReplaceCartoonSourceCommand(payload));
+
+    this.logger.log(result.appResult, this.replaceCartoonSource.name);
+
+    return result;
   }
 
   @MessagePattern({ cmd: NEW_CARTOON_IS_HANDLE_CMD })

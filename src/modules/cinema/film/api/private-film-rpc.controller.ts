@@ -11,6 +11,7 @@ import {
   NEW_BACKGROUND_CONTENT_FOR_FILM_CMD,
   NEW_FILM_CMD,
   NEW_FILM_IS_HANDLE_CMD,
+  REPLACE_FILM_SOURCE_CMD,
 } from '@/common/constants/rmq.constants';
 import { RpcPayload } from '@/common/decorators/rpc-payload.decorator';
 import { RpcExceptionsFilter } from '@/common/exception-filters/rpc/rpc-exception.filter';
@@ -22,6 +23,9 @@ import { NewMovieIsHandleNotificationPayloadDto } from '@/movies/api/dtos/input/
 import { NewFilmNotificationPayloadDto } from '@/films/api/dtos/input/new-film-notification.input.dto';
 import { NewBackGroundContentFilmCommand } from '@/films/application/handlers/new-background-content-film.handler';
 import { NewFilmBackGroundContentPayloadDto } from '@/films/api/dtos/input/new-film-background-content.input.dto';
+import { ReplaceMovieSourcePayloadDto } from '@/movies/api/dtos/input/replace-movie-source.input.dto';
+import { ReplaceMovieSourceOutputDto } from '@/movies/api/dtos/output/replace-movie-source.output.dto';
+import { ReplaceFilmSourceCommand } from '@/films/application/handlers/replace-film-source.handler';
 
 @ApiExcludeController()
 @UseFilters(RpcExceptionsFilter)
@@ -62,6 +66,22 @@ export class FilmPrivateRpcController {
     >(new NewFilmNotificationCommand(payload));
 
     this.logger.log(result.appResult, this.newFilm.name);
+  }
+
+  @MessagePattern({ cmd: REPLACE_FILM_SOURCE_CMD })
+  async replaceFilmSource(
+    @RpcPayload() payload: ReplaceMovieSourcePayloadDto,
+  ): Promise<AppNotificationResult<ReplaceMovieSourceOutputDto, ErrorFieldExceptionDto | null>> {
+    this.logger.log(`Execute: Replace film source`, this.replaceFilmSource.name);
+
+    const result = await this.commandBus.execute<
+      ReplaceFilmSourceCommand,
+      AppNotificationResult<ReplaceMovieSourceOutputDto, ErrorFieldExceptionDto | null>
+    >(new ReplaceFilmSourceCommand(payload));
+
+    this.logger.log(result.appResult, this.replaceFilmSource.name);
+
+    return result;
   }
 
   @MessagePattern({ cmd: NEW_FILM_IS_HANDLE_CMD })
