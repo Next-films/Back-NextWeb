@@ -40,6 +40,9 @@ import { SwaggerDecoratorNewBackgroundContentForCartoon } from '@/cartoons/api/s
 import { UpsertUpcomingMoviePayloadDto } from '@/movies/api/dtos/input/upsert-upcoming-movie.input.dto';
 import { UpsertUpcomingCartoonCommand } from '@/cartoons/application/handlers/upsert-upcoming-cartoon.handler';
 import { UpsertUpcomingMovieOutputDto } from '@/movies/api/dtos/output/upsert-upcoming-movie.output.dto';
+import { ReplaceMovieSourcePayloadDto } from '@/movies/api/dtos/input/replace-movie-source.input.dto';
+import { ReplaceMovieSourceOutputDto } from '@/movies/api/dtos/output/replace-movie-source.output.dto';
+import { ReplaceCartoonSourceCommand } from '@/cartoons/application/handlers/replace-cartoon-source.handler';
 
 @ApiBearerAuth(BACKEND_TO_BACKEND_AUTH_JWT_SCHEMA_NAME)
 @ApiUnauthorizedResponse({ description: 'Unauthorized', type: HttpPrivateExceptionDto })
@@ -113,6 +116,26 @@ export class CartoonPrivateController {
     this.logger.log(result.appResult, this.newCartoon.name);
 
     return this.appNotification.handleHttpResult(result);
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @Post(`${PRIVATE_CARTOONS_ROUTE.REPLACE_SOURCE}`)
+  async replaceCartoonSource(
+    @Body() body: ReplaceMovieSourcePayloadDto,
+  ): Promise<AppNotificationResult<
+    ReplaceMovieSourceOutputDto,
+    ErrorFieldExceptionDto | null
+  > | void> {
+    this.logger.log(`Execute: Replace cartoon source`, this.replaceCartoonSource.name);
+
+    const result = await this.commandBus.execute<
+      ReplaceCartoonSourceCommand,
+      AppNotificationResult<ReplaceMovieSourceOutputDto, ErrorFieldExceptionDto | null>
+    >(new ReplaceCartoonSourceCommand(body));
+
+    this.logger.log(result.appResult, this.replaceCartoonSource.name);
+
+    return this.appNotification.handleHttpResult(result, true);
   }
 
   @HttpCode(HttpStatus.CREATED)

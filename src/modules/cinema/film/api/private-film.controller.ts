@@ -40,6 +40,9 @@ import { SwaggerDecoratorNewBackgroundContentForFilm } from '@/films/api/swagger
 import { UpsertUpcomingMoviePayloadDto } from '@/movies/api/dtos/input/upsert-upcoming-movie.input.dto';
 import { UpsertUpcomingFilmCommand } from '@/films/application/handlers/upsert-upcoming-film.handler';
 import { UpsertUpcomingMovieOutputDto } from '@/movies/api/dtos/output/upsert-upcoming-movie.output.dto';
+import { ReplaceMovieSourcePayloadDto } from '@/movies/api/dtos/input/replace-movie-source.input.dto';
+import { ReplaceMovieSourceOutputDto } from '@/movies/api/dtos/output/replace-movie-source.output.dto';
+import { ReplaceFilmSourceCommand } from '@/films/application/handlers/replace-film-source.handler';
 
 @ApiBearerAuth(BACKEND_TO_BACKEND_AUTH_JWT_SCHEMA_NAME)
 @ApiUnauthorizedResponse({ description: 'Unauthorized', type: HttpPrivateExceptionDto })
@@ -126,6 +129,26 @@ export class FilmPrivateController {
     >(new NewFilmNotificationCommand(body));
 
     this.logger.log(result.appResult, this.newFilm.name);
+
+    return this.appNotification.handleHttpResult(result, true);
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @Post(`${PRIVATE_FILMS_ROUTE.REPLACE_SOURCE}`)
+  async replaceFilmSource(
+    @Body() body: ReplaceMovieSourcePayloadDto,
+  ): Promise<AppNotificationResult<
+    ReplaceMovieSourceOutputDto,
+    ErrorFieldExceptionDto | null
+  > | void> {
+    this.logger.log(`Execute: Replace film source`, this.replaceFilmSource.name);
+
+    const result = await this.commandBus.execute<
+      ReplaceFilmSourceCommand,
+      AppNotificationResult<ReplaceMovieSourceOutputDto, ErrorFieldExceptionDto | null>
+    >(new ReplaceFilmSourceCommand(body));
+
+    this.logger.log(result.appResult, this.replaceFilmSource.name);
 
     return this.appNotification.handleHttpResult(result, true);
   }
