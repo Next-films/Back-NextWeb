@@ -250,4 +250,44 @@ describe('ReplaceFilmSourceCommandHandler (integration)', () => {
     expect(film?.videoUrl).toBe('https://s3/films/bbb_7/master.m3u8');
     expect(film?.duration).toBe(7200);
   });
+
+  it('отклоняет пустой key и не меняет videoUrl', async () => {
+    await publishFilm('8', 'https://s3/films/aaa_8/master.m3u8', 6000);
+    const before = await filmRepository.getFilmByKinopoiskId('8');
+
+    const expectedError = {
+      errorKey: EXCEPTION_KEYS_ENUM.FILM_SOURCE_NOT_REPLACEABLE,
+      message: expect.any(String),
+      field: 'key',
+    };
+
+    const emptyResult = await handler.execute(
+      new ReplaceFilmSourceCommand({ kpId: '8', key: '', duration: 7200 }),
+    );
+
+    expect(emptyResult.appResult).toBe(AppNotificationResultEnum.BadRequest);
+    expect(emptyResult.errorField).toEqual(expectedError);
+
+    const blankResult = await handler.execute(
+      new ReplaceFilmSourceCommand({ kpId: '8', key: '   ', duration: 7200 }),
+    );
+
+    expect(blankResult.appResult).toBe(AppNotificationResultEnum.BadRequest);
+    expect(blankResult.errorField).toEqual(expectedError);
+
+    const nullResult = await handler.execute(
+      new ReplaceFilmSourceCommand({
+        kpId: '8',
+        key: null as unknown as string,
+        duration: 7200,
+      }),
+    );
+
+    expect(nullResult.appResult).toBe(AppNotificationResultEnum.BadRequest);
+    expect(nullResult.errorField).toEqual(expectedError);
+
+    const after = await filmRepository.getFilmByKinopoiskId('8');
+    expect(after?.videoUrl).toBe(before?.videoUrl);
+    expect(after?.duration).toBe(before?.duration);
+  });
 });

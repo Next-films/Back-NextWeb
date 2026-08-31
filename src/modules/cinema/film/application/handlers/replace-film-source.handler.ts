@@ -40,6 +40,19 @@ export class ReplaceFilmSourceCommandHandler
     const { kpId, key, duration } = command.inputDto;
     this.logger.log('Replace film source command', this.execute.name);
 
+    // RMQ-транспорт не проходит через глобальный ValidationPipe (connectMicroservice
+    // вызывается без inheritAppConfig), поэтому ключ проверяем здесь: пустой key
+    // затёр бы источник у живого, работающего фильма.
+    const normalizedKey = typeof key === 'string' ? key.trim() : '';
+
+    if (!normalizedKey) {
+      return this.appNotification.badRequest({
+        errorKey: EXCEPTION_KEYS_ENUM.FILM_SOURCE_NOT_REPLACEABLE,
+        message: 'Key is required to replace film source',
+        field: 'key',
+      });
+    }
+
     const queryRunner = this.dataSource.createQueryRunner();
 
     try {
@@ -61,7 +74,7 @@ export class ReplaceFilmSourceCommandHandler
       // Повторный вызов с тем же ключом: нужное состояние уже достигнуто.
       // Отдаём success и previousVideoUrl = null — вызывающей стороне нечего удалять,
       // иначе она снесёт файл, который прямо сейчас играет.
-      if (film.videoUrl === key) {
+      if (film.videoUrl === normalizedKey) {
         await queryRunner.commitTransaction();
 
         return this.appNotification.success({ previousVideoUrl: null });
@@ -93,7 +106,7 @@ export class ReplaceFilmSourceCommandHandler
 
       // Меняем только источник. Метаданные, постеры, жанры и статус не трогаем:
       // фильм уже прошёл модерацию, для зрителя меняется лишь файл.
-      film.replaceVideoSource(key, duration || 0);
+      film.replaceVideoSource(normalizedKey, duration || 0);
 
       await this.filmRepository.save(film, queryRunner);
       await queryRunner.commitTransaction();

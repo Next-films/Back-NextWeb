@@ -40,6 +40,19 @@ export class ReplaceCartoonSourceCommandHandler
     const { kpId, key, duration } = command.inputDto;
     this.logger.log('Replace cartoon source command', this.execute.name);
 
+    // RMQ-транспорт не проходит через глобальный ValidationPipe (connectMicroservice
+    // вызывается без inheritAppConfig), поэтому ключ проверяем здесь: пустой key
+    // затёр бы источник у живого, работающего мультфильма.
+    const normalizedKey = typeof key === 'string' ? key.trim() : '';
+
+    if (!normalizedKey) {
+      return this.appNotification.badRequest({
+        errorKey: EXCEPTION_KEYS_ENUM.CARTOON_SOURCE_NOT_REPLACEABLE,
+        message: 'Key is required to replace cartoon source',
+        field: 'key',
+      });
+    }
+
     const queryRunner = this.dataSource.createQueryRunner();
 
     try {
@@ -61,7 +74,7 @@ export class ReplaceCartoonSourceCommandHandler
       // Повторный вызов с тем же ключом: нужное состояние уже достигнуто.
       // Отдаём success и previousVideoUrl = null — вызывающей стороне нечего удалять,
       // иначе она снесёт файл, который прямо сейчас играет.
-      if (cartoon.videoUrl === key) {
+      if (cartoon.videoUrl === normalizedKey) {
         await queryRunner.commitTransaction();
 
         return this.appNotification.success({ previousVideoUrl: null });
@@ -93,7 +106,7 @@ export class ReplaceCartoonSourceCommandHandler
 
       // Меняем только источник. Метаданные, постеры, жанры и статус не трогаем:
       // мультфильм уже прошёл модерацию, для зрителя меняется лишь файл.
-      cartoon.replaceVideoSource(key, duration || 0);
+      cartoon.replaceVideoSource(normalizedKey, duration || 0);
 
       await this.cartoonRepository.save(cartoon, queryRunner);
       await queryRunner.commitTransaction();
