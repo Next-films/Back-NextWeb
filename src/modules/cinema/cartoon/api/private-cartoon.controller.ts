@@ -16,6 +16,7 @@ import { LoggerService } from '@/common/utils/logger/logger.service';
 import {
   ApplicationNotification,
   AppNotificationResult,
+  AppNotificationResultEnum,
 } from '@/common/utils/app-notification.util';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import { ErrorFieldExceptionDto } from '@/common/exception-filters/http/http-exception.filter';
@@ -135,7 +136,13 @@ export class CartoonPrivateController {
 
     this.logger.log(result.appResult, this.replaceCartoonSource.name);
 
-    return this.appNotification.handleHttpResult(result, true);
+    // Полный ответ нужен только на успехе — он несёт previousVideoUrl. На ошибке
+    // полный объект прячет errorKey от фильтра, и вызывающая сторона перестаёт
+    // отличать отказ по правилам от временного сбоя, который она ретраит.
+    return this.appNotification.handleHttpResult(
+      result,
+      result.appResult === AppNotificationResultEnum.Success,
+    );
   }
 
   @HttpCode(HttpStatus.CREATED)
