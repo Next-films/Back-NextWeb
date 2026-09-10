@@ -115,6 +115,7 @@ export class AdminUpdateFilmCommandHandler
       const mergedInputDto: AdminUpdateFilmInputDto = {
         ...inputDto,
         videUrl: inputDto.videUrl ?? film.videoUrl ?? undefined,
+        trailerUrl: inputDto.trailerUrl ?? film.trailerUrl ?? undefined,
         backgroundContentUrl:
           uploadedBackgroundContentUrl ??
           inputDto.backgroundContentUrl ??

@@ -115,6 +115,7 @@ export class AdminUpdateSerialCommandHandler
       const mergedInputDto: AdminUpdateSerialInputDto = {
         ...inputDto,
         videUrl: inputDto.videUrl ?? serial.videoUrl ?? undefined,
+        trailerUrl: inputDto.trailerUrl ?? serial.trailerUrl ?? undefined,
         backgroundContentUrl:
           uploadedBackgroundContentUrl ??
           inputDto.backgroundContentUrl ??
