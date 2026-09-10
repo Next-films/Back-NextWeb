@@ -16,7 +16,7 @@ import { AdminPremiereOutputDto } from '@/admin/api/dtos/output/admin-premieres.
 import { EXCEPTION_KEYS_ENUM } from '@/common/enums/exception-keys.enum';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
-import { MovieAvailabilityStatus } from '@/movies/domain/types';
+import { MovieAvailabilityStatus, MovieHandleStatus } from '@/movies/domain/types';
 import { Genre } from '@/movies/domain/genre.entity';
 
 export class AdminGetPremieresQuery implements IQuery {
@@ -99,7 +99,9 @@ export class AdminGetPremieresQueryHandler
         size,
       ];
       const rows = await this.dataSource.query<PremiereRow[]>(
-        `${sql} ORDER BY "${sortField}" ${sortDirection}, "id" ASC OFFSET $${
+        `${sql} ORDER BY CASE WHEN "status" = '${
+          MovieHandleStatus.MODERATE
+        }' THEN 0 ELSE 1 END ASC, "${sortField}" ${sortDirection}, "id" ASC OFFSET $${
           values.length + 1
         } LIMIT $${values.length + 2}`,
         paginatedValues,
