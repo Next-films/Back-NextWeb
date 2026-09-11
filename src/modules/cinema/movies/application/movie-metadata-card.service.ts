@@ -122,7 +122,7 @@ export class MovieMetadataCardService {
       this.hasText(movie.alternativeName) &&
       this.hasRussianText(movie.description) &&
       this.hasText(movie.releaseDate) &&
-      this.hasProcessedTrailer(movie.trailerUrl) &&
+      this.hasPlayablePremiereTrailer(movie.trailerUrl) &&
       this.hasProcessedImage(movie.previewUrl) &&
       movie.genres &&
       movie.genres.length > 0 &&
@@ -232,7 +232,10 @@ export class MovieMetadataCardService {
     ]);
 
     const processedBackgroundUrl = backgroundContentUrl || movie.backgroundContentUrl;
-    const trailerUrl = this.getProcessedTrailerUrl(processedBackgroundUrl);
+    const trailerUrl =
+      this.getProcessedTrailerUrl(processedBackgroundUrl) ||
+      (this.hasPlayablePremiereTrailer(metadata.trailerUrl) ? metadata.trailerUrl : null) ||
+      (this.hasPlayablePremiereTrailer(movie.trailerUrl) ? movie.trailerUrl : null);
 
     return { backgroundContentUrl, trailerUrl, posterUrl, titleUrl };
   }
@@ -253,6 +256,20 @@ export class MovieMetadataCardService {
     if (!cleanUrl.toLowerCase().endsWith(marker)) return null;
 
     return `${cleanUrl.slice(0, -marker.length)}/trailer/trailer.mp4`;
+  }
+
+  private hasPlayablePremiereTrailer(value: string | null | undefined): boolean {
+    if (!value?.trim()) return false;
+    if (this.hasProcessedTrailer(value)) return true;
+
+    try {
+      const hostname = new URL(value).hostname.toLowerCase().replace(/^www\./, '');
+      return (
+        hostname === 'youtube.com' || hostname.endsWith('.youtube.com') || hostname === 'youtu.be'
+      );
+    } catch {
+      return false;
+    }
   }
 
   private isForeignCountryList(countries: string[] | null): boolean {

@@ -156,7 +156,7 @@ export class MoviesService {
       this.hasText(title) &&
       this.hasRussianText(description) &&
       this.hasText(releaseDate) &&
-      this.hasProcessedTrailer(trailerUrl) &&
+      this.isPlayablePremiereTrailer(trailerUrl) &&
       this.hasText(previewUrl) &&
       country &&
       country.length > 0
@@ -179,6 +179,20 @@ export class MoviesService {
     if (!cleanUrl.toLowerCase().endsWith(marker)) return null;
 
     return `${cleanUrl.slice(0, -marker.length)}/trailer/trailer.mp4`;
+  }
+
+  isPlayablePremiereTrailer(value: string | null | undefined): boolean {
+    if (!value?.trim()) return false;
+    if (this.hasProcessedTrailer(value)) return true;
+
+    try {
+      const hostname = new URL(value).hostname.toLowerCase().replace(/^www\./, '');
+      return (
+        hostname === 'youtube.com' || hostname.endsWith('.youtube.com') || hostname === 'youtu.be'
+      );
+    } catch {
+      return false;
+    }
   }
 
   private hasProcessedTrailer(value: string | null): boolean {

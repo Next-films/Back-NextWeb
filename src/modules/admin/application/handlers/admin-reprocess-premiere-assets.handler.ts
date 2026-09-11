@@ -19,6 +19,10 @@ import { ExternalMovieAssetsService } from '@/movies/application/external-movie-
 import { KinopoiskMovie } from '@/external-api/kinopoisk/domain/types';
 import { MovieKpMetadata } from '@/movies/domain/types';
 import { MovieTypesEnum } from '@/common/types/types';
+import { MovieHandleStatus } from '@/movies/domain/types';
+import { Film } from '@/films/domain/film.entity';
+import { Cartoon } from '@/cartoons/domain/cartoon.entity';
+import { Serial } from '@/serials/domain/serial.entity';
 
 const REPROCESS_METADATA_CONCURRENCY = 5;
 
@@ -111,7 +115,11 @@ export class AdminReprocessPremiereAssetsCommandHandler
         conditions.push(`(
           m."trailerUrl" IS NULL
           OR btrim(m."trailerUrl") = ''
-          OR lower(split_part(m."trailerUrl", '?', 1)) NOT LIKE '%/trailer/trailer.mp4'
+          OR (
+            lower(split_part(m."trailerUrl", '?', 1)) NOT LIKE '%/trailer/trailer.mp4'
+            AND lower(m."trailerUrl") NOT LIKE '%youtube.com/%'
+            AND lower(m."trailerUrl") NOT LIKE '%youtu.be/%'
+          )
           OR m."description" IS NULL
           OR btrim(m."description") = ''
           OR m."description" !~ '[А-Яа-яЁё]'
@@ -218,8 +226,9 @@ export class AdminReprocessPremiereAssetsCommandHandler
       onlyMissingMetadata,
     );
     const trailerUrl =
-      (this.hasProcessedTrailer(row.trailerUrl) && row.trailerUrl?.trim()) ||
-      this.moviesService.getProcessedTrailerUrl(backgroundContentUrl);
+      (this.moviesService.isPlayablePremiereTrailer(row.trailerUrl) && row.trailerUrl?.trim()) ||
+      this.moviesService.getProcessedTrailerUrl(backgroundContentUrl) ||
+      (this.moviesService.isPlayablePremiereTrailer(trailerSourceUrl) ? trailerSourceUrl : null);
     const effectiveBackgroundContentUrl = backgroundContentUrl || row.backgroundContentUrl;
 
     this.collectMissingMetadataErrors(
@@ -236,7 +245,9 @@ export class AdminReprocessPremiereAssetsCommandHandler
       onlyMissingMetadata,
     );
 
-    result.moderated++;
+    const handleStatus = await this.refreshPremiereStatus(row);
+    if (handleStatus === MovieHandleStatus.PRODUCTION) result.published++;
+    else result.moderated++;
 
     if (!updated.trailerUpdated && !updated.descriptionUpdated && !updated.backgroundUpdated) {
       result.unchanged++;
@@ -303,8 +314,6 @@ export class AdminReprocessPremiereAssetsCommandHandler
       setClauses.push(`"backgroundContentUrl" = $${params.length}`);
     }
 
-    setClauses.push(`"handleStatus" = 'moderate'`);
-    setClauses.push(`"isHidden" = true`);
     setClauses.push(`"updatedAt" = CURRENT_TIMESTAMP`);
     params.push(row.id);
 
@@ -377,8 +386,10 @@ export class AdminReprocessPremiereAssetsCommandHandler
     nextValue: string | null,
     onlyMissingMetadata: boolean,
   ): boolean {
-    if (!this.hasProcessedTrailer(nextValue)) return false;
-    if (onlyMissingMetadata && this.hasProcessedTrailer(currentValue)) return false;
+    if (!this.moviesService.isPlayablePremiereTrailer(nextValue)) return false;
+    if (onlyMissingMetadata && this.moviesService.isPlayablePremiereTrailer(currentValue)) {
+      return false;
+    }
     return currentValue?.trim() !== nextValue?.trim();
   }
 
@@ -423,7 +434,7 @@ export class AdminReprocessPremiereAssetsCommandHandler
     if (
       onlyMissingMetadata &&
       this.hasProcessedPreviewClip(row.backgroundContentUrl) &&
-      this.hasProcessedTrailer(row.trailerUrl)
+      this.moviesService.isPlayablePremiereTrailer(row.trailerUrl)
     ) {
       return null;
     }
@@ -452,10 +463,6 @@ export class AdminReprocessPremiereAssetsCommandHandler
 
   private hasText(value: string | null | undefined): boolean {
     return Boolean(value?.trim());
-  }
-
-  private hasProcessedTrailer(value: string | null | undefined): boolean {
-    return Boolean(value && value.toLowerCase().split('?')[0].endsWith('/trailer/trailer.mp4'));
   }
 
   private createMetadata(kpMovie: KinopoiskMovie): MovieKpMetadata {
@@ -504,10 +511,39 @@ export class AdminReprocessPremiereAssetsCommandHandler
     if (!onlyMissingMetadata) return true;
 
     const needsDescription = !this.moviesService.hasRussianText(row.description);
-    const needsTrailer = !this.hasProcessedTrailer(row.trailerUrl);
+    const needsTrailer = !this.moviesService.isPlayablePremiereTrailer(row.trailerUrl);
     const needsBackground = !this.hasProcessedPreviewClip(row.backgroundContentUrl);
 
     return needsDescription || needsTrailer || needsBackground;
+  }
+
+  private async refreshPremiereStatus(row: ReprocessPremiereRow): Promise<MovieHandleStatus> {
+    const target = this.entityTarget(row.type);
+    const repository = this.dataSource.getRepository(target);
+    const movie = await repository.findOne({
+      where: { id: Number(row.id) },
+      relations: { genres: true },
+    });
+
+    if (!movie) return MovieHandleStatus.MODERATE;
+
+    this.moviesService.setHandleProductionStatusForPremiere(movie);
+    await repository.save(movie);
+    return movie.handleStatus;
+  }
+
+  private entityTarget(
+    type: Exclude<AdminPremiereTypeEnum, AdminPremiereTypeEnum.ALL>,
+  ): typeof Film | typeof Cartoon | typeof Serial {
+    switch (type) {
+      case AdminPremiereTypeEnum.CARTOON:
+        return Cartoon;
+      case AdminPremiereTypeEnum.SERIAL:
+        return Serial;
+      case AdminPremiereTypeEnum.FILM:
+      default:
+        return Film;
+    }
   }
 
   private movieType(

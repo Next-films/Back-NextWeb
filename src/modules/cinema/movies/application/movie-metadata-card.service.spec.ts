@@ -188,7 +188,7 @@ describe('MovieMetadataCardService', () => {
     expect(existingMovie.showOrHiddeMovie).toHaveBeenCalledWith(true, MovieHandleStatus.MODERATE);
   });
 
-  it('keeps upcoming cards in moderation when trailer conversion fails', async () => {
+  it('uses the YouTube trailer when trailer conversion fails', async () => {
     const moviesService = {
       getBackgroundContentUrl: jest.fn(() => Promise.resolve(null)),
       getPosterUrl: jest.fn(() => Promise.resolve('https://cdn.example/poster.webp')),
@@ -229,8 +229,9 @@ describe('MovieMetadataCardService', () => {
       MovieTypesEnum.FILM,
     );
 
-    expect(movie.handleStatus).toBe(MovieHandleStatus.MODERATE);
-    expect(movie.isHidden).toBe(true);
+    expect(movie.handleStatus).toBe(MovieHandleStatus.PRODUCTION);
+    expect(movie.isHidden).toBe(false);
+    expect(movie.trailerUrl).toBe(completeMetadata().trailerUrl);
     expect(movie.backgroundContentUrl).toBeNull();
   });
 
