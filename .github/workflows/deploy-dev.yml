@@ -227,3 +227,7 @@ jobs:
           sshpass -e ssh $SSH_OPTS -p ${{ secrets.DEV_SSH_PORT }} \
             ${{ secrets.DEV_SSH_USERNAME }}@$SSH_HOST \
             "docker exec '$CONTAINER_NAME' node dist/maintenance/reprocess-premiere-assets.js --dry-run=false --handle-status=all --only-missing=true --limit=100"
+
+          sshpass -e ssh $SSH_OPTS -p ${{ secrets.DEV_SSH_PORT }} \
+            ${{ secrets.DEV_SSH_USERNAME }}@$SSH_HOST \
+            "docker logs --since 10m --tail 500 next-download-service-dev || true"
