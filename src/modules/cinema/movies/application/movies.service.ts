@@ -92,21 +92,27 @@ export class MoviesService {
 
   // ─── Movie validation ──────────────────────────────────────────
 
-  /**
-   * titleUrl/trailerUrl/originalTitle/alternativeTitles намеренно не входят в список:
-   * эти данные улучшают карточку, но не должны блокировать публикацию уже скачанного
-   * фильма. Для премьер без видео действует отдельная более строгая проверка ниже.
-   */
+  /** titleUrl/originalTitle/alternativeTitles are optional presentation metadata. */
   isValidMovieForProduction<T extends MovieEntity>(movie: T): boolean {
-    const { title, description, country, releaseDate, previewUrl, videoUrl, duration, genres } =
-      movie;
+    const {
+      title,
+      description,
+      country,
+      releaseDate,
+      trailerUrl,
+      previewUrl,
+      videoUrl,
+      duration,
+      genres,
+    } = movie;
 
     return !!(
-      title &&
-      description &&
-      releaseDate &&
-      videoUrl &&
-      previewUrl &&
+      this.hasText(title) &&
+      this.hasRussianText(description) &&
+      this.hasText(releaseDate) &&
+      this.hasText(videoUrl) &&
+      this.hasProcessedTrailer(trailerUrl) &&
+      this.hasText(previewUrl) &&
       duration &&
       duration !== 0 &&
       genres &&
@@ -148,9 +154,9 @@ export class MoviesService {
 
     return !!(
       this.hasText(title) &&
-      this.hasText(description) &&
+      this.hasRussianText(description) &&
       this.hasText(releaseDate) &&
-      this.hasText(trailerUrl) &&
+      this.hasProcessedTrailer(trailerUrl) &&
       this.hasText(previewUrl) &&
       country &&
       country.length > 0
@@ -159,6 +165,31 @@ export class MoviesService {
 
   private hasText(value: string | null): boolean {
     return Boolean(value && value.trim());
+  }
+
+  hasRussianText(value: string | null | undefined): boolean {
+    return Boolean(value?.trim() && /[А-Яа-яЁё]/.test(value));
+  }
+
+  getProcessedTrailerUrl(backgroundContentUrl: string | null): string | null {
+    if (!backgroundContentUrl) return null;
+
+    const marker = '/preview_clip/background.webm';
+    const cleanUrl = backgroundContentUrl.split('?')[0];
+    if (!cleanUrl.toLowerCase().endsWith(marker)) return null;
+
+    return `${cleanUrl.slice(0, -marker.length)}/trailer/trailer.mp4`;
+  }
+
+  private hasProcessedTrailer(value: string | null): boolean {
+    if (!value) return false;
+
+    try {
+      const url = new URL(value);
+      return url.pathname.toLowerCase().endsWith('/trailer/trailer.mp4');
+    } catch {
+      return value.toLowerCase().split('?')[0].endsWith('/trailer/trailer.mp4');
+    }
   }
 
   // ─── Kinopoisk metadata extraction ─────────────────────────────
@@ -221,7 +252,7 @@ export class MoviesService {
       studio,
       genres,
       countries: countries?.map(c => c.name) || null,
-      description: description || null,
+      description: this.hasRussianText(description) ? description!.trim() : null,
       releaseDate: worldReleaseDate ? this.dateUtil.formatDateYyMmDd(worldReleaseDate) : null,
       posterUrl,
       backdropUrl,

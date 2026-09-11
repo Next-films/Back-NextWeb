@@ -235,6 +235,10 @@ export class MovieEntity {
     if (url) this.backgroundContentUrl = url;
   }
 
+  updateTrailerUrl(url: string | null): void {
+    this.trailerUrl = url;
+  }
+
   updatePosterUrl(url: string | null): void {
     if (url) this.previewUrl = url;
   }

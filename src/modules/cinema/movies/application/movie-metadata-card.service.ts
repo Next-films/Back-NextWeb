@@ -33,6 +33,10 @@ export class MovieMetadataCardService {
     );
   }
 
+  shouldCreateUpcomingCard(metadata: MovieKpMetadata): boolean {
+    return this.isForeignCountryList(metadata.countries);
+  }
+
   createMovieDto(metadata: MovieKpMetadata, kpId: string): MovieCreateDto {
     return {
       key: null,
@@ -75,6 +79,7 @@ export class MovieMetadataCardService {
     const assets = await this.getContentUrlForMovie(movie, metadata, movieType);
 
     movie.updateBackgroundUrl(assets.backgroundContentUrl);
+    movie.updateTrailerUrl(assets.trailerUrl);
     movie.updatePosterUrl(assets.posterUrl);
     movie.updateTitleUrl(assets.titleUrl);
 
@@ -115,9 +120,9 @@ export class MovieMetadataCardService {
     const isReadyForProduction = !!(
       this.hasText(movie.name) &&
       this.hasText(movie.alternativeName) &&
-      this.hasText(movie.description) &&
+      this.hasRussianText(movie.description) &&
       this.hasText(movie.releaseDate) &&
-      this.hasText(movie.trailerUrl) &&
+      this.hasProcessedTrailer(movie.trailerUrl) &&
       this.hasProcessedImage(movie.previewUrl) &&
       movie.genres &&
       movie.genres.length > 0 &&
@@ -141,7 +146,7 @@ export class MovieMetadataCardService {
     return !!(
       this.hasText(metadata.name) &&
       this.hasText(metadata.alternativeName) &&
-      this.hasText(metadata.description) &&
+      this.hasRussianText(metadata.description) &&
       this.hasText(metadata.releaseDate) &&
       this.hasText(metadata.trailerUrl) &&
       this.hasText(metadata.posterUrl) &&
@@ -156,6 +161,14 @@ export class MovieMetadataCardService {
 
   private hasProcessedPreviewClip(value: string | null): boolean {
     return this.hasMediaExtension(value, '.webm');
+  }
+
+  private hasProcessedTrailer(value: string | null): boolean {
+    return Boolean(value && value.toLowerCase().split('?')[0].endsWith('/trailer/trailer.mp4'));
+  }
+
+  private hasRussianText(value: string | null | undefined): boolean {
+    return Boolean(value?.trim() && /[А-Яа-яЁё]/.test(value));
   }
 
   private hasMediaExtension(value: string | null, extension: string): boolean {
@@ -189,6 +202,7 @@ export class MovieMetadataCardService {
     movieType: MovieTypesEnum,
   ): Promise<{
     backgroundContentUrl: string | null;
+    trailerUrl: string | null;
     posterUrl: string | null;
     titleUrl: string | null;
   }> {
@@ -196,11 +210,7 @@ export class MovieMetadataCardService {
     const shouldHydrateBackground = !this.hasProcessedPreviewClip(movie.backgroundContentUrl);
     const shouldHydratePoster = !this.hasProcessedImage(movie.previewUrl);
     const shouldHydrateTitle = !this.hasProcessedImage(movie.titleUrl);
-    const trailerSourceUrl =
-      this.buildPoiskkinoCdnHlsUrl(movie.kpId, movieType) ||
-      metadata.trailerUrl ||
-      movie.trailerUrl ||
-      movie.backgroundContentUrl;
+    const trailerSourceUrl = metadata.trailerUrl || movie.trailerUrl;
     const posterSourceUrl = metadata.posterUrl || movie.previewUrl;
 
     const [backgroundContentUrl, posterUrl, titleUrl] = await Promise.all([
@@ -221,7 +231,10 @@ export class MovieMetadataCardService {
         : Promise.resolve(null),
     ]);
 
-    return { backgroundContentUrl, posterUrl, titleUrl };
+    const processedBackgroundUrl = backgroundContentUrl || movie.backgroundContentUrl;
+    const trailerUrl = this.getProcessedTrailerUrl(processedBackgroundUrl);
+
+    return { backgroundContentUrl, trailerUrl, posterUrl, titleUrl };
   }
 
   private async getAssetUrlOrNull(action: () => Promise<string | null>): Promise<string | null> {
@@ -232,16 +245,14 @@ export class MovieMetadataCardService {
     }
   }
 
-  private buildPoiskkinoCdnHlsUrl(kpId: string | null, movieType: MovieTypesEnum): string | null {
-    const normalizedKpId = kpId?.trim();
+  private getProcessedTrailerUrl(backgroundContentUrl: string | null): string | null {
+    if (!backgroundContentUrl) return null;
 
-    if (!normalizedKpId || !/^\d{4,}$/.test(normalizedKpId)) return null;
+    const marker = '/preview_clip/background.webm';
+    const cleanUrl = backgroundContentUrl.split('?')[0];
+    if (!cleanUrl.toLowerCase().endsWith(marker)) return null;
 
-    const directory = movieType === MovieTypesEnum.SERIAL ? 'tv' : 'film';
-    const firstPart = normalizedKpId.slice(0, 2);
-    const secondPart = normalizedKpId.slice(2, 4);
-
-    return `https://lbu.vcdn.elvd.tech/hls/${directory}/${firstPart}/${secondPart}/${normalizedKpId}.mp4/master.m3u8`;
+    return `${cleanUrl.slice(0, -marker.length)}/trailer/trailer.mp4`;
   }
 
   private isForeignCountryList(countries: string[] | null): boolean {

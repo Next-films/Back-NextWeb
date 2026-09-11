@@ -113,15 +113,17 @@ export class NewSerialNotificationCommandHandler
       const savedSerial = await this.serialRepository.save(serial, queryRunner);
 
       if (!existingSerial) {
-        const { titleUrl, posterUrl, backgroundContentUrl } = await this.getContentUrlForNewSerial(
-          savedSerial.id,
-          metadata.trailerUrl,
-          metadata.backdropUrl,
-          metadata.titleUrl,
-          metadata.posterUrl,
-        );
+        const { titleUrl, posterUrl, backgroundContentUrl, trailerUrl } =
+          await this.getContentUrlForNewSerial(
+            savedSerial.id,
+            metadata.trailerUrl,
+            metadata.backdropUrl,
+            metadata.titleUrl,
+            metadata.posterUrl,
+          );
 
         serial.updateBackgroundUrl(backgroundContentUrl);
+        serial.updateTrailerUrl(trailerUrl);
         serial.updatePosterUrl(posterUrl);
         serial.updateTitleUrl(titleUrl);
 
@@ -305,7 +307,7 @@ export class NewSerialNotificationCommandHandler
     kpId: string,
   ): Promise<Serial> {
     const { id } = serial;
-    const backgroundSourceUrl = metadata.backdropUrl || metadata.trailerUrl;
+    const backgroundSourceUrl = metadata.trailerUrl || metadata.backdropUrl;
     const [previewUrl, backgroundContentUrl, titleUrl] = await Promise.all([
       !serial.previewUrl
         ? this.moviesService.getPosterUrl(metadata.posterUrl, id, MovieTypesEnum.SERIAL)
@@ -336,7 +338,10 @@ export class NewSerialNotificationCommandHandler
       previewUrl: serial.previewUrl || previewUrl || null,
       horizontalPreviewUrl: null,
       backgroundContentUrl: serial.backgroundContentUrl || backgroundContentUrl || null,
-      trailerUrl: serial.trailerUrl || metadata.trailerUrl,
+      trailerUrl:
+        this.moviesService.getProcessedTrailerUrl(
+          serial.backgroundContentUrl || backgroundContentUrl,
+        ) || null,
       titleUrl: serial.titleUrl || titleUrl || null,
     };
     serial.update(serialDto);
@@ -445,7 +450,7 @@ export class NewSerialNotificationCommandHandler
     logoUrl: string | null,
     previewUrl: string | null,
   ) {
-    const backgroundSourceUrl = backdropUrl || trailerUrl;
+    const backgroundSourceUrl = trailerUrl || backdropUrl;
     const [backgroundContentUrl, posterUrl, titleUrl] = await Promise.all([
       this.moviesService.getBackgroundContentUrl(
         backgroundSourceUrl,
@@ -458,6 +463,7 @@ export class NewSerialNotificationCommandHandler
 
     return {
       backgroundContentUrl,
+      trailerUrl: this.moviesService.getProcessedTrailerUrl(backgroundContentUrl),
       posterUrl,
       titleUrl,
     };

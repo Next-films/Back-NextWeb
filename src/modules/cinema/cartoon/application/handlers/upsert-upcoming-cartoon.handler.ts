@@ -83,7 +83,11 @@ export class UpsertUpcomingCartoonCommandHandler
         MovieTypesEnum.CARTOON,
       );
 
-      if (!this.movieMetadataCardService.shouldPublishUpcomingCard(metadata)) {
+      if (!this.movieMetadataCardService.shouldCreateUpcomingCard(metadata)) {
+        if (existingCartoon) {
+          existingCartoon.showOrHiddeMovie(true, MovieHandleStatus.MODERATE);
+          await this.cartoonRepository.save(existingCartoon, queryRunner);
+        }
         await queryRunner.commitTransaction();
         return this.appNotification.success(new UpsertUpcomingMovieOutputDto(true));
       }

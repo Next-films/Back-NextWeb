@@ -92,15 +92,17 @@ export class NewFilmNotificationCommandHandler
       const savedFilm = await this.filmRepository.save(film, queryRunner);
 
       if (!existingFilm) {
-        const { titleUrl, posterUrl, backgroundContentUrl } = await this.getContentUrlForNewFilm(
-          savedFilm.id,
-          metadata.trailerUrl,
-          metadata.backdropUrl,
-          metadata.titleUrl,
-          metadata.posterUrl,
-        );
+        const { titleUrl, posterUrl, backgroundContentUrl, trailerUrl } =
+          await this.getContentUrlForNewFilm(
+            savedFilm.id,
+            metadata.trailerUrl,
+            metadata.backdropUrl,
+            metadata.titleUrl,
+            metadata.posterUrl,
+          );
 
         film.updateBackgroundUrl(backgroundContentUrl);
+        film.updateTrailerUrl(trailerUrl);
         film.updatePosterUrl(posterUrl);
         film.updateTitleUrl(titleUrl);
 
@@ -146,7 +148,7 @@ export class NewFilmNotificationCommandHandler
     kpId: string,
   ): Promise<Film> {
     const { id } = film;
-    const backgroundSourceUrl = metadata.backdropUrl || metadata.trailerUrl;
+    const backgroundSourceUrl = metadata.trailerUrl || metadata.backdropUrl;
     const [previewUrl, backgroundContentUrl, titleUrl] = await Promise.all([
       !film.previewUrl
         ? this.moviesService.getPosterUrl(metadata.posterUrl, id, MovieTypesEnum.FILM)
@@ -177,7 +179,10 @@ export class NewFilmNotificationCommandHandler
       previewUrl: film.previewUrl || previewUrl || null,
       horizontalPreviewUrl: null,
       backgroundContentUrl: film.backgroundContentUrl || backgroundContentUrl || null,
-      trailerUrl: film.trailerUrl || metadata.trailerUrl,
+      trailerUrl:
+        this.moviesService.getProcessedTrailerUrl(
+          film.backgroundContentUrl || backgroundContentUrl,
+        ) || null,
       titleUrl: film.titleUrl || titleUrl || null,
     };
     film.update(filmDto);
@@ -237,7 +242,7 @@ export class NewFilmNotificationCommandHandler
     logoUrl: string | null,
     previewUrl: string | null,
   ) {
-    const backgroundSourceUrl = backdropUrl || trailerUrl;
+    const backgroundSourceUrl = trailerUrl || backdropUrl;
     const [backgroundContentUrl, posterUrl, titleUrl] = await Promise.all([
       this.moviesService.getBackgroundContentUrl(backgroundSourceUrl, filmId, MovieTypesEnum.FILM),
       this.moviesService.getPosterUrl(previewUrl, filmId, MovieTypesEnum.FILM),
@@ -246,6 +251,7 @@ export class NewFilmNotificationCommandHandler
 
     return {
       backgroundContentUrl,
+      trailerUrl: this.moviesService.getProcessedTrailerUrl(backgroundContentUrl),
       posterUrl,
       titleUrl,
     };

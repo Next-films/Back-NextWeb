@@ -92,15 +92,17 @@ export class NewCartoonNotificationCommandHandler
       const savedCartoon = await this.cartoonRepository.save(cartoon, queryRunner);
 
       if (!existingCartoon) {
-        const { titleUrl, posterUrl, backgroundContentUrl } = await this.getContentUrlForNewCartoon(
-          savedCartoon.id,
-          metadata.trailerUrl,
-          metadata.backdropUrl,
-          metadata.titleUrl,
-          metadata.posterUrl,
-        );
+        const { titleUrl, posterUrl, backgroundContentUrl, trailerUrl } =
+          await this.getContentUrlForNewCartoon(
+            savedCartoon.id,
+            metadata.trailerUrl,
+            metadata.backdropUrl,
+            metadata.titleUrl,
+            metadata.posterUrl,
+          );
 
         cartoon.updateBackgroundUrl(backgroundContentUrl);
+        cartoon.updateTrailerUrl(trailerUrl);
         cartoon.updatePosterUrl(posterUrl);
         cartoon.updateTitleUrl(titleUrl);
 
@@ -147,7 +149,7 @@ export class NewCartoonNotificationCommandHandler
     kpId: string,
   ): Promise<Cartoon> {
     const { id } = cartoon;
-    const backgroundSourceUrl = metadata.backdropUrl || metadata.trailerUrl;
+    const backgroundSourceUrl = metadata.trailerUrl || metadata.backdropUrl;
     const [previewUrl, backgroundContentUrl, titleUrl] = await Promise.all([
       !cartoon.previewUrl
         ? this.moviesService.getPosterUrl(metadata.posterUrl, id, MovieTypesEnum.CARTOON)
@@ -182,7 +184,10 @@ export class NewCartoonNotificationCommandHandler
       titleUrl: cartoon.titleUrl || titleUrl || null,
       previewUrl: cartoon.previewUrl || previewUrl || null,
       horizontalPreviewUrl: null,
-      trailerUrl: metadata.trailerUrl,
+      trailerUrl:
+        this.moviesService.getProcessedTrailerUrl(
+          cartoon.backgroundContentUrl || backgroundContentUrl,
+        ) || null,
       backgroundContentUrl: cartoon.backgroundContentUrl || backgroundContentUrl || null,
     };
     cartoon.update(cartoonDto);
@@ -245,7 +250,7 @@ export class NewCartoonNotificationCommandHandler
     logoUrl: string | null,
     previewUrl: string | null,
   ) {
-    const backgroundSourceUrl = backdropUrl || trailerUrl;
+    const backgroundSourceUrl = trailerUrl || backdropUrl;
     const [backgroundContentUrl, posterUrl, titleUrl] = await Promise.all([
       this.moviesService.getBackgroundContentUrl(
         backgroundSourceUrl,
@@ -258,6 +263,7 @@ export class NewCartoonNotificationCommandHandler
 
     return {
       backgroundContentUrl,
+      trailerUrl: this.moviesService.getProcessedTrailerUrl(backgroundContentUrl),
       posterUrl,
       titleUrl,
     };

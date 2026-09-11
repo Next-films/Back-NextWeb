@@ -10,7 +10,7 @@ describe('MoviesService', () => {
     null as never,
   );
 
-  it('publishes playable movies without trailer and alternate titles', () => {
+  it('keeps playable movies without Russian description and processed trailer in moderation', () => {
     const movie = {
       title: '72 часа',
       description: 'Description',
@@ -25,7 +25,7 @@ describe('MoviesService', () => {
       genres: [{}],
     };
 
-    expect(service.isValidMovieForProduction(movie as never)).toBe(true);
+    expect(service.isValidMovieForProduction(movie as never)).toBe(false);
   });
 
   it('publishes complete premieres without movie file and duration', () => {
@@ -34,10 +34,10 @@ describe('MoviesService', () => {
       videoUrl: null,
       duration: 0,
       title: 'Shrek 5',
-      description: 'Description',
+      description: 'Описание фильма',
       country: ['США'],
       releaseDate: '2027-06-30',
-      trailerUrl: 'https://youtube.com/watch?v=test',
+      trailerUrl: 'https://cdn.example/preview-clip/film/42/trailer/trailer.mp4',
       previewUrl: 'https://cdn.example/shrek.webp',
       isHidden: true,
       handleStatus: MovieHandleStatus.MODERATE,

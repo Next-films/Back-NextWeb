@@ -40,7 +40,7 @@ export class ExternalMovieAssetsService {
     kpMovie: KinopoiskMovie,
     movieType: MovieTypesEnum,
   ): Promise<MovieKpMetadata> {
-    if (metadata.description?.trim()) return metadata;
+    if (this.hasRussianText(metadata.description)) return metadata;
 
     const description = await this.tmdbService.getDescriptionCandidate({
       movieType,
@@ -51,7 +51,7 @@ export class ExternalMovieAssetsService {
       year: kpMovie.year || null,
     });
 
-    metadata.description = description || metadata.description;
+    metadata.description = this.hasRussianText(description) ? description : null;
 
     return metadata;
   }
@@ -79,6 +79,10 @@ export class ExternalMovieAssetsService {
 
   private shouldQueryFallbackProviders(metadata: MovieKpMetadata): boolean {
     return !metadata.trailerUrl;
+  }
+
+  private hasRussianText(value: string | null | undefined): boolean {
+    return Boolean(value?.trim() && /[А-Яа-яЁё]/.test(value));
   }
 
   private uniqueUrls(urls: Array<string | null | undefined>): string[] {

@@ -83,7 +83,11 @@ export class UpsertUpcomingFilmCommandHandler
         MovieTypesEnum.FILM,
       );
 
-      if (!this.movieMetadataCardService.shouldPublishUpcomingCard(metadata)) {
+      if (!this.movieMetadataCardService.shouldCreateUpcomingCard(metadata)) {
+        if (existingFilm) {
+          existingFilm.showOrHiddeMovie(true, MovieHandleStatus.MODERATE);
+          await this.filmRepository.save(existingFilm, queryRunner);
+        }
         await queryRunner.commitTransaction();
         return this.appNotification.success(new UpsertUpcomingMovieOutputDto(true));
       }

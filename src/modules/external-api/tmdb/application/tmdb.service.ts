@@ -133,21 +133,14 @@ export class TmdbService {
         const resolvedMedia = await this.resolveMedia(requestConfig, input);
         if (!resolvedMedia) continue;
 
-        const description =
-          (await this.getDescriptionByLanguage(
-            requestConfig,
-            resolvedMedia.mediaType,
-            resolvedMedia.id,
-            'ru-RU',
-          )) ||
-          (await this.getDescriptionByLanguage(
-            requestConfig,
-            resolvedMedia.mediaType,
-            resolvedMedia.id,
-            'en-US',
-          ));
+        const description = await this.getDescriptionByLanguage(
+          requestConfig,
+          resolvedMedia.mediaType,
+          resolvedMedia.id,
+          'ru-RU',
+        );
 
-        if (description) return description;
+        if (description && /[А-Яа-яЁё]/.test(description)) return description;
       } catch (error: unknown) {
         if (!this.shouldRetryRequest(error)) {
           this.logger.error(error, this.getDescriptionCandidate.name);

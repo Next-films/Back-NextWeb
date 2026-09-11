@@ -25,7 +25,7 @@ describe('MovieMetadataCardService', () => {
     ...metadata(['США']),
     name: 'Movie',
     alternativeName: 'Movie 2026',
-    description: 'Description',
+    description: 'Описание фильма',
     releaseDate: '2026-10-07',
     genres: [{} as never],
     posterUrl: 'https://image.example/poster.jpg',
@@ -35,6 +35,7 @@ describe('MovieMetadataCardService', () => {
 
   it('allows upcoming cards only for complete foreign metadata', () => {
     expect(service.shouldPublishUpcomingCard(completeMetadata())).toBe(true);
+    expect(service.shouldCreateUpcomingCard(completeMetadata())).toBe(true);
   });
 
   it('blocks upcoming cards for Russian, unknown, or incomplete metadata', () => {
@@ -49,6 +50,9 @@ describe('MovieMetadataCardService', () => {
     );
     expect(service.shouldPublishUpcomingCard({ ...completeMetadata(), description: null })).toBe(
       false,
+    );
+    expect(service.shouldCreateUpcomingCard({ ...completeMetadata(), description: null })).toBe(
+      true,
     );
     expect(service.shouldPublishUpcomingCard({ ...completeMetadata(), trailerUrl: null })).toBe(
       false,
@@ -81,7 +85,9 @@ describe('MovieMetadataCardService', () => {
   it('publishes upcoming cards only after required assets are converted', async () => {
     const moviesService = {
       getBackgroundContentUrl: jest.fn((url: string | null) =>
-        Promise.resolve(url ? 'https://cdn.example/trailer.webm' : null),
+        Promise.resolve(
+          url ? 'https://cdn.example/preview-clip/film/42/preview_clip/background.webm' : null,
+        ),
       ),
       getPosterUrl: jest.fn(() => Promise.resolve('https://cdn.example/poster.webp')),
       getLogoUrl: jest.fn(() => Promise.resolve('https://cdn.example/logo.webp')),
@@ -95,6 +101,9 @@ describe('MovieMetadataCardService', () => {
       isHidden: true,
       updateBackgroundUrl: jest.fn(function (this: { backgroundContentUrl: string | null }, url) {
         this.backgroundContentUrl = url;
+      }),
+      updateTrailerUrl: jest.fn(function (this: { trailerUrl: string | null }, url) {
+        this.trailerUrl = url;
       }),
       updatePosterUrl: jest.fn(function (this: { previewUrl: string | null }, url) {
         if (url) this.previewUrl = url;
@@ -138,7 +147,10 @@ describe('MovieMetadataCardService', () => {
     expect(movie.isHidden).toBe(false);
     expect(movie.previewUrl).toBe('https://cdn.example/poster.webp');
     expect(movie.horizontalPreviewUrl).toBeNull();
-    expect(movie.backgroundContentUrl).toBe('https://cdn.example/trailer.webm');
+    expect(movie.backgroundContentUrl).toBe(
+      'https://cdn.example/preview-clip/film/42/preview_clip/background.webm',
+    );
+    expect(movie.trailerUrl).toBe('https://cdn.example/preview-clip/film/42/trailer/trailer.mp4');
   });
 
   it('keeps existing metadata cards in upcoming status', () => {
@@ -176,7 +188,7 @@ describe('MovieMetadataCardService', () => {
     expect(existingMovie.showOrHiddeMovie).toHaveBeenCalledWith(true, MovieHandleStatus.MODERATE);
   });
 
-  it('publishes upcoming cards when only background conversion fails', async () => {
+  it('keeps upcoming cards in moderation when trailer conversion fails', async () => {
     const moviesService = {
       getBackgroundContentUrl: jest.fn(() => Promise.resolve(null)),
       getPosterUrl: jest.fn(() => Promise.resolve('https://cdn.example/poster.webp')),
@@ -191,6 +203,9 @@ describe('MovieMetadataCardService', () => {
       availabilityStatus: MovieAvailabilityStatus.UPCOMING,
       isHidden: true,
       updateBackgroundUrl: jest.fn(),
+      updateTrailerUrl: jest.fn(function (this: { trailerUrl: string | null }, url) {
+        this.trailerUrl = url;
+      }),
       updatePosterUrl: jest.fn(function (this: { previewUrl: string | null }, url) {
         if (url) this.previewUrl = url;
       }),
@@ -214,15 +229,17 @@ describe('MovieMetadataCardService', () => {
       MovieTypesEnum.FILM,
     );
 
-    expect(movie.handleStatus).toBe(MovieHandleStatus.PRODUCTION);
-    expect(movie.isHidden).toBe(false);
+    expect(movie.handleStatus).toBe(MovieHandleStatus.MODERATE);
+    expect(movie.isHidden).toBe(true);
     expect(movie.backgroundContentUrl).toBeNull();
   });
 
   it('does not hydrate horizontal preview for upcoming cards', async () => {
     const moviesService = {
       getBackgroundContentUrl: jest.fn((url: string | null) => {
-        return Promise.resolve(url ? 'https://cdn.example/trailer.webm' : null);
+        return Promise.resolve(
+          url ? 'https://cdn.example/preview-clip/film/42/preview_clip/background.webm' : null,
+        );
       }),
       getPosterUrl: jest.fn(() => Promise.resolve('https://cdn.example/poster.webp')),
       getLogoUrl: jest.fn(() => Promise.resolve('https://cdn.example/logo.webp')),
@@ -236,6 +253,9 @@ describe('MovieMetadataCardService', () => {
       isHidden: true,
       updateBackgroundUrl: jest.fn(function (this: { backgroundContentUrl: string | null }, url) {
         this.backgroundContentUrl = url;
+      }),
+      updateTrailerUrl: jest.fn(function (this: { trailerUrl: string | null }, url) {
+        this.trailerUrl = url;
       }),
       updatePosterUrl: jest.fn(function (this: { previewUrl: string | null }, url) {
         this.previewUrl = url;
@@ -290,10 +310,14 @@ describe('MovieMetadataCardService', () => {
       alternativeTitles: 'Movie 2026',
       previewUrl: 'https://cdn.example/poster.webp',
       horizontalPreviewUrl: 'https://cdn.example/horizontal.webp',
-      backgroundContentUrl: 'https://cdn.example/trailer.webm',
+      backgroundContentUrl: 'https://cdn.example/preview-clip/film/42/preview_clip/background.webm',
+      trailerUrl: 'https://cdn.example/preview-clip/film/42/trailer/trailer.mp4',
       titleUrl: 'https://cdn.example/logo.webp',
       isHidden: true,
       updateBackgroundUrl: jest.fn(),
+      updateTrailerUrl: jest.fn(function (this: { trailerUrl: string | null }, url) {
+        this.trailerUrl = url;
+      }),
       updatePosterUrl: jest.fn(),
       updateHorizontalPreviewUrl: jest.fn(),
       updateTitleUrl: jest.fn(),
@@ -334,10 +358,14 @@ describe('MovieMetadataCardService', () => {
       alternativeTitles: 'Movie 2026',
       previewUrl: 'https://cdn.example/duplicated.webp',
       horizontalPreviewUrl: 'https://cdn.example/duplicated.webp',
-      backgroundContentUrl: 'https://cdn.example/trailer.webm',
+      backgroundContentUrl: 'https://cdn.example/preview-clip/film/42/preview_clip/background.webm',
+      trailerUrl: 'https://cdn.example/preview-clip/film/42/trailer/trailer.mp4',
       titleUrl: 'https://cdn.example/logo.webp',
       isHidden: true,
       updateBackgroundUrl: jest.fn(),
+      updateTrailerUrl: jest.fn(function (this: { trailerUrl: string | null }, url) {
+        this.trailerUrl = url;
+      }),
       updatePosterUrl: jest.fn(function (this: { previewUrl: string | null }, url) {
         if (url) this.previewUrl = url;
       }),

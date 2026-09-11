@@ -71,7 +71,7 @@ describe('ExternalMovieAssetsService', () => {
 
   it('adds description fallback for upcoming movies', async () => {
     const { service, tmdbService } = createService();
-    tmdbService.getDescriptionCandidate.mockResolvedValue('TMDB description');
+    tmdbService.getDescriptionCandidate.mockResolvedValue('Описание из TMDB');
     const metadata = createMetadata();
 
     await service.enrichUpcomingMetadata(
@@ -94,7 +94,7 @@ describe('ExternalMovieAssetsService', () => {
       originalTitle: 'Original Movie',
       year: 2026,
     });
-    expect(metadata.description).toBe('TMDB description');
+    expect(metadata.description).toBe('Описание из TMDB');
   });
 
   it('does not call fallback providers when trailer already exists', async () => {

@@ -83,7 +83,11 @@ export class UpsertUpcomingSerialCommandHandler
         MovieTypesEnum.SERIAL,
       );
 
-      if (!this.movieMetadataCardService.shouldPublishUpcomingCard(metadata)) {
+      if (!this.movieMetadataCardService.shouldCreateUpcomingCard(metadata)) {
+        if (existingSerial) {
+          existingSerial.showOrHiddeMovie(true, MovieHandleStatus.MODERATE);
+          await this.serialRepository.save(existingSerial, queryRunner);
+        }
         await queryRunner.commitTransaction();
         return this.appNotification.success(new UpsertUpcomingMovieOutputDto(true));
       }
