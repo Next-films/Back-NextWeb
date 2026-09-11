@@ -77,6 +77,10 @@ export class AdminReprocessPremiereAssetsCommandHandler
       };
       const onlyMissingMetadata = command.inputDto.onlyMissingAssets ?? true;
 
+      if (command.inputDto.dryRun) {
+        return this.appNotification.success(result);
+      }
+
       await this.processInChunks(rows, row =>
         this.reprocessPremiereMetadata(row, result, onlyMissingMetadata),
       );
@@ -107,8 +111,10 @@ export class AdminReprocessPremiereAssetsCommandHandler
         conditions.push(`(
           m."trailerUrl" IS NULL
           OR btrim(m."trailerUrl") = ''
+          OR lower(split_part(m."trailerUrl", '?', 1)) NOT LIKE '%/trailer/trailer.mp4'
           OR m."description" IS NULL
           OR btrim(m."description") = ''
+          OR m."description" !~ '[А-Яа-яЁё]'
           OR m."backgroundContentUrl" IS NULL
           OR btrim(m."backgroundContentUrl") = ''
           OR lower(split_part(m."backgroundContentUrl", '?', 1)) NOT LIKE '%.webm'
@@ -161,6 +167,20 @@ export class AdminReprocessPremiereAssetsCommandHandler
     result: AdminReprocessPremiereAssetsOutputDto,
     onlyMissingMetadata: boolean,
   ): Promise<void> {
+    try {
+      await this.reprocessPremiereMetadataUnsafe(row, result, onlyMissingMetadata);
+    } catch (error) {
+      result.failed++;
+      result.errors.push(`${row.type}:${row.kpId || row.id} ${String(error)}`);
+      this.logger.warn(String(error), this.reprocessPremiereMetadata.name);
+    }
+  }
+
+  private async reprocessPremiereMetadataUnsafe(
+    row: ReprocessPremiereRow,
+    result: AdminReprocessPremiereAssetsOutputDto,
+    onlyMissingMetadata: boolean,
+  ): Promise<void> {
     const metadata = this.createEmptyMetadata();
     const shouldLoadMetadata = this.shouldLoadMetadata(row, onlyMissingMetadata);
 
@@ -188,43 +208,37 @@ export class AdminReprocessPremiereAssetsCommandHandler
       }
     }
 
-    const trailerUrl = metadata.trailerUrl?.trim() || null;
-    const description = metadata.description?.trim() || null;
-    const effectiveTrailerUrl =
-      this.normalizePoiskkinoEmbedUrl(row.trailerUrl) ||
-      this.normalizePoiskkinoEmbedUrl(trailerUrl);
-    // Prefer the poiskkino CDN clip built directly from kpId, same as the regular
-    // moderation flow (movie-metadata-card.service.ts). trailerUrl coming from
-    // Kinopoisk/TMDB is always a YouTube link, so gating this on effectiveTrailerUrl
-    // (poiskkino-shaped only) meant reprocessing never actually downloaded anything.
-    const backgroundSourceUrl =
-      this.buildPoiskkinoCdnHlsUrl(row.kpId, row.type) ||
-      effectiveTrailerUrl ||
-      trailerUrl ||
-      row.trailerUrl?.trim() ||
-      null;
+    const trailerSourceUrl = metadata.trailerUrl?.trim() || null;
+    const description = this.moviesService.hasRussianText(metadata.description)
+      ? metadata.description!.trim()
+      : null;
     const backgroundContentUrl = await this.reprocessBackgroundContentUrl(
       row,
-      backgroundSourceUrl,
+      trailerSourceUrl,
       onlyMissingMetadata,
     );
+    const trailerUrl =
+      (this.hasProcessedTrailer(row.trailerUrl) && row.trailerUrl?.trim()) ||
+      this.moviesService.getProcessedTrailerUrl(backgroundContentUrl);
+    const effectiveBackgroundContentUrl = backgroundContentUrl || row.backgroundContentUrl;
 
     this.collectMissingMetadataErrors(
       row,
       result,
-      { trailerUrl: effectiveTrailerUrl, description, backgroundContentUrl },
+      { trailerUrl, description, backgroundContentUrl: effectiveBackgroundContentUrl },
       onlyMissingMetadata,
     );
 
     const updated = await this.updatePremiereMetadata(
       row,
       { trailerUrl, description, backgroundContentUrl },
-      { trailerUrl: effectiveTrailerUrl, description, backgroundContentUrl },
+      { trailerUrl, description, backgroundContentUrl },
       onlyMissingMetadata,
     );
 
+    result.moderated++;
+
     if (!updated.trailerUpdated && !updated.descriptionUpdated && !updated.backgroundUpdated) {
-      result.moderated++;
       result.unchanged++;
       return;
     }
@@ -263,7 +277,7 @@ export class AdminReprocessPremiereAssetsCommandHandler
       metadata.trailerUrl,
       onlyMissingMetadata,
     );
-    const descriptionUpdated = this.shouldUpdateField(
+    const descriptionUpdated = this.shouldUpdateDescription(
       row.description,
       metadata.description,
       onlyMissingMetadata,
@@ -289,10 +303,8 @@ export class AdminReprocessPremiereAssetsCommandHandler
       setClauses.push(`"backgroundContentUrl" = $${params.length}`);
     }
 
-    if (!setClauses.length) {
-      return { trailerUpdated: false, descriptionUpdated: false, backgroundUpdated: false };
-    }
-
+    setClauses.push(`"handleStatus" = 'moderate'`);
+    setClauses.push(`"isHidden" = true`);
     setClauses.push(`"updatedAt" = CURRENT_TIMESTAMP`);
     params.push(row.id);
 
@@ -350,13 +362,13 @@ export class AdminReprocessPremiereAssetsCommandHandler
     }
   }
 
-  private shouldUpdateField(
+  private shouldUpdateDescription(
     currentValue: string | null,
     nextValue: string | null,
     onlyMissingMetadata: boolean,
   ): boolean {
-    if (!this.hasText(nextValue)) return false;
-    if (onlyMissingMetadata && this.hasText(currentValue)) return false;
+    if (!this.moviesService.hasRussianText(nextValue)) return false;
+    if (onlyMissingMetadata && this.moviesService.hasRussianText(currentValue)) return false;
     return currentValue?.trim() !== nextValue?.trim();
   }
 
@@ -365,10 +377,9 @@ export class AdminReprocessPremiereAssetsCommandHandler
     nextValue: string | null,
     onlyMissingMetadata: boolean,
   ): boolean {
-    const normalizedNextValue = this.normalizePoiskkinoEmbedUrl(nextValue);
-    if (!normalizedNextValue) return false;
-    if (onlyMissingMetadata && this.normalizePoiskkinoEmbedUrl(currentValue)) return false;
-    return this.normalizePoiskkinoEmbedUrl(currentValue) !== normalizedNextValue;
+    if (!this.hasProcessedTrailer(nextValue)) return false;
+    if (onlyMissingMetadata && this.hasProcessedTrailer(currentValue)) return false;
+    return currentValue?.trim() !== nextValue?.trim();
   }
 
   private shouldUpdateBackgroundContentUrl(
@@ -409,7 +420,13 @@ export class AdminReprocessPremiereAssetsCommandHandler
     onlyMissingMetadata: boolean,
   ): Promise<string | null> {
     if (!this.hasText(trailerUrl)) return null;
-    if (onlyMissingMetadata && this.hasProcessedPreviewClip(row.backgroundContentUrl)) return null;
+    if (
+      onlyMissingMetadata &&
+      this.hasProcessedPreviewClip(row.backgroundContentUrl) &&
+      this.hasProcessedTrailer(row.trailerUrl)
+    ) {
+      return null;
+    }
 
     const movieId = Number(row.id);
     if (!Number.isFinite(movieId)) return null;
@@ -437,6 +454,10 @@ export class AdminReprocessPremiereAssetsCommandHandler
     return Boolean(value?.trim());
   }
 
+  private hasProcessedTrailer(value: string | null | undefined): boolean {
+    return Boolean(value && value.toLowerCase().split('?')[0].endsWith('/trailer/trailer.mp4'));
+  }
+
   private createMetadata(kpMovie: KinopoiskMovie): MovieKpMetadata {
     return {
       name: kpMovie.name || kpMovie.alternativeName || kpMovie.enName || null,
@@ -446,7 +467,11 @@ export class AdminReprocessPremiereAssetsCommandHandler
       studio: null,
       genres: null,
       countries: null,
-      description: kpMovie.description || kpMovie.shortDescription || null,
+      description: this.moviesService.hasRussianText(kpMovie.description)
+        ? kpMovie.description!.trim()
+        : this.moviesService.hasRussianText(kpMovie.shortDescription)
+        ? kpMovie.shortDescription!.trim()
+        : null,
       releaseDate: null,
       posterUrl: null,
       backdropUrl: null,
@@ -476,43 +501,13 @@ export class AdminReprocessPremiereAssetsCommandHandler
   }
 
   private shouldLoadMetadata(row: ReprocessPremiereRow, onlyMissingMetadata: boolean): boolean {
-    const needsDescription = this.shouldLookupMissingField(row.description, onlyMissingMetadata);
-    const needsPoiskkinoTrailer =
-      !this.normalizePoiskkinoEmbedUrl(row.trailerUrl) &&
-      this.shouldLookupMissingField(row.trailerUrl, onlyMissingMetadata);
+    if (!onlyMissingMetadata) return true;
 
-    return needsDescription || needsPoiskkinoTrailer;
-  }
+    const needsDescription = !this.moviesService.hasRussianText(row.description);
+    const needsTrailer = !this.hasProcessedTrailer(row.trailerUrl);
+    const needsBackground = !this.hasProcessedPreviewClip(row.backgroundContentUrl);
 
-  private normalizePoiskkinoEmbedUrl(value: string | null | undefined): string | null {
-    if (!value?.trim()) return null;
-
-    try {
-      const url = new URL(value.trim());
-      if (url.hostname !== 'play.poiskkino.dev' || !url.pathname.startsWith('/embed/')) {
-        return null;
-      }
-
-      url.protocol = 'https:';
-      return url.toString();
-    } catch {
-      return null;
-    }
-  }
-
-  private buildPoiskkinoCdnHlsUrl(
-    kpId: string | null | undefined,
-    type: Exclude<AdminPremiereTypeEnum, AdminPremiereTypeEnum.ALL>,
-  ): string | null {
-    const normalizedKpId = kpId?.trim();
-
-    if (!normalizedKpId || !/^\d{4,}$/.test(normalizedKpId)) return null;
-
-    const directory = type === AdminPremiereTypeEnum.SERIAL ? 'tv' : 'film';
-    const firstPart = normalizedKpId.slice(0, 2);
-    const secondPart = normalizedKpId.slice(2, 4);
-
-    return `https://lbu.vcdn.elvd.tech/hls/${directory}/${firstPart}/${secondPart}/${normalizedKpId}.mp4/master.m3u8`;
+    return needsDescription || needsTrailer || needsBackground;
   }
 
   private movieType(

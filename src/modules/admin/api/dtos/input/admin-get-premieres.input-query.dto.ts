@@ -100,6 +100,11 @@ export class AdminUpsertPremiereInputDto {
 }
 
 export class AdminReprocessPremiereAssetsInputDto {
+  @ApiPropertyOptional({ default: false })
+  @IsOptional()
+  @IsBoolean()
+  dryRun?: boolean = false;
+
   @ApiPropertyOptional({
     enum: AdminPremiereTypeEnum,
     default: AdminPremiereTypeEnum.ALL,

@@ -1,0 +1,40 @@
+name: Reprocess premiere assets on DEV
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Only count records without changing them
+        required: true
+        default: true
+        type: boolean
+      limit:
+        description: Maximum records in this batch
+        required: true
+        default: '100'
+        type: string
+
+jobs:
+  reprocess:
+    runs-on: ubuntu-latest
+    env:
+      SSH_HOST: ${{ secrets.DEV_SSH_HOST }}
+      SSHPASS: ${{ secrets.DEV_SSH_PASSWORD }}
+      CONTAINER_NAME: next-back-nextweb-dev
+
+    steps:
+      - name: Install sshpass
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y sshpass
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -p ${{ secrets.DEV_SSH_PORT }} -H "$SSH_HOST" >> ~/.ssh/known_hosts
+
+      - name: Run reprocessor
+        run: |
+          sshpass -e ssh -o StrictHostKeyChecking=yes -p ${{ secrets.DEV_SSH_PORT }} \
+            ${{ secrets.DEV_SSH_USERNAME }}@$SSH_HOST \
+            "docker exec '$CONTAINER_NAME' node dist/maintenance/reprocess-premiere-assets.js --dry-run=${{ inputs.dry_run }} --handle-status=all --only-missing=true --limit=${{ inputs.limit }}"
