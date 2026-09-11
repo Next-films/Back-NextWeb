@@ -10,6 +10,24 @@ describe('MoviesService', () => {
     null as never,
   );
 
+  it('publishes playable movies without trailer and alternate titles', () => {
+    const movie = {
+      title: '72 часа',
+      description: 'Description',
+      originalTitle: null,
+      alternativeTitles: null,
+      country: ['США'],
+      releaseDate: '2026-07-24',
+      trailerUrl: null,
+      previewUrl: 'https://cdn.example/poster.webp',
+      videoUrl: 'https://cdn.example/movie.mp4',
+      duration: 8131,
+      genres: [{}],
+    };
+
+    expect(service.isValidMovieForProduction(movie as never)).toBe(true);
+  });
+
   it('publishes complete premieres without movie file and duration', () => {
     const movie = {
       availabilityStatus: MovieAvailabilityStatus.UPCOMING,

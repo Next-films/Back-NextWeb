@@ -93,31 +93,18 @@ export class MoviesService {
   // ─── Movie validation ──────────────────────────────────────────
 
   /**
-   * titleUrl (обложка-заголовок) намеренно не входит в список: готовой картинки с названием
-   * для большинства фильмов просто не существует, и обязательность этого поля блокировала
-   * публикацию полностью готовых карточек. Витрина всё равно рисует название текстом.
+   * titleUrl/trailerUrl/originalTitle/alternativeTitles намеренно не входят в список:
+   * эти данные улучшают карточку, но не должны блокировать публикацию уже скачанного
+   * фильма. Для премьер без видео действует отдельная более строгая проверка ниже.
    */
   isValidMovieForProduction<T extends MovieEntity>(movie: T): boolean {
-    const {
-      title,
-      originalTitle,
-      description,
-      country,
-      alternativeTitles,
-      releaseDate,
-      trailerUrl,
-      previewUrl,
-      videoUrl,
-      duration,
-      genres,
-    } = movie;
+    const { title, description, country, releaseDate, previewUrl, videoUrl, duration, genres } =
+      movie;
 
     return !!(
       title &&
       description &&
-      originalTitle &&
       releaseDate &&
-      trailerUrl &&
       videoUrl &&
       previewUrl &&
       duration &&
@@ -125,8 +112,7 @@ export class MoviesService {
       genres &&
       genres.length > 0 &&
       country &&
-      country.length > 0 &&
-      alternativeTitles
+      country.length > 0
     );
   }
 
