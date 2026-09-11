@@ -99,7 +99,7 @@ export class AdminGetPremieresQueryHandler
         size,
       ];
       const rows = await this.dataSource.query<PremiereRow[]>(
-        `${sql} ORDER BY CASE WHEN "status" = '${
+        `SELECT * FROM (${sql}) premieres ORDER BY CASE WHEN "status" = '${
           MovieHandleStatus.MODERATE
         }' THEN 0 ELSE 1 END ASC, "${sortField}" ${sortDirection}, "id" ASC OFFSET $${
           values.length + 1
