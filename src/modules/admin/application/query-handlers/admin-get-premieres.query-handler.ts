@@ -122,7 +122,23 @@ export class AdminGetPremieresQueryHandler
     values: unknown[];
   } {
     const values: unknown[] = [];
-    const conditions = [`m."availabilityStatus"::text = ANY($1::text[])`];
+    const conditions = [
+      `m."availabilityStatus"::text = ANY($1::text[])`,
+      `NULLIF(BTRIM(m."title"), '') IS NOT NULL`,
+      `NULLIF(BTRIM(m."alternativeTitles"), '') IS NOT NULL`,
+      `NULLIF(BTRIM(m."description"), '') IS NOT NULL`,
+      `m."description" ~ '[А-Яа-яЁё]'`,
+      `m."releaseDate" IS NOT NULL`,
+      `COALESCE(cardinality(m."country"), 0) > 0`,
+      `NULLIF(BTRIM(m."previewUrl"), '') IS NOT NULL`,
+      `LOWER(SPLIT_PART(m."previewUrl", '?', 1)) LIKE '%.webp'`,
+      `NULLIF(BTRIM(m."trailerUrl"), '') IS NOT NULL`,
+      `(
+        LOWER(SPLIT_PART(m."trailerUrl", '?', 1)) LIKE '%/trailer/trailer.mp4'
+        OR LOWER(m."trailerUrl") LIKE '%youtube.com/%'
+        OR LOWER(m."trailerUrl") LIKE '%youtu.be/%'
+      )`,
+    ];
     values.push(this.availabilityStatuses(query.availabilityStatus));
 
     if (query.searchName) {
@@ -210,6 +226,7 @@ export class AdminGetPremieresQueryHandler
       LEFT JOIN "genre" g ON g."id" = mg."genreId"
       WHERE ${where}
       GROUP BY m."id"
+      HAVING COUNT(g."id") > 0
     `;
   }
 

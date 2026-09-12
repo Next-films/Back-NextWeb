@@ -34,7 +34,7 @@ export class MovieMetadataCardService {
   }
 
   shouldCreateUpcomingCard(metadata: MovieKpMetadata): boolean {
-    return this.isForeignCountryList(metadata.countries);
+    return this.shouldPublishUpcomingCard(metadata);
   }
 
   createMovieDto(metadata: MovieKpMetadata, kpId: string): MovieCreateDto {

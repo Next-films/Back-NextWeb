@@ -52,7 +52,13 @@ describe('MovieMetadataCardService', () => {
       false,
     );
     expect(service.shouldCreateUpcomingCard({ ...completeMetadata(), description: null })).toBe(
-      true,
+      false,
+    );
+    expect(service.shouldCreateUpcomingCard({ ...completeMetadata(), trailerUrl: null })).toBe(
+      false,
+    );
+    expect(service.shouldCreateUpcomingCard({ ...completeMetadata(), posterUrl: null })).toBe(
+      false,
     );
     expect(service.shouldPublishUpcomingCard({ ...completeMetadata(), trailerUrl: null })).toBe(
       false,
