@@ -12,6 +12,7 @@ import { CartoonRepository } from '@/cartoons/infrastructure/cartoon.repository'
 import { MovieTypesEnum } from '@/common/types/types';
 import { ModerationCartoonRepository } from '@/moderation-movie/infrastructure/moderation-cartoon.repository';
 import { FinishedTorrentModerationRepository } from '@/moderation-movie/infrastructure/finished-torrent-moderation.repository';
+import { buildMovieStorageKeys } from '@/admin/application/utils/movie-storage-keys.util';
 
 export class AdminRemoveCartoonCommand implements ICommand {
   constructor(public cartoonId: number) {}
@@ -54,35 +55,12 @@ export class AdminRemoveCartoonCommandHandler
     }
   }
 
-  private extractStorageKey(url: string | null | undefined): string | null {
-    if (!url || typeof url !== 'string') return null;
-
-    const value = url.trim();
-
-    if (!value) return null;
-
-    try {
-      const parsed = new URL(value);
-      const key = parsed.pathname.replace(/^\/+/, '');
-
-      return key || null;
-    } catch {
-      const key = value
-        .replace(/^https?:\/\/[^/]+\//, '')
-        .split('?')[0]
-        .replace(/^\/+/, '');
-
-      return key || null;
-    }
-  }
-
   private async removeMediaByUrls(
+    movieId: number,
     urls: Array<string | null | undefined>,
     scope: string,
   ): Promise<void> {
-    const keys = Array.from(
-      new Set(urls.map(url => this.extractStorageKey(url)).filter((key): key is string => !!key)),
-    );
+    const keys = buildMovieStorageKeys(MovieTypesEnum.CARTOON, movieId, urls);
 
     for (const key of keys) {
       await this.rmqResultHandlerUtil.getRmqData(
@@ -108,8 +86,10 @@ export class AdminRemoveCartoonCommandHandler
         });
 
       await this.removeMediaByUrls(
+        cartoon.id,
         [
           cartoon.videoUrl,
+          cartoon.trailerUrl,
           cartoon.previewUrl,
           cartoon.horizontalPreviewUrl,
           cartoon.backgroundContentUrl,
