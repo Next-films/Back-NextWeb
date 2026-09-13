@@ -11,6 +11,7 @@ import { ErrorFieldExceptionDto } from '@/common/exception-filters/http/http-exc
 import { LoggerService } from '@/common/utils/logger/logger.service';
 import { KinopoiskService } from '@/external-api/kinopoisk/application/kinopoisk.service';
 import { MoviesService } from '@/movies/application/movies.service';
+import { ExternalMovieAssetsService } from '@/movies/application/external-movie-assets.service';
 import { MovieAvailabilityStatus, MovieHandleStatus, MovieKpMetadata } from '@/movies/domain/types';
 import { MovieTypesEnum } from '@/common/types/types';
 import { CreateModerationDto } from '@/moderation-movie/domain/types';
@@ -45,6 +46,7 @@ export class NewSerialNotificationCommandHandler
     private readonly serialRepository: SerialRepository,
     private readonly kinopoiskService: KinopoiskService,
     private readonly moviesService: MoviesService,
+    private readonly externalMovieAssetsService: ExternalMovieAssetsService,
     private readonly moderationSerialRepository: ModerationSerialRepository,
     @Inject(ModerationSerialEntity.name)
     private readonly moderationSerialEntity: typeof ModerationSerialEntity,
@@ -99,6 +101,14 @@ export class NewSerialNotificationCommandHandler
       }
 
       const metadata = await this.moviesService.extractMovieMetadata(kpMovie, queryRunner);
+
+      if (kpMovie) {
+        await this.externalMovieAssetsService.enrichUpcomingDescription(
+          metadata,
+          kpMovie,
+          MovieTypesEnum.SERIAL,
+        );
+      }
       const previousHandleStatus = existingSerial?.handleStatus ?? null;
 
       const serial = existingSerial

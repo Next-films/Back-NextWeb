@@ -54,6 +54,10 @@ import { storageUtil } from '@/common/utils/storage-big-files.util';
 import { unlink } from 'fs/promises';
 import { DownloaderServiceAdapter } from '@/common/infrastructure/rmq/downloader-service.adapter';
 import { SerialRepository } from '@/serials/infrastructure/serial.repository';
+import { KinopoiskService } from '@/external-api/kinopoisk/application/kinopoisk.service';
+import { MoviesService } from '@/movies/application/movies.service';
+import { ExternalMovieAssetsService } from '@/movies/application/external-movie-assets.service';
+import { MovieTypesEnum } from '@/common/types/types';
 
 @ApiTags(
   'Admin cinema - serials. Handles administrative operations for the movie theater content library.',
@@ -70,6 +74,9 @@ export class AdminCinemaSerialsController {
     private readonly appNotification: ApplicationNotification,
     private readonly downloaderServiceAdapter: DownloaderServiceAdapter,
     private readonly serialRepository: SerialRepository,
+    private readonly kinopoiskService: KinopoiskService,
+    private readonly moviesService: MoviesService,
+    private readonly externalMovieAssetsService: ExternalMovieAssetsService,
   ) {
     this.logger.setContext(AdminCinemaSerialsController.name);
   }
@@ -298,6 +305,33 @@ export class AdminCinemaSerialsController {
     });
   }
 
+  private async enrichMissingSerialDescription(serialId: number, kpId: string): Promise<void> {
+    const serial = await this.serialRepository.getSerialById(serialId);
+
+    if (!serial || this.moviesService.hasRussianText(serial.description)) return;
+
+    const kpMovie = await this.kinopoiskService.getMovieById(Number(kpId));
+
+    if (!kpMovie) return;
+
+    const metadata = await this.moviesService.extractMovieMetadata(kpMovie);
+    await this.externalMovieAssetsService.enrichUpcomingDescription(
+      metadata,
+      kpMovie,
+      MovieTypesEnum.SERIAL,
+    );
+
+    if (!this.moviesService.hasRussianText(metadata.description)) return;
+
+    serial.description = metadata.description;
+    for (const episode of serial.episodes || []) {
+      if (!this.moviesService.hasRussianText(episode.description)) {
+        episode.description = metadata.description;
+      }
+    }
+    await this.serialRepository.save(serial);
+  }
+
   @Post(`:serialId/check-updates`)
   async checkSerialUpdates(
     @Param('serialId', ParseIntPatchPipe) serialId: number,
@@ -318,6 +352,8 @@ export class AdminCinemaSerialsController {
       );
       return;
     }
+
+    await this.enrichMissingSerialDescription(serialId, serialResult.data.kpId);
 
     const removedDuplicates = await this.serialRepository.removeDuplicateEpisodesBySerialId(
       serialId,
@@ -414,6 +450,8 @@ export class AdminCinemaSerialsController {
       );
       return;
     }
+
+    await this.enrichMissingSerialDescription(serialId, serialResult.data.kpId);
 
     const removedDuplicates = await this.serialRepository.removeDuplicateEpisodesBySerialId(
       serialId,
