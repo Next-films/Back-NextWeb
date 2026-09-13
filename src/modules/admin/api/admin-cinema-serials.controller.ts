@@ -260,7 +260,7 @@ export class AdminCinemaSerialsController {
   /**
    * Enrich the bridge seasons plan with download state per season. A season counts as
    * already downloaded when it is complete, or when completeness is unknown (Kinopoisk gave
-   * no episode count) but episodes already exist — re-downloading such seasons is blocked.
+   * no episode count) but episodes already exist. Only confirmed complete seasons are blocked.
    */
   private buildSeasonsWithStats(
     seasons: {
@@ -300,9 +300,37 @@ export class AdminCinemaSerialsController {
         missingEpisodesCount,
         isComplete,
         isDownloaded,
-        canDownload: !isDownloaded && season.torrentsCount > 0,
+        canDownload: !isDownloaded,
       };
     });
+  }
+
+  private mergeSeasonPlanWithEpisodes(
+    seasons: {
+      seasonNumber: number;
+      torrentsCount: number;
+      expectedEpisodesCount: number | null;
+    }[],
+    episodes: { seasonNumber?: number | null }[],
+  ): typeof seasons {
+    const seasonsByNumber = new Map(seasons.map(season => [season.seasonNumber, season]));
+    const maxSeasonNumber = Math.max(
+      0,
+      ...seasons.map(season => season.seasonNumber),
+      ...(episodes || []).map(episode => episode.seasonNumber || 0),
+    );
+
+    for (let seasonNumber = 1; seasonNumber <= maxSeasonNumber; seasonNumber += 1) {
+      if (!seasonsByNumber.has(seasonNumber)) {
+        seasonsByNumber.set(seasonNumber, {
+          seasonNumber,
+          torrentsCount: 0,
+          expectedEpisodesCount: null,
+        });
+      }
+    }
+
+    return [...seasonsByNumber.values()].sort((a, b) => a.seasonNumber - b.seasonNumber);
   }
 
   private async enrichMissingSerialDescription(serialId: number, kpId: string): Promise<void> {
@@ -383,16 +411,16 @@ export class AdminCinemaSerialsController {
       const seasonsResult = await this.downloaderServiceAdapter.bridgeGetSerialSeasonsByKpId(kpId);
 
       if (seasonsResult.appResult === AppNotificationResultEnum.Success && seasonsResult.data) {
-        const downloadedSeasonNumbers = new Set(
+        const completeSeasonNumbers = new Set(
           this.buildSeasonsWithStats(
             seasonsResult.data.seasons,
             refreshedSerialResult.data.episodes || [],
           )
-            .filter(season => season.isDownloaded)
+            .filter(season => season.isComplete === true)
             .map(season => season.seasonNumber),
         );
-        const allowedSeasons = seasonNumbers.filter(season => !downloadedSeasonNumbers.has(season));
-        const blockedSeasons = seasonNumbers.filter(season => downloadedSeasonNumbers.has(season));
+        const allowedSeasons = seasonNumbers.filter(season => !completeSeasonNumbers.has(season));
+        const blockedSeasons = seasonNumbers.filter(season => completeSeasonNumbers.has(season));
 
         if (allowedSeasons.length === 0) {
           return {
@@ -489,10 +517,9 @@ export class AdminCinemaSerialsController {
       return;
     }
 
-    const seasonsWithStats = this.buildSeasonsWithStats(
-      seasonsResult.data.seasons,
-      refreshedSerialResult.data.episodes || [],
-    );
+    const episodes = refreshedSerialResult.data.episodes || [];
+    const mergedSeasons = this.mergeSeasonPlanWithEpisodes(seasonsResult.data.seasons, episodes);
+    const seasonsWithStats = this.buildSeasonsWithStats(mergedSeasons, episodes);
 
     const downloadedSeasons = seasonsWithStats
       .filter(season => season.isDownloaded)
@@ -501,6 +528,10 @@ export class AdminCinemaSerialsController {
 
     return {
       ...seasonsResult.data,
+      totalSeasons: Math.max(
+        seasonsResult.data.totalSeasons,
+        ...mergedSeasons.map(season => season.seasonNumber),
+      ),
       downloadedSeasons,
       seasons: seasonsWithStats,
     };
