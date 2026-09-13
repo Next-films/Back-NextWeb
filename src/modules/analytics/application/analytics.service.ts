@@ -10,7 +10,7 @@ import { AnalyticsRangeEnum } from '@/analytics/api/dtos/analytics-range.input.d
 import { Film } from '@/films/domain/film.entity';
 import { Serial } from '@/serials/domain/serial.entity';
 import { Cartoon } from '@/cartoons/domain/cartoon.entity';
-import { MovieHandleStatus } from '@/movies/domain/types';
+import { MovieAvailabilityStatus, MovieHandleStatus } from '@/movies/domain/types';
 import { DownloaderServiceAdapter } from '@/common/infrastructure/rmq/downloader-service.adapter';
 
 type RangeDates = { start: Date; end: Date };
@@ -257,7 +257,12 @@ export class AnalyticsService {
   ) {
     if (!ids || ids.length === 0) return [];
     const rows = await repository.find({
-      where: { id: In(ids), isHidden: false, handleStatus: MovieHandleStatus.PRODUCTION } as any,
+      where: {
+        id: In(ids),
+        isHidden: false,
+        handleStatus: MovieHandleStatus.PRODUCTION,
+        availabilityStatus: MovieAvailabilityStatus.AVAILABLE,
+      } as any,
     });
 
     return rows.map(row => ({
@@ -326,6 +331,9 @@ export class AnalyticsService {
     const qb = repository.createQueryBuilder('m');
     qb.where('m.isHidden = false').andWhere('m.handleStatus = :status', {
       status: MovieHandleStatus.PRODUCTION,
+    });
+    qb.andWhere('m.availabilityStatus = :availabilityStatus', {
+      availabilityStatus: MovieAvailabilityStatus.AVAILABLE,
     });
 
     if (excludeIds && excludeIds.size > 0) {
