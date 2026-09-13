@@ -14,7 +14,6 @@ export class QueryFilterUtil {
   @IsOptional()
   @IsInt()
   @Min(BASIC_QUERY_VALIDATION_RULES.PAGE.LENGTH_MIN)
-  @Max(BASIC_QUERY_VALIDATION_RULES.PAGE.LENGTH_MAX)
   page: number;
 
   @ApiPropertyOptional({ default: BASIC_QUERY_VALIDATION_RULES.SIZE.LENGTH_MAX })

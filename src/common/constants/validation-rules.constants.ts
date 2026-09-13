@@ -24,7 +24,6 @@ const PROVIDER_ID_LENGTH_MAX = 50;
 export const BASIC_QUERY_VALIDATION_RULES /* as ValidationRulesConstantsType */ = {
   PAGE: {
     LENGTH_MIN: 1,
-    LENGTH_MAX: 100,
   },
   SIZE: {
     LENGTH_MIN: 1,
