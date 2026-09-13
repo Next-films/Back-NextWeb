@@ -11,6 +11,7 @@ import { ErrorFieldExceptionDto } from '@/common/exception-filters/http/http-exc
 import { LoggerService } from '@/common/utils/logger/logger.service';
 import { KinopoiskService } from '@/external-api/kinopoisk/application/kinopoisk.service';
 import { MoviesService } from '@/movies/application/movies.service';
+import { buildPoiskkinoTrailerPlayerUrl } from '@/movies/application/poiskkino-trailer.util';
 import { ExternalMovieAssetsService } from '@/movies/application/external-movie-assets.service';
 import { MovieAvailabilityStatus, MovieHandleStatus, MovieKpMetadata } from '@/movies/domain/types';
 import { MovieTypesEnum } from '@/common/types/types';
@@ -126,6 +127,7 @@ export class NewSerialNotificationCommandHandler
         const { titleUrl, posterUrl, backgroundContentUrl, trailerUrl } =
           await this.getContentUrlForNewSerial(
             savedSerial.id,
+            kpId,
             metadata.trailerUrl,
             metadata.backdropUrl,
             metadata.titleUrl,
@@ -317,14 +319,22 @@ export class NewSerialNotificationCommandHandler
     kpId: string,
   ): Promise<Serial> {
     const { id } = serial;
-    const backgroundSourceUrl = metadata.trailerUrl || metadata.backdropUrl;
+    const backgroundSourceUrls = [
+      buildPoiskkinoTrailerPlayerUrl(kpId),
+      metadata.trailerUrl,
+      metadata.backdropUrl,
+    ];
     const [previewUrl, backgroundContentUrl, titleUrl] = await Promise.all([
       !serial.previewUrl
         ? this.moviesService.getPosterUrl(metadata.posterUrl, id, MovieTypesEnum.SERIAL)
         : Promise.resolve(null),
 
       !serial.backgroundContentUrl
-        ? this.moviesService.getBackgroundContentUrl(backgroundSourceUrl, id, MovieTypesEnum.SERIAL)
+        ? this.moviesService.getBackgroundContentUrlFromSources(
+            backgroundSourceUrls,
+            id,
+            MovieTypesEnum.SERIAL,
+          )
         : Promise.resolve(null),
 
       !serial.titleUrl
@@ -455,15 +465,16 @@ export class NewSerialNotificationCommandHandler
 
   private async getContentUrlForNewSerial(
     serialId: number,
+    kpId: string,
     trailerUrl: string | null,
     backdropUrl: string | null,
     logoUrl: string | null,
     previewUrl: string | null,
   ) {
-    const backgroundSourceUrl = trailerUrl || backdropUrl;
+    const backgroundSourceUrls = [buildPoiskkinoTrailerPlayerUrl(kpId), trailerUrl, backdropUrl];
     const [backgroundContentUrl, posterUrl, titleUrl] = await Promise.all([
-      this.moviesService.getBackgroundContentUrl(
-        backgroundSourceUrl,
+      this.moviesService.getBackgroundContentUrlFromSources(
+        backgroundSourceUrls,
         serialId,
         MovieTypesEnum.SERIAL,
       ),

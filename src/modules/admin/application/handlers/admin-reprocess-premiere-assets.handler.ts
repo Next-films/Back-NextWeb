@@ -15,6 +15,7 @@ import {
 import { AdminReprocessPremiereAssetsOutputDto } from '@/admin/api/dtos/output/admin-reprocess-premiere-assets.output.dto';
 import { KinopoiskService } from '@/external-api/kinopoisk/application/kinopoisk.service';
 import { MoviesService } from '@/movies/application/movies.service';
+import { buildPoiskkinoTrailerPlayerUrl } from '@/movies/application/poiskkino-trailer.util';
 import { ExternalMovieAssetsService } from '@/movies/application/external-movie-assets.service';
 import { KinopoiskMovie } from '@/external-api/kinopoisk/domain/types';
 import { MovieKpMetadata } from '@/movies/domain/types';
@@ -217,17 +218,22 @@ export class AdminReprocessPremiereAssetsCommandHandler
     }
 
     const trailerSourceUrl = metadata.trailerUrl?.trim() || null;
+    const trailerSourceUrls = [
+      buildPoiskkinoTrailerPlayerUrl(row.kpId),
+      trailerSourceUrl,
+      row.trailerUrl,
+    ];
     const description = this.moviesService.hasRussianText(metadata.description)
       ? metadata.description!.trim()
       : null;
     const backgroundContentUrl = await this.reprocessBackgroundContentUrl(
       row,
-      trailerSourceUrl,
+      trailerSourceUrls,
       onlyMissingMetadata,
     );
     const trailerUrl =
-      (this.moviesService.isPlayablePremiereTrailer(row.trailerUrl) && row.trailerUrl?.trim()) ||
       this.moviesService.getProcessedTrailerUrl(backgroundContentUrl) ||
+      (this.moviesService.isPlayablePremiereTrailer(row.trailerUrl) && row.trailerUrl?.trim()) ||
       (this.moviesService.isPlayablePremiereTrailer(trailerSourceUrl) ? trailerSourceUrl : null);
     const effectiveBackgroundContentUrl = backgroundContentUrl || row.backgroundContentUrl;
 
@@ -427,10 +433,10 @@ export class AdminReprocessPremiereAssetsCommandHandler
 
   private async reprocessBackgroundContentUrl(
     row: ReprocessPremiereRow,
-    trailerUrl: string | null,
+    trailerUrls: Array<string | null | undefined>,
     onlyMissingMetadata: boolean,
   ): Promise<string | null> {
-    if (!this.hasText(trailerUrl)) return null;
+    if (!trailerUrls.some(trailerUrl => this.hasText(trailerUrl))) return null;
     if (
       onlyMissingMetadata &&
       this.hasProcessedPreviewClip(row.backgroundContentUrl) &&
@@ -443,8 +449,8 @@ export class AdminReprocessPremiereAssetsCommandHandler
     if (!Number.isFinite(movieId)) return null;
 
     try {
-      return await this.moviesService.getBackgroundContentUrl(
-        trailerUrl,
+      return await this.moviesService.getBackgroundContentUrlFromSources(
+        trailerUrls,
         movieId,
         this.movieType(row.type),
       );

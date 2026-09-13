@@ -13,6 +13,7 @@ import { KinopoiskService } from '@/external-api/kinopoisk/application/kinopoisk
 import { EXCEPTION_KEYS_ENUM } from '@/common/enums/exception-keys.enum';
 import { MovieAvailabilityStatus, MovieHandleStatus, MovieKpMetadata } from '@/movies/domain/types';
 import { MoviesService } from '@/movies/application/movies.service';
+import { buildPoiskkinoTrailerPlayerUrl } from '@/movies/application/poiskkino-trailer.util';
 import { NewCartoonNotificationPayloadDto } from '@/cartoons/api/dtos/input/new-cartoon-notification.input.dto';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource, QueryRunner } from 'typeorm';
@@ -95,6 +96,7 @@ export class NewCartoonNotificationCommandHandler
         const { titleUrl, posterUrl, backgroundContentUrl, trailerUrl } =
           await this.getContentUrlForNewCartoon(
             savedCartoon.id,
+            kpId,
             metadata.trailerUrl,
             metadata.backdropUrl,
             metadata.titleUrl,
@@ -149,15 +151,19 @@ export class NewCartoonNotificationCommandHandler
     kpId: string,
   ): Promise<Cartoon> {
     const { id } = cartoon;
-    const backgroundSourceUrl = metadata.trailerUrl || metadata.backdropUrl;
+    const backgroundSourceUrls = [
+      buildPoiskkinoTrailerPlayerUrl(kpId),
+      metadata.trailerUrl,
+      metadata.backdropUrl,
+    ];
     const [previewUrl, backgroundContentUrl, titleUrl] = await Promise.all([
       !cartoon.previewUrl
         ? this.moviesService.getPosterUrl(metadata.posterUrl, id, MovieTypesEnum.CARTOON)
         : Promise.resolve(null),
 
       !cartoon.backgroundContentUrl
-        ? this.moviesService.getBackgroundContentUrl(
-            backgroundSourceUrl,
+        ? this.moviesService.getBackgroundContentUrlFromSources(
+            backgroundSourceUrls,
             id,
             MovieTypesEnum.CARTOON,
           )
@@ -245,15 +251,16 @@ export class NewCartoonNotificationCommandHandler
 
   private async getContentUrlForNewCartoon(
     cartoonId: number,
+    kpId: string,
     trailerUrl: string | null,
     backdropUrl: string | null,
     logoUrl: string | null,
     previewUrl: string | null,
   ) {
-    const backgroundSourceUrl = trailerUrl || backdropUrl;
+    const backgroundSourceUrls = [buildPoiskkinoTrailerPlayerUrl(kpId), trailerUrl, backdropUrl];
     const [backgroundContentUrl, posterUrl, titleUrl] = await Promise.all([
-      this.moviesService.getBackgroundContentUrl(
-        backgroundSourceUrl,
+      this.moviesService.getBackgroundContentUrlFromSources(
+        backgroundSourceUrls,
         cartoonId,
         MovieTypesEnum.CARTOON,
       ),

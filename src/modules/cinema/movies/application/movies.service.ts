@@ -188,7 +188,10 @@ export class MoviesService {
     try {
       const hostname = new URL(value).hostname.toLowerCase().replace(/^www\./, '');
       return (
-        hostname === 'youtube.com' || hostname.endsWith('.youtube.com') || hostname === 'youtu.be'
+        hostname === 'youtube.com' ||
+        hostname.endsWith('.youtube.com') ||
+        hostname === 'youtu.be' ||
+        hostname === 'play.poiskkino.dev'
       );
     } catch {
       return false;
@@ -286,7 +289,7 @@ export class MoviesService {
 
   private selectTrailerUrl(videos?: KinopoiskVideoTypes): string | null {
     const trailers = (videos?.trailers || []).filter(
-      trailer => trailer.url?.trim() && this.isYoutubeTrailerSource(trailer),
+      trailer => trailer.url?.trim() && this.getTrailerSourcePriority(trailer) > 0,
     );
     if (!trailers.length) return null;
 
@@ -294,10 +297,20 @@ export class MoviesService {
       trailers
         .map((trailer, index) => ({
           url: trailer.url!.trim(),
-          score: this.getTrailerScore(trailer, index),
+          score:
+            this.getTrailerSourcePriority(trailer) * 100_000 + this.getTrailerScore(trailer, index),
         }))
         .sort((a, b) => b.score - a.score)[0]?.url || null
     );
+  }
+
+  private getTrailerSourcePriority(trailer: KinopoiskVideo): number {
+    const url = trailer.url?.trim() || '';
+
+    if (this.isPoiskkinoTrailerSource(url)) return 3;
+    if (this.isDirectVideoSource(url)) return 2;
+    if (this.isYoutubeTrailerSource(trailer)) return 1;
+    return 0;
   }
 
   private getTrailerScore(trailer: KinopoiskVideo, index: number): number {
@@ -313,6 +326,28 @@ export class MoviesService {
     const site = trailer.site?.toLowerCase() || '';
 
     return site.includes('youtube') || url.includes('youtube.com') || url.includes('youtu.be');
+  }
+
+  private isPoiskkinoTrailerSource(value: string): boolean {
+    try {
+      const url = new URL(value);
+      return (
+        url.hostname.toLowerCase() === 'play.poiskkino.dev' && url.pathname.startsWith('/embed/')
+      );
+    } catch {
+      return false;
+    }
+  }
+
+  private isDirectVideoSource(value: string): boolean {
+    try {
+      const pathname = new URL(value).pathname.toLowerCase();
+      return ['.m3u8', '.mp4', '.webm', '.mov', '.mkv'].some(extension =>
+        pathname.endsWith(extension),
+      );
+    } catch {
+      return false;
+    }
   }
 
   // ─── Universe & studio detection ───────────────────────────────
@@ -474,6 +509,24 @@ export class MoviesService {
         this.downloaderServiceAdapter.downloadPreviewClip(movieId, file!, movieType, s3KeyPrefix),
       this.getBackgroundContentUrl.name,
     );
+  }
+
+  async getBackgroundContentUrlFromSources(
+    sources: Array<string | null | undefined>,
+    movieId: number,
+    movieType: MovieTypesEnum,
+  ): Promise<string | null> {
+    const uniqueSources = sources
+      .map(source => source?.trim())
+      .filter((source): source is string => Boolean(source))
+      .filter((source, index, all) => all.indexOf(source) === index);
+
+    for (const source of uniqueSources) {
+      const result = await this.getBackgroundContentUrl(source, movieId, movieType);
+      if (result) return result;
+    }
+
+    return null;
   }
 
   async getPosterUrl(

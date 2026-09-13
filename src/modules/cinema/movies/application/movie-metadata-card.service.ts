@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { MovieTypesEnum } from '@/common/types/types';
 import { MoviesService } from '@/movies/application/movies.service';
 import { MovieEntity } from '@/movies/domain/movie.entity';
+import { buildPoiskkinoTrailerPlayerUrl } from '@/movies/application/poiskkino-trailer.util';
 import {
   MovieAvailabilityStatus,
   MovieCreateDto,
@@ -210,13 +211,22 @@ export class MovieMetadataCardService {
     const shouldHydrateBackground = !this.hasProcessedPreviewClip(movie.backgroundContentUrl);
     const shouldHydratePoster = !this.hasProcessedImage(movie.previewUrl);
     const shouldHydrateTitle = !this.hasProcessedImage(movie.titleUrl);
-    const trailerSourceUrl = metadata.trailerUrl || movie.trailerUrl;
+    const trailerSourceUrls = [
+      buildPoiskkinoTrailerPlayerUrl(movie.kpId),
+      metadata.trailerUrl,
+      movie.trailerUrl,
+      metadata.backdropUrl,
+    ];
     const posterSourceUrl = metadata.posterUrl || movie.previewUrl;
 
     const [backgroundContentUrl, posterUrl, titleUrl] = await Promise.all([
       shouldHydrateBackground
         ? this.getAssetUrlOrNull(() =>
-            this.moviesService.getBackgroundContentUrl(trailerSourceUrl, movieId, movieType),
+            this.moviesService.getBackgroundContentUrlFromSources(
+              trailerSourceUrls,
+              movieId,
+              movieType,
+            ),
           )
         : Promise.resolve(null),
       shouldHydratePoster
@@ -265,7 +275,10 @@ export class MovieMetadataCardService {
     try {
       const hostname = new URL(value).hostname.toLowerCase().replace(/^www\./, '');
       return (
-        hostname === 'youtube.com' || hostname.endsWith('.youtube.com') || hostname === 'youtu.be'
+        hostname === 'youtube.com' ||
+        hostname.endsWith('.youtube.com') ||
+        hostname === 'youtu.be' ||
+        hostname === 'play.poiskkino.dev'
       );
     } catch {
       return false;

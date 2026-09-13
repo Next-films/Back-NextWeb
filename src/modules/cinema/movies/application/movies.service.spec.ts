@@ -1,4 +1,6 @@
 import { MoviesService } from '@/movies/application/movies.service';
+import { buildPoiskkinoTrailerPlayerUrl } from '@/movies/application/poiskkino-trailer.util';
+import { MovieTypesEnum } from '@/common/types/types';
 import { MovieAvailabilityStatus, MovieHandleStatus } from '@/movies/domain/types';
 
 describe('MoviesService', () => {
@@ -9,6 +11,69 @@ describe('MoviesService', () => {
     null as never,
     null as never,
   );
+
+  it('prefers the Poiskkino player over a YouTube trailer', () => {
+    const trailerUrl = service.getKinopoiskTrailerUrl({
+      videos: {
+        trailers: [
+          {
+            site: 'youtube',
+            url: 'https://www.youtube.com/watch?v=fallback',
+            type: 'TRAILER',
+          },
+          {
+            site: 'kinopoisk',
+            url: 'https://play.poiskkino.dev/embed/535341',
+            type: 'TRAILER',
+          },
+        ],
+      },
+    } as never);
+
+    expect(trailerUrl).toBe('https://play.poiskkino.dev/embed/535341');
+  });
+
+  it('uses YouTube when Kinopoisk has no supported player source', () => {
+    const trailerUrl = service.getKinopoiskTrailerUrl({
+      videos: {
+        trailers: [
+          {
+            site: 'youtube',
+            url: 'https://www.youtube.com/watch?v=fallback',
+            type: 'TRAILER',
+          },
+        ],
+      },
+    } as never);
+
+    expect(trailerUrl).toBe('https://www.youtube.com/watch?v=fallback');
+  });
+
+  it('builds the native Poiskkino player URL for films and serials', () => {
+    expect(buildPoiskkinoTrailerPlayerUrl('535341')).toBe(
+      'https://play.poiskkino.dev/embed/535341',
+    );
+    expect(buildPoiskkinoTrailerPlayerUrl('5024113')).toBe(
+      'https://play.poiskkino.dev/embed/5024113',
+    );
+  });
+
+  it('falls back to the next trailer source when the native player is unavailable', async () => {
+    const getBackgroundContentUrl = jest
+      .spyOn(service, 'getBackgroundContentUrl')
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce('https://cdn.example/background.webm');
+
+    const result = await service.getBackgroundContentUrlFromSources(
+      ['https://play.poiskkino.dev/embed/535341', 'https://www.youtube.com/watch?v=fallback'],
+      42,
+      MovieTypesEnum.FILM,
+    );
+
+    expect(result).toBe('https://cdn.example/background.webm');
+    expect(getBackgroundContentUrl).toHaveBeenCalledTimes(2);
+    getBackgroundContentUrl.mockRestore();
+  });
 
   it('keeps playable movies without Russian description and processed trailer in moderation', () => {
     const movie = {

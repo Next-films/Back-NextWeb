@@ -90,9 +90,11 @@ describe('MovieMetadataCardService', () => {
 
   it('publishes upcoming cards only after required assets are converted', async () => {
     const moviesService = {
-      getBackgroundContentUrl: jest.fn((url: string | null) =>
+      getBackgroundContentUrlFromSources: jest.fn((urls: Array<string | null>) =>
         Promise.resolve(
-          url ? 'https://cdn.example/preview-clip/film/42/preview_clip/background.webm' : null,
+          urls.some(Boolean)
+            ? 'https://cdn.example/preview-clip/film/42/preview_clip/background.webm'
+            : null,
         ),
       ),
       getPosterUrl: jest.fn(() => Promise.resolve('https://cdn.example/poster.webp')),
@@ -139,8 +141,13 @@ describe('MovieMetadataCardService', () => {
       MovieTypesEnum.FILM,
     );
 
-    expect(moviesService.getBackgroundContentUrl).toHaveBeenCalledWith(
-      'https://youtube.com/watch?v=test',
+    expect(moviesService.getBackgroundContentUrlFromSources).toHaveBeenCalledWith(
+      [
+        'https://play.poiskkino.dev/embed/1264562',
+        'https://youtube.com/watch?v=test',
+        'https://youtube.com/watch?v=test',
+        'https://image.example/backdrop.jpg',
+      ],
       42,
       MovieTypesEnum.FILM,
     );
@@ -196,7 +203,7 @@ describe('MovieMetadataCardService', () => {
 
   it('uses the YouTube trailer when trailer conversion fails', async () => {
     const moviesService = {
-      getBackgroundContentUrl: jest.fn(() => Promise.resolve(null)),
+      getBackgroundContentUrlFromSources: jest.fn(() => Promise.resolve(null)),
       getPosterUrl: jest.fn(() => Promise.resolve('https://cdn.example/poster.webp')),
       getLogoUrl: jest.fn(() => Promise.resolve('https://cdn.example/logo.webp')),
     };
@@ -243,9 +250,11 @@ describe('MovieMetadataCardService', () => {
 
   it('does not hydrate horizontal preview for upcoming cards', async () => {
     const moviesService = {
-      getBackgroundContentUrl: jest.fn((url: string | null) => {
+      getBackgroundContentUrlFromSources: jest.fn((urls: Array<string | null>) => {
         return Promise.resolve(
-          url ? 'https://cdn.example/preview-clip/film/42/preview_clip/background.webm' : null,
+          urls.some(Boolean)
+            ? 'https://cdn.example/preview-clip/film/42/preview_clip/background.webm'
+            : null,
         );
       }),
       getPosterUrl: jest.fn(() => Promise.resolve('https://cdn.example/poster.webp')),
@@ -292,9 +301,14 @@ describe('MovieMetadataCardService', () => {
       MovieTypesEnum.FILM,
     );
 
-    expect(moviesService.getBackgroundContentUrl).toHaveBeenCalledTimes(1);
-    expect(moviesService.getBackgroundContentUrl).toHaveBeenCalledWith(
-      'https://youtube.com/watch?v=test',
+    expect(moviesService.getBackgroundContentUrlFromSources).toHaveBeenCalledTimes(1);
+    expect(moviesService.getBackgroundContentUrlFromSources).toHaveBeenCalledWith(
+      [
+        'https://play.poiskkino.dev/embed/1264562',
+        'https://youtube.com/watch?v=test',
+        'https://youtube.com/watch?v=test',
+        'https://image.example/backdrop.jpg',
+      ],
       42,
       MovieTypesEnum.FILM,
     );
@@ -305,7 +319,7 @@ describe('MovieMetadataCardService', () => {
 
   it('skips already processed assets when rehydrating existing upcoming cards', async () => {
     const moviesService = {
-      getBackgroundContentUrl: jest.fn(),
+      getBackgroundContentUrlFromSources: jest.fn(),
       getPosterUrl: jest.fn(),
       getLogoUrl: jest.fn(),
     };
@@ -344,7 +358,7 @@ describe('MovieMetadataCardService', () => {
       MovieTypesEnum.FILM,
     );
 
-    expect(moviesService.getBackgroundContentUrl).not.toHaveBeenCalled();
+    expect(moviesService.getBackgroundContentUrlFromSources).not.toHaveBeenCalled();
     expect(moviesService.getPosterUrl).not.toHaveBeenCalled();
     expect(moviesService.getLogoUrl).not.toHaveBeenCalled();
     expect(movie.handleStatus).toBe(MovieHandleStatus.PRODUCTION);
@@ -353,7 +367,7 @@ describe('MovieMetadataCardService', () => {
 
   it('keeps processed vertical preview without checking copied horizontal preview', async () => {
     const moviesService = {
-      getBackgroundContentUrl: jest.fn(),
+      getBackgroundContentUrlFromSources: jest.fn(),
       getPosterUrl: jest.fn(() => Promise.resolve('https://cdn.example/poster.webp')),
       getLogoUrl: jest.fn(),
     };
@@ -399,7 +413,7 @@ describe('MovieMetadataCardService', () => {
       MovieTypesEnum.FILM,
     );
 
-    expect(moviesService.getBackgroundContentUrl).not.toHaveBeenCalled();
+    expect(moviesService.getBackgroundContentUrlFromSources).not.toHaveBeenCalled();
     expect(moviesService.getPosterUrl).not.toHaveBeenCalled();
     expect(moviesService.getLogoUrl).not.toHaveBeenCalled();
     expect(movie.previewUrl).toBe('https://cdn.example/duplicated.webp');
