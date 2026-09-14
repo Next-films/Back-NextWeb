@@ -49,6 +49,11 @@ export enum AdminPremiereHandleStatusEnum {
   PRODUCTION = MovieHandleStatus.PRODUCTION,
 }
 
+export enum AdminReprocessMediaScopeEnum {
+  PREMIERES = 'premieres',
+  ALL = 'all',
+}
+
 export class AdminGetPremieresInputQueryDto extends QuerySortFilterUtil {
   @ApiPropertyOptional({
     enum: AdminGetPremieresSortFieldEnum,
@@ -106,6 +111,14 @@ export class AdminReprocessPremiereAssetsInputDto {
   dryRun?: boolean = false;
 
   @ApiPropertyOptional({
+    enum: AdminReprocessMediaScopeEnum,
+    default: AdminReprocessMediaScopeEnum.PREMIERES,
+  })
+  @IsOptional()
+  @IsEnum(AdminReprocessMediaScopeEnum)
+  scope?: AdminReprocessMediaScopeEnum = AdminReprocessMediaScopeEnum.PREMIERES;
+
+  @ApiPropertyOptional({
     enum: AdminPremiereTypeEnum,
     default: AdminPremiereTypeEnum.ALL,
   })
@@ -125,6 +138,20 @@ export class AdminReprocessPremiereAssetsInputDto {
   @IsOptional()
   @IsBoolean()
   onlyMissingAssets?: boolean = true;
+
+  @ApiPropertyOptional({ minimum: 1 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  movieId?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Trim()
+  @IsString()
+  @IsNotEmpty()
+  kpId?: string;
 
   @ApiPropertyOptional({ default: 50, minimum: 1, maximum: 100 })
   @IsOptional()

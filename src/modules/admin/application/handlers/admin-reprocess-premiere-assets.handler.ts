@@ -10,6 +10,7 @@ import { LoggerService } from '@/common/utils/logger/logger.service';
 import {
   AdminPremiereHandleStatusEnum,
   AdminPremiereTypeEnum,
+  AdminReprocessMediaScopeEnum,
   AdminReprocessPremiereAssetsInputDto,
 } from '@/admin/api/dtos/input/admin-get-premieres.input-query.dto';
 import { AdminReprocessPremiereAssetsOutputDto } from '@/admin/api/dtos/output/admin-reprocess-premiere-assets.output.dto';
@@ -24,6 +25,7 @@ import { MovieHandleStatus } from '@/movies/domain/types';
 import { Film } from '@/films/domain/film.entity';
 import { Cartoon } from '@/cartoons/domain/cartoon.entity';
 import { Serial } from '@/serials/domain/serial.entity';
+import { MovieEntity } from '@/movies/domain/movie.entity';
 
 const REPROCESS_METADATA_CONCURRENCY = 5;
 
@@ -74,6 +76,8 @@ export class AdminReprocessPremiereAssetsCommandHandler
         trailersUpdated: 0,
         descriptionsUpdated: 0,
         backgroundsUpdated: 0,
+        postersUpdated: 0,
+        titlesUpdated: 0,
         unchanged: 0,
         published: 0,
         moderated: 0,
@@ -86,9 +90,14 @@ export class AdminReprocessPremiereAssetsCommandHandler
         return this.appNotification.success(result);
       }
 
-      await this.processInChunks(rows, row =>
-        this.reprocessPremiereMetadata(row, result, onlyMissingMetadata),
-      );
+      const reprocess =
+        command.inputDto.scope === AdminReprocessMediaScopeEnum.ALL
+          ? (row: ReprocessPremiereRow) =>
+              this.reprocessLibraryMetadata(row, result, onlyMissingMetadata)
+          : (row: ReprocessPremiereRow) =>
+              this.reprocessPremiereMetadata(row, result, onlyMissingMetadata);
+
+      await this.processInChunks(rows, reprocess);
 
       return this.appNotification.success(result);
     } catch (error) {
@@ -100,6 +109,10 @@ export class AdminReprocessPremiereAssetsCommandHandler
   private async getPremieresForReprocess(
     inputDto: AdminReprocessPremiereAssetsInputDto,
   ): Promise<ReprocessPremiereRow[]> {
+    if (inputDto.scope === AdminReprocessMediaScopeEnum.ALL) {
+      return this.getLibraryForReprocess(inputDto);
+    }
+
     const limit = inputDto.limit ?? 50;
     const type = inputDto.type ?? AdminPremiereTypeEnum.ALL;
     const handleStatus = inputDto.handleStatus ?? AdminPremiereHandleStatusEnum.MODERATE;
@@ -150,6 +163,83 @@ export class AdminReprocessPremiereAssetsCommandHandler
       `
         SELECT "id", "type", "kpId", "trailerUrl", "description", "backgroundContentUrl"
         FROM (${queries.join(' UNION ALL ')}) premieres
+        ORDER BY "updatedAt" ASC NULLS FIRST, "releaseDate" ASC NULLS LAST, "id" ASC
+        LIMIT $${values.length}
+      `,
+      values,
+    );
+  }
+
+  private async getLibraryForReprocess(
+    inputDto: AdminReprocessPremiereAssetsInputDto,
+  ): Promise<ReprocessPremiereRow[]> {
+    const limit = inputDto.limit ?? 50;
+    const values: unknown[] = [];
+    const queries = this.tables(inputDto.type).map(table => {
+      const conditions = ['m."kpId" IS NOT NULL', `btrim(m."kpId") <> ''`];
+
+      if (inputDto.handleStatus && inputDto.handleStatus !== AdminPremiereHandleStatusEnum.ALL) {
+        values.push(inputDto.handleStatus);
+        conditions.push(`m."handleStatus" = $${values.length}`);
+      }
+
+      if (inputDto.movieId) {
+        values.push(inputDto.movieId);
+        conditions.push(`m."id" = $${values.length}`);
+      }
+
+      if (inputDto.kpId) {
+        values.push(inputDto.kpId);
+        conditions.push(`m."kpId" = $${values.length}`);
+      }
+
+      if (inputDto.onlyMissingAssets ?? true) {
+        conditions.push(`(
+          m."title" IS NULL
+          OR btrim(m."title") = ''
+          OR lower(btrim(m."title")) = 'unknown'
+          OR m."description" IS NULL
+          OR btrim(m."description") = ''
+          OR m."description" !~ '[А-Яа-яЁё]'
+          OR m."country" IS NULL
+          OR cardinality(m."country") = 0
+          OR m."releaseDate" IS NULL
+          OR m."previewUrl" IS NULL
+          OR btrim(m."previewUrl") = ''
+          OR m."trailerUrl" IS NULL
+          OR btrim(m."trailerUrl") = ''
+          OR lower(split_part(m."trailerUrl", '?', 1)) NOT LIKE '%/trailer/trailer.mp4'
+          OR m."backgroundContentUrl" IS NULL
+          OR btrim(m."backgroundContentUrl") = ''
+          OR lower(split_part(m."backgroundContentUrl", '?', 1)) NOT LIKE '%.webm'
+          OR NOT EXISTS (
+            SELECT 1
+            FROM "${table.table}_genres_genre" mg
+            WHERE mg."${table.table}Id" = m."id"
+          )
+        )`);
+      }
+
+      return `
+        SELECT
+          m."id" AS "id",
+          '${table.type}' AS "type",
+          m."kpId" AS "kpId",
+          m."trailerUrl" AS "trailerUrl",
+          m."description" AS "description",
+          m."backgroundContentUrl" AS "backgroundContentUrl",
+          m."releaseDate" AS "releaseDate",
+          m."updatedAt" AS "updatedAt"
+        FROM "${table.table}" m
+        WHERE ${conditions.join(' AND ')}
+      `;
+    });
+
+    values.push(limit);
+    return this.dataSource.query<ReprocessPremiereRow[]>(
+      `
+        SELECT "id", "type", "kpId", "trailerUrl", "description", "backgroundContentUrl"
+        FROM (${queries.join(' UNION ALL ')}) media
         ORDER BY "updatedAt" ASC NULLS FIRST, "releaseDate" ASC NULLS LAST, "id" ASC
         LIMIT $${values.length}
       `,
@@ -264,6 +354,194 @@ export class AdminReprocessPremiereAssetsCommandHandler
     if (updated.trailerUpdated) result.trailersUpdated++;
     if (updated.descriptionUpdated) result.descriptionsUpdated++;
     if (updated.backgroundUpdated) result.backgroundsUpdated++;
+  }
+
+  private async reprocessLibraryMetadata(
+    row: ReprocessPremiereRow,
+    result: AdminReprocessPremiereAssetsOutputDto,
+    onlyMissingMetadata: boolean,
+  ): Promise<void> {
+    try {
+      await this.reprocessLibraryMetadataUnsafe(row, result, onlyMissingMetadata);
+    } catch (error) {
+      result.failed++;
+      result.errors.push(`${row.type}:${row.kpId || row.id} ${String(error)}`);
+      this.logger.warn(String(error), this.reprocessLibraryMetadata.name);
+    }
+  }
+
+  private async reprocessLibraryMetadataUnsafe(
+    row: ReprocessPremiereRow,
+    result: AdminReprocessPremiereAssetsOutputDto,
+    onlyMissingMetadata: boolean,
+  ): Promise<void> {
+    if (!row.kpId) throw new Error('Media has no kpId');
+
+    const repository = this.dataSource.getRepository<MovieEntity>(this.entityTarget(row.type));
+    const movie = await repository.findOne({
+      where: { id: Number(row.id) },
+      relations: { genres: true },
+    });
+
+    if (!movie) throw new Error('Media not found');
+
+    const kpMovie = await this.kinopoiskService.getMovieById(Number(row.kpId));
+    if (!kpMovie) throw new Error('Kinopoisk metadata is unavailable');
+
+    const metadata = await this.moviesService.extractMovieMetadata(kpMovie);
+    await this.externalMovieAssetsService.enrichUpcomingMetadata(
+      metadata,
+      kpMovie,
+      this.movieType(row.type),
+    );
+
+    if (!metadata.name) throw new Error('Kinopoisk metadata has no title');
+
+    const previous = {
+      title: movie.title,
+      originalTitle: movie.originalTitle,
+      alternativeTitles: movie.alternativeTitles,
+      description: movie.description,
+      country: movie.country,
+      releaseDate: movie.releaseDate,
+      universe: movie.universe,
+      studio: movie.studio,
+      genres: (movie.genres || []).map(genre => genre.id).sort(),
+      previewUrl: movie.previewUrl,
+      titleUrl: movie.titleUrl,
+      trailerUrl: movie.trailerUrl,
+      backgroundContentUrl: movie.backgroundContentUrl,
+      handleStatus: movie.handleStatus,
+      isHidden: movie.isHidden,
+    };
+
+    this.mergeLibraryMetadata(movie, metadata, onlyMissingMetadata);
+
+    const movieType = this.movieType(row.type);
+    const shouldRefreshBackground =
+      !onlyMissingMetadata ||
+      !this.hasProcessedPreviewClip(movie.backgroundContentUrl) ||
+      !this.hasProcessedTrailer(movie.trailerUrl);
+    const shouldRefreshPoster = !onlyMissingMetadata || !this.hasProcessedImage(movie.previewUrl);
+    const shouldRefreshTitle = !onlyMissingMetadata || !this.hasProcessedImage(movie.titleUrl);
+    const trailerSources = [
+      buildPoiskkinoTrailerPlayerUrl(row.kpId),
+      metadata.trailerUrl,
+      movie.trailerUrl,
+      metadata.backdropUrl,
+    ];
+
+    const [backgroundContentUrl, previewUrl, titleUrl] = await Promise.all([
+      shouldRefreshBackground
+        ? this.moviesService.getBackgroundContentUrlFromSources(trailerSources, movie.id, movieType)
+        : Promise.resolve(null),
+      shouldRefreshPoster && metadata.posterUrl
+        ? this.moviesService.getPosterUrl(metadata.posterUrl, movie.id, movieType)
+        : Promise.resolve(null),
+      shouldRefreshTitle && metadata.titleUrl
+        ? this.moviesService.getLogoUrl(metadata.titleUrl, movie.id, movieType)
+        : Promise.resolve(null),
+    ]);
+
+    movie.updateBackgroundUrl(backgroundContentUrl);
+    movie.updatePosterUrl(previewUrl);
+    movie.updateTitleUrl(titleUrl);
+
+    const processedTrailerUrl = this.moviesService.getProcessedTrailerUrl(
+      backgroundContentUrl || movie.backgroundContentUrl,
+    );
+    if (processedTrailerUrl) movie.updateTrailerUrl(processedTrailerUrl);
+    else if (
+      !movie.trailerUrl &&
+      this.moviesService.isPlayablePremiereTrailer(metadata.trailerUrl)
+    ) {
+      movie.updateTrailerUrl(metadata.trailerUrl);
+    }
+
+    if (this.moviesService.isPremiereWithoutVideo(movie)) {
+      this.moviesService.setHandleProductionStatusForPremiere(movie);
+    } else {
+      this.moviesService.setHandleProductionStatus(movie);
+    }
+
+    movie.updatedAt = new Date();
+    await repository.save(movie);
+
+    const descriptionUpdated = previous.description !== movie.description;
+    const trailerUpdated = previous.trailerUrl !== movie.trailerUrl;
+    const backgroundUpdated = previous.backgroundContentUrl !== movie.backgroundContentUrl;
+    const posterUpdated = previous.previewUrl !== movie.previewUrl;
+    const titleUpdated = previous.titleUrl !== movie.titleUrl;
+    const currentComparable = {
+      title: movie.title,
+      originalTitle: movie.originalTitle,
+      alternativeTitles: movie.alternativeTitles,
+      description: movie.description,
+      country: movie.country,
+      releaseDate: movie.releaseDate,
+      universe: movie.universe,
+      studio: movie.studio,
+      genres: (movie.genres || []).map(genre => genre.id).sort(),
+      previewUrl: movie.previewUrl,
+      titleUrl: movie.titleUrl,
+      trailerUrl: movie.trailerUrl,
+      backgroundContentUrl: movie.backgroundContentUrl,
+      handleStatus: movie.handleStatus,
+      isHidden: movie.isHidden,
+    };
+    const changed = JSON.stringify(previous) !== JSON.stringify(currentComparable);
+
+    if (!changed) {
+      result.unchanged++;
+      return;
+    }
+
+    result.processed++;
+    if (descriptionUpdated) result.descriptionsUpdated++;
+    if (trailerUpdated) result.trailersUpdated++;
+    if (backgroundUpdated) result.backgroundsUpdated++;
+    if (posterUpdated) result.postersUpdated++;
+    if (titleUpdated) result.titlesUpdated++;
+    if (movie.handleStatus === MovieHandleStatus.PRODUCTION) result.published++;
+    else result.moderated++;
+  }
+
+  private mergeLibraryMetadata(
+    movie: MovieEntity,
+    metadata: MovieKpMetadata,
+    onlyMissingMetadata: boolean,
+  ): void {
+    if (!onlyMissingMetadata || !this.hasValidTitle(movie.title)) movie.title = metadata.name!;
+    if (metadata.originalName && (!onlyMissingMetadata || !this.hasText(movie.originalTitle))) {
+      movie.originalTitle = metadata.originalName;
+    }
+    if (
+      metadata.alternativeName &&
+      (!onlyMissingMetadata || !this.hasText(movie.alternativeTitles))
+    ) {
+      movie.alternativeTitles = metadata.alternativeName;
+    }
+    if (
+      this.moviesService.hasRussianText(metadata.description) &&
+      (!onlyMissingMetadata || !this.moviesService.hasRussianText(movie.description))
+    ) {
+      movie.description = metadata.description;
+    }
+    if (metadata.countries?.length && (!onlyMissingMetadata || !movie.country?.length)) {
+      movie.country = metadata.countries;
+    }
+    if (metadata.releaseDate && (!onlyMissingMetadata || !movie.releaseDate)) {
+      movie.releaseDate = metadata.releaseDate;
+    }
+    if (metadata.universe && (!onlyMissingMetadata || !movie.universe)) {
+      movie.universe = metadata.universe;
+    }
+    if (metadata.studio && (!onlyMissingMetadata || !movie.studio)) {
+      movie.studio = metadata.studio;
+    }
+    if (metadata.genres?.length && (!onlyMissingMetadata || !movie.genres?.length)) {
+      movie.genres = metadata.genres;
+    }
   }
 
   private async processInChunks<T>(items: T[], handler: (item: T) => Promise<void>): Promise<void> {
@@ -420,6 +698,14 @@ export class AdminReprocessPremiereAssetsCommandHandler
     return this.hasMediaExtension(value, '.webm');
   }
 
+  private hasProcessedImage(value: string | null | undefined): boolean {
+    return this.hasMediaExtension(value, '.webp');
+  }
+
+  private hasProcessedTrailer(value: string | null | undefined): boolean {
+    return Boolean(value?.toLowerCase().split('?')[0].endsWith('/trailer/trailer.mp4'));
+  }
+
   private hasMediaExtension(value: string | null | undefined, extension: string): boolean {
     if (!value?.trim()) return false;
 
@@ -469,6 +755,10 @@ export class AdminReprocessPremiereAssetsCommandHandler
 
   private hasText(value: string | null | undefined): boolean {
     return Boolean(value?.trim());
+  }
+
+  private hasValidTitle(value: string | null | undefined): boolean {
+    return Boolean(value?.trim() && value.trim().toLowerCase() !== 'unknown');
   }
 
   private createMetadata(kpMovie: KinopoiskMovie): MovieKpMetadata {
