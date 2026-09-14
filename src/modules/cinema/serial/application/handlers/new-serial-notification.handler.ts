@@ -73,6 +73,11 @@ export class NewSerialNotificationCommandHandler
         this.kinopoiskService.getMovieById(Number(kpId)),
         this.serialRepository.getSerialByKinopoiskId(kpId, queryRunner),
       ]);
+
+      if (!kpMovie) {
+        throw new Error(`Kinopoisk metadata is unavailable for serial kpId ${kpId}`);
+      }
+
       let existingSerial = existingSerialRaw;
 
       if (existingSerial) {
@@ -102,6 +107,10 @@ export class NewSerialNotificationCommandHandler
       }
 
       const metadata = await this.moviesService.extractMovieMetadata(kpMovie, queryRunner);
+
+      if (!metadata.name) {
+        throw new Error(`Kinopoisk returned incomplete metadata for serial kpId ${kpId}`);
+      }
 
       if (kpMovie) {
         await this.externalMovieAssetsService.enrichUpcomingDescription(

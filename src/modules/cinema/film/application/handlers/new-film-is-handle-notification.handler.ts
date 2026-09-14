@@ -82,13 +82,18 @@ export class NewFilmIsHandleNotificationCommandHandler
       return;
     }
 
-    const { name } = kpMovie;
+    const name = kpMovie.name || kpMovie.alternativeName || kpMovie.enName;
+
+    if (!name) {
+      this.logger.warn('Film metadata has no title', this.processFilm.name);
+      return;
+    }
 
     const filmDto: FilmCreateDto = {
       key: null,
       kpId,
       duration: 0,
-      name: name || 'unknown',
+      name,
       originalName: null,
       hidden: true,
       genres: null,

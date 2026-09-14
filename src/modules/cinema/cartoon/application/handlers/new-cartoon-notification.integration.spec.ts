@@ -536,7 +536,7 @@ describe('NewCartoonNotificationCommandHandler (integration)', () => {
     expect(cartoon6?.country).toBeNull();
   });
 
-  it('should add new cartoon without metadata with moderation, kp movie not found', async () => {
+  it('should retry instead of saving empty cartoon metadata when kp movie is unavailable', async () => {
     const kinopoiskServiceSpy = jest.spyOn(kinopoiskService, 'getMovieById');
     kinopoiskServiceSpy.mockResolvedValue(null);
 
@@ -550,22 +550,19 @@ describe('NewCartoonNotificationCommandHandler (integration)', () => {
     kinopoiskServiceSpy.mockRestore();
 
     try {
-      expect(result.appResult).toBe(AppNotificationResultEnum.Success);
+      expect(result.appResult).toBe(AppNotificationResultEnum.InternalError);
       expect(cartoonRepositoryGetFilmByKpIdSpy).toHaveBeenCalled();
-      expect(cartoonRepositorySaveSpy).toHaveBeenCalled();
+      expect(cartoonRepositorySaveSpy).not.toHaveBeenCalled();
     } finally {
       cartoonRepositorySaveSpy.mockRestore();
       cartoonRepositoryGetFilmByKpIdSpy.mockRestore();
     }
     const cartoon = await cartoonRepository.getCartoonByKinopoiskId('1');
 
-    expect(cartoon).toBeDefined();
-    expect(cartoon?.isHidden).toBeTruthy();
-    expect(cartoon?.handleStatus).toBe(MovieHandleStatus.MODERATE);
+    expect(cartoon).toBeNull();
 
     const moderation = await moderationCartoonRepository.getAllModeration();
 
-    expect(moderation).toHaveLength(1);
-    expect(moderation[0].movieId).toBe(1);
+    expect(moderation).toHaveLength(0);
   });
 });

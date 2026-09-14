@@ -80,7 +80,16 @@ export class NewCartoonNotificationCommandHandler
         });
       }
 
+      if (!kpMovie) {
+        throw new Error(`Kinopoisk metadata is unavailable for cartoon kpId ${kpId}`);
+      }
+
       const metadata = await this.moviesService.extractMovieMetadata(kpMovie, queryRunner);
+
+      if (!metadata.name) {
+        throw new Error(`Kinopoisk returned incomplete metadata for cartoon kpId ${kpId}`);
+      }
+
       const previousHandleStatus = existingCartoon?.handleStatus ?? null;
 
       const cartoon = existingCartoon

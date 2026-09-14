@@ -85,13 +85,18 @@ export class NewSerialIsHandleNotificationCommandHandler
       return;
     }
 
-    const { name } = kpMovie;
+    const name = kpMovie.name || kpMovie.alternativeName || kpMovie.enName;
+
+    if (!name) {
+      this.logger.warn('Serial metadata has no title', this.processSerial.name);
+      return;
+    }
 
     const serialDto: SerialCreateDto = {
       key: null,
       kpId,
       duration: 0,
-      name: name || 'unknown',
+      name,
       originalName: null,
       hidden: true,
       genres: null,

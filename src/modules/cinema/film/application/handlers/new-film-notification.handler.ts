@@ -80,7 +80,16 @@ export class NewFilmNotificationCommandHandler
         });
       }
 
+      if (!kpMovie) {
+        throw new Error(`Kinopoisk metadata is unavailable for film kpId ${kpId}`);
+      }
+
       const metadata = await this.moviesService.extractMovieMetadata(kpMovie, queryRunner);
+
+      if (!metadata.name) {
+        throw new Error(`Kinopoisk returned incomplete metadata for film kpId ${kpId}`);
+      }
+
       const previousHandleStatus = existingFilm?.handleStatus ?? null;
 
       const film = existingFilm

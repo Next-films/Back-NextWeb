@@ -512,7 +512,7 @@ describe('NewFilmNotificationCommandHandler (integration)', () => {
     expect(film6?.country).toBeNull();
   });
 
-  it('should add new film without metadata with moderation, kp movie not found', async () => {
+  it('should retry instead of saving empty film metadata when kp movie is unavailable', async () => {
     const kinopoiskServiceSpy = jest.spyOn(kinopoiskService, 'getMovieById');
 
     kinopoiskServiceSpy.mockResolvedValue(null);
@@ -525,9 +525,9 @@ describe('NewFilmNotificationCommandHandler (integration)', () => {
     kinopoiskServiceSpy.mockRestore();
 
     try {
-      expect(result.appResult).toBe(AppNotificationResultEnum.Success);
+      expect(result.appResult).toBe(AppNotificationResultEnum.InternalError);
       expect(filmRepositoryGetFilmByKpIdSpy).toHaveBeenCalled();
-      expect(filmRepositorySaveSpy).toHaveBeenCalled();
+      expect(filmRepositorySaveSpy).not.toHaveBeenCalled();
     } finally {
       filmRepositorySaveSpy.mockRestore();
       filmRepositoryGetFilmByKpIdSpy.mockRestore();
@@ -535,13 +535,10 @@ describe('NewFilmNotificationCommandHandler (integration)', () => {
 
     const film = await filmRepository.getFilmByKinopoiskId('1');
 
-    expect(film).toBeDefined();
-    expect(film?.isHidden).toBeTruthy();
-    expect(film?.handleStatus).toBe(MovieHandleStatus.MODERATE);
+    expect(film).toBeNull();
 
     const moderation = await moderationFilmRepository.getAllModeration();
 
-    expect(moderation).toHaveLength(1);
-    expect(moderation[0].movieId).toBe(1);
+    expect(moderation).toHaveLength(0);
   });
 });
