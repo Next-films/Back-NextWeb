@@ -10,6 +10,8 @@ describe('AdminReprocessPremiereAssetsCommandHandler', () => {
     null as never,
     {
       hasRussianText: (value: string | null) => Boolean(value && /[А-Яа-яЁё]/.test(value)),
+      isPlayablePremiereTrailer: (value: string | null) =>
+        Boolean(value && /(?:youtube\.com|youtu\.be|\/trailer\/trailer\.mp4)/.test(value)),
     } as never,
     null as never,
     null as never,
@@ -119,5 +121,26 @@ describe('AdminReprocessPremiereAssetsCommandHandler', () => {
       expect.stringContaining('serial:5024113'),
       'getOptionalLibraryAsset',
     );
+  });
+
+  it('clears a stale player URL when no working trailer was found', () => {
+    const subject = handler as unknown as {
+      shouldUpdateTrailerUrl: (
+        currentValue: string | null,
+        nextValue: string | null,
+        onlyMissingMetadata: boolean,
+      ) => boolean;
+    };
+
+    expect(
+      subject.shouldUpdateTrailerUrl(
+        'https://play.poiskkino.dev/embed/6a64d4a7e0be6ddbcf1111e3',
+        null,
+        true,
+      ),
+    ).toBe(true);
+    expect(
+      subject.shouldUpdateTrailerUrl('https://www.youtube.com/watch?v=working', null, true),
+    ).toBe(false);
   });
 });

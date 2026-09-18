@@ -11,7 +11,7 @@ describe('MoviesService', () => {
     null as never,
   );
 
-  it('prefers the Poiskkino player over a YouTube trailer', () => {
+  it('ignores unavailable Poiskkino embeds and uses a YouTube trailer', () => {
     const trailerUrl = service.getKinopoiskTrailerUrl({
       videos: {
         trailers: [
@@ -29,7 +29,7 @@ describe('MoviesService', () => {
       },
     } as never);
 
-    expect(trailerUrl).toBe('https://play.poiskkino.dev/embed/535341');
+    expect(trailerUrl).toBe('https://www.youtube.com/watch?v=fallback');
   });
 
   it('uses YouTube when Kinopoisk has no supported player source', () => {
@@ -46,6 +46,17 @@ describe('MoviesService', () => {
     } as never);
 
     expect(trailerUrl).toBe('https://www.youtube.com/watch?v=fallback');
+  });
+
+  it('does not expose unavailable Poiskkino embeds as playable trailers', () => {
+    expect(
+      service.isPlayablePremiereTrailer(
+        'https://play.poiskkino.dev/embed/6a64d4a7e0be6ddbcf1111e3',
+      ),
+    ).toBe(false);
+    expect(service.isPlayablePremiereTrailer('https://www.youtube.com/watch?v=fallback')).toBe(
+      true,
+    );
   });
 
   it('falls back to the next trailer source when the native player is unavailable', async () => {

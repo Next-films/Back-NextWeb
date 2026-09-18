@@ -188,10 +188,7 @@ export class MoviesService {
     try {
       const hostname = new URL(value).hostname.toLowerCase().replace(/^www\./, '');
       return (
-        hostname === 'youtube.com' ||
-        hostname.endsWith('.youtube.com') ||
-        hostname === 'youtu.be' ||
-        hostname === 'play.poiskkino.dev'
+        hostname === 'youtube.com' || hostname.endsWith('.youtube.com') || hostname === 'youtu.be'
       );
     } catch {
       return false;
@@ -307,7 +304,6 @@ export class MoviesService {
   private getTrailerSourcePriority(trailer: KinopoiskVideo): number {
     const url = trailer.url?.trim() || '';
 
-    if (this.isPoiskkinoTrailerSource(url)) return 3;
     if (this.isDirectVideoSource(url)) return 2;
     if (this.isYoutubeTrailerSource(trailer)) return 1;
     return 0;
@@ -326,17 +322,6 @@ export class MoviesService {
     const site = trailer.site?.toLowerCase() || '';
 
     return site.includes('youtube') || url.includes('youtube.com') || url.includes('youtu.be');
-  }
-
-  private isPoiskkinoTrailerSource(value: string): boolean {
-    try {
-      const url = new URL(value);
-      return (
-        url.hostname.toLowerCase() === 'play.poiskkino.dev' && url.pathname.startsWith('/embed/')
-      );
-    } catch {
-      return false;
-    }
   }
 
   private isDirectVideoSource(value: string): boolean {

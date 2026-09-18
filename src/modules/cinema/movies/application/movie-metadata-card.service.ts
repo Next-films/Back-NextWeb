@@ -269,10 +269,7 @@ export class MovieMetadataCardService {
     try {
       const hostname = new URL(value).hostname.toLowerCase().replace(/^www\./, '');
       return (
-        hostname === 'youtube.com' ||
-        hostname.endsWith('.youtube.com') ||
-        hostname === 'youtu.be' ||
-        hostname === 'play.poiskkino.dev'
+        hostname === 'youtube.com' || hostname.endsWith('.youtube.com') || hostname === 'youtu.be'
       );
     } catch {
       return false;

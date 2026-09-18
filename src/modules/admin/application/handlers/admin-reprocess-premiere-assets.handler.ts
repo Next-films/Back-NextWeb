@@ -410,6 +410,10 @@ export class AdminReprocessPremiereAssetsCommandHandler
       isHidden: movie.isHidden,
     };
 
+    if (movie.trailerUrl && !this.moviesService.isPlayablePremiereTrailer(movie.trailerUrl)) {
+      movie.updateTrailerUrl(null);
+    }
+
     this.mergeLibraryMetadata(movie, metadata, onlyMissingMetadata);
 
     const movieType = this.movieType(row.type);
@@ -600,7 +604,7 @@ export class AdminReprocessPremiereAssetsCommandHandler
     );
 
     if (trailerUpdated) {
-      params.push(metadata.trailerUrl!.trim());
+      params.push(metadata.trailerUrl?.trim() || null);
       setClauses.push(`"trailerUrl" = $${params.length}`);
     }
 
@@ -686,10 +690,11 @@ export class AdminReprocessPremiereAssetsCommandHandler
     nextValue: string | null,
     onlyMissingMetadata: boolean,
   ): boolean {
-    if (!this.moviesService.isPlayablePremiereTrailer(nextValue)) return false;
-    if (onlyMissingMetadata && this.moviesService.isPlayablePremiereTrailer(currentValue)) {
-      return false;
-    }
+    const currentIsPlayable = this.moviesService.isPlayablePremiereTrailer(currentValue);
+    const nextIsPlayable = this.moviesService.isPlayablePremiereTrailer(nextValue);
+
+    if (!nextIsPlayable) return this.hasText(currentValue) && !currentIsPlayable;
+    if (onlyMissingMetadata && currentIsPlayable) return false;
     return currentValue?.trim() !== nextValue?.trim();
   }
 
