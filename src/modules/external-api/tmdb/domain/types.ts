@@ -56,6 +56,10 @@ export type TmdbMediaDetails = {
   };
 };
 
+export type TmdbVideosResponse = {
+  results?: TmdbVideo[];
+};
+
 export type TmdbSearchResult = {
   id?: number;
   backdrop_path?: string | null;

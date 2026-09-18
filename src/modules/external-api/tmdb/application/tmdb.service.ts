@@ -17,6 +17,7 @@ import {
   TmdbSearchResponse,
   TmdbSearchResult,
   TmdbVideo,
+  TmdbVideosResponse,
 } from '@/external-api/tmdb/domain/types';
 
 type TmdbRequestConfig = {
@@ -39,6 +40,8 @@ const EMPTY_ASSET_CANDIDATES: TmdbAssetCandidates = {
   trailerUrl: null,
 };
 const TMDB_REQUEST_TIMEOUT_MS = 15_000;
+const TMDB_TRAILER_LANGUAGES = ['ru-RU', 'en-US'] as const;
+const TMDB_INCLUDED_VIDEO_LANGUAGES = 'ru,en,null';
 
 @Injectable()
 export class TmdbService {
@@ -75,7 +78,12 @@ export class TmdbService {
           tmdbId: resolvedMedia.id,
           mediaType: resolvedMedia.mediaType,
           backdropUrls: this.getBackdropUrls(details, imageConfig),
-          trailerUrl: this.getTrailerUrl(details),
+          trailerUrl: await this.getTrailerUrlByMedia(
+            requestConfig,
+            resolvedMedia.mediaType,
+            resolvedMedia.id,
+            details.videos?.results || [],
+          ),
         };
       } catch (error: unknown) {
         if (!this.shouldRetryRequest(error)) {
@@ -100,15 +108,11 @@ export class TmdbService {
         const resolvedMedia = await this.resolveMedia(requestConfig, input);
         if (!resolvedMedia) continue;
 
-        const details = await this.getMediaDetails(
+        const trailerUrl = await this.getTrailerUrlByMedia(
           requestConfig,
           resolvedMedia.mediaType,
           resolvedMedia.id,
-          false,
         );
-        if (!details) continue;
-
-        const trailerUrl = this.getTrailerUrl(details);
         if (trailerUrl) return trailerUrl;
       } catch (error: unknown) {
         if (!this.shouldRetryRequest(error)) {
@@ -326,6 +330,48 @@ export class TmdbService {
     return details?.overview?.trim() || null;
   }
 
+  private async getTrailerUrlByMedia(
+    requestConfig: TmdbRequestConfig,
+    mediaType: TmdbMediaType,
+    tmdbId: number,
+    existingVideos: TmdbVideo[] = [],
+  ): Promise<string | null> {
+    const videos = [...existingVideos];
+
+    if (mediaType === 'tv') {
+      const response = await this.httpService.axiosRef.get<TmdbVideosResponse>(
+        `/tv/${tmdbId}/videos`,
+        {
+          ...requestConfig,
+          params: {
+            ...requestConfig.params,
+            language: 'ru-RU',
+            include_video_language: TMDB_INCLUDED_VIDEO_LANGUAGES,
+          },
+        },
+      );
+      videos.push(...(response.data?.results || []));
+    } else {
+      for (const language of TMDB_TRAILER_LANGUAGES) {
+        if (language === 'en-US' && existingVideos.length) continue;
+
+        const response = await this.httpService.axiosRef.get<TmdbVideosResponse>(
+          `/movie/${tmdbId}/videos`,
+          {
+            ...requestConfig,
+            params: {
+              ...requestConfig.params,
+              language,
+            },
+          },
+        );
+        videos.push(...(response.data?.results || []));
+      }
+    }
+
+    return this.getTrailerUrl(videos);
+  }
+
   private async getImageConfig(
     requestConfig: TmdbRequestConfig,
   ): Promise<TmdbImageConfigCacheEntry> {
@@ -419,9 +465,9 @@ export class TmdbService {
     );
   }
 
-  private getTrailerUrl(details: TmdbMediaDetails): string | null {
+  private getTrailerUrl(videos: TmdbVideo[]): string | null {
     const bestTrailerKey =
-      (details.videos?.results || [])
+      videos
         .filter(video => video.key?.trim() && video.site?.toLowerCase() === 'youtube')
         .map((video, index) => ({
           key: video.key!.trim(),
@@ -439,7 +485,7 @@ export class TmdbService {
     return (
       (video.official ? 10_000 : 0) +
       (type === 'trailer' ? 1_000 : type === 'teaser' ? 500 : 0) +
-      (language === 'en' ? 200 : language === 'ru' ? 100 : 0) +
+      (language === 'ru' ? 200 : language === 'en' ? 100 : 0) +
       (Number(video.size) || 0) -
       index
     );
