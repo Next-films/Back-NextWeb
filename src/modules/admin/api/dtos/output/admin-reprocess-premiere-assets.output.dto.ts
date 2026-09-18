@@ -11,6 +11,12 @@ export class AdminReprocessPremiereAssetsOutputDto {
   trailersUpdated: number;
 
   @ApiProperty()
+  trailersAdded: number;
+
+  @ApiProperty()
+  trailersRemoved: number;
+
+  @ApiProperty()
   descriptionsUpdated: number;
 
   @ApiProperty()
@@ -33,6 +39,9 @@ export class AdminReprocessPremiereAssetsOutputDto {
 
   @ApiProperty()
   failed: number;
+
+  @ApiProperty()
+  assetWarnings: number;
 
   @ApiProperty({ type: [String] })
   errors: string[];

@@ -73,6 +73,8 @@ export class AdminReprocessPremiereAssetsCommandHandler
         selected: rows.length,
         processed: 0,
         trailersUpdated: 0,
+        trailersAdded: 0,
+        trailersRemoved: 0,
         descriptionsUpdated: 0,
         backgroundsUpdated: 0,
         postersUpdated: 0,
@@ -81,6 +83,7 @@ export class AdminReprocessPremiereAssetsCommandHandler
         published: 0,
         moderated: 0,
         failed: 0,
+        assetWarnings: 0,
         errors: [],
       };
       const onlyMissingMetadata = command.inputDto.onlyMissingAssets ?? true;
@@ -315,6 +318,7 @@ export class AdminReprocessPremiereAssetsCommandHandler
       row,
       trailerSourceUrls,
       onlyMissingMetadata,
+      result,
     );
     const trailerUrl =
       this.moviesService.getProcessedTrailerUrl(backgroundContentUrl) ||
@@ -346,7 +350,11 @@ export class AdminReprocessPremiereAssetsCommandHandler
     }
 
     result.processed++;
-    if (updated.trailerUpdated) result.trailersUpdated++;
+    if (updated.trailerUpdated) {
+      result.trailersUpdated++;
+      if (trailerUrl) result.trailersAdded++;
+      else result.trailersRemoved++;
+    }
     if (updated.descriptionUpdated) result.descriptionsUpdated++;
     if (updated.backgroundUpdated) result.backgroundsUpdated++;
   }
@@ -427,22 +435,32 @@ export class AdminReprocessPremiereAssetsCommandHandler
 
     const [backgroundContentUrl, previewUrl, titleUrl] = await Promise.all([
       shouldRefreshBackground
-        ? this.getOptionalLibraryAsset(row, 'background', () =>
-            this.moviesService.getBackgroundContentUrlFromSources(
-              trailerSources,
-              movie.id,
-              movieType,
-            ),
+        ? this.getOptionalLibraryAsset(
+            row,
+            'background',
+            () =>
+              this.moviesService.getBackgroundContentUrlFromSources(
+                trailerSources,
+                movie.id,
+                movieType,
+              ),
+            result,
           )
         : Promise.resolve(null),
       shouldRefreshPoster && metadata.posterUrl
-        ? this.getOptionalLibraryAsset(row, 'poster', () =>
-            this.moviesService.getPosterUrl(metadata.posterUrl, movie.id, movieType),
+        ? this.getOptionalLibraryAsset(
+            row,
+            'poster',
+            () => this.moviesService.getPosterUrl(metadata.posterUrl, movie.id, movieType),
+            result,
           )
         : Promise.resolve(null),
       shouldRefreshTitle && metadata.titleUrl
-        ? this.getOptionalLibraryAsset(row, 'title', () =>
-            this.moviesService.getLogoUrl(metadata.titleUrl, movie.id, movieType),
+        ? this.getOptionalLibraryAsset(
+            row,
+            'title',
+            () => this.moviesService.getLogoUrl(metadata.titleUrl, movie.id, movieType),
+            result,
           )
         : Promise.resolve(null),
     ]);
@@ -502,7 +520,11 @@ export class AdminReprocessPremiereAssetsCommandHandler
 
     result.processed++;
     if (descriptionUpdated) result.descriptionsUpdated++;
-    if (trailerUpdated) result.trailersUpdated++;
+    if (trailerUpdated) {
+      result.trailersUpdated++;
+      if (movie.trailerUrl) result.trailersAdded++;
+      else result.trailersRemoved++;
+    }
     if (backgroundUpdated) result.backgroundsUpdated++;
     if (posterUpdated) result.postersUpdated++;
     if (titleUpdated) result.titlesUpdated++;
@@ -514,10 +536,12 @@ export class AdminReprocessPremiereAssetsCommandHandler
     row: ReprocessPremiereRow,
     asset: string,
     load: () => Promise<string | null>,
+    result: AdminReprocessPremiereAssetsOutputDto,
   ): Promise<string | null> {
     try {
       return await load();
     } catch (error) {
+      result.assetWarnings++;
       this.logger.warn(
         `Could not refresh ${asset} for ${row.type}:${row.kpId || row.id}: ${String(error)}`,
         this.getOptionalLibraryAsset.name,
@@ -742,6 +766,7 @@ export class AdminReprocessPremiereAssetsCommandHandler
     row: ReprocessPremiereRow,
     trailerUrls: Array<string | null | undefined>,
     onlyMissingMetadata: boolean,
+    result: AdminReprocessPremiereAssetsOutputDto,
   ): Promise<string | null> {
     if (!trailerUrls.some(trailerUrl => this.hasText(trailerUrl))) return null;
     if (
@@ -762,6 +787,7 @@ export class AdminReprocessPremiereAssetsCommandHandler
         this.movieType(row.type),
       );
     } catch (error) {
+      result.assetWarnings++;
       this.logger.warn(String(error), this.reprocessBackgroundContentUrl.name);
       return null;
     }

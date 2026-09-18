@@ -107,16 +107,20 @@ describe('AdminReprocessPremiereAssetsCommandHandler', () => {
         row: { id: number; type: 'serial'; kpId: string },
         asset: string,
         load: () => Promise<string | null>,
+        result: { assetWarnings: number },
       ) => Promise<string | null>;
     };
+    const refreshResult = { assetWarnings: 0 };
 
     const result = await subject.getOptionalLibraryAsset(
       { id: 18, type: 'serial', kpId: '5024113' },
       'background',
       () => Promise.reject(new Error('downloader unavailable')),
+      refreshResult,
     );
 
     expect(result).toBeNull();
+    expect(refreshResult.assetWarnings).toBe(1);
     expect(logger.warn).toHaveBeenCalledWith(
       expect.stringContaining('serial:5024113'),
       'getOptionalLibraryAsset',
