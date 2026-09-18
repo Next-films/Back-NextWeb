@@ -32,12 +32,16 @@ export class NewSerialNotificationCommand implements ICommand {
   constructor(public inputDto: NewSerialNotificationPayloadDto) {}
 }
 
+export type NewSerialNotificationResult = {
+  previousVideoUrl: string | null;
+};
+
 @CommandHandler(NewSerialNotificationCommand)
 export class NewSerialNotificationCommandHandler
   implements
     ICommandHandler<
       NewSerialNotificationCommand,
-      AppNotificationResult<null, ErrorFieldExceptionDto | null>
+      AppNotificationResult<NewSerialNotificationResult, ErrorFieldExceptionDto | null>
     >
 {
   constructor(
@@ -59,7 +63,7 @@ export class NewSerialNotificationCommandHandler
 
   async execute(
     command: NewSerialNotificationCommand,
-  ): Promise<AppNotificationResult<null, ErrorFieldExceptionDto | null>> {
+  ): Promise<AppNotificationResult<NewSerialNotificationResult, ErrorFieldExceptionDto | null>> {
     const { inputDto } = command;
     const { kpId, key, duration, seasonNumber, episodeNumber, voiceoverLabel } = inputDto;
     this.logger.log(`New serial notification command`, this.execute.name);
@@ -125,7 +129,14 @@ export class NewSerialNotificationCommandHandler
         ? await this.updateExistingSerial(existingSerial, metadata, key, duration || 0, kpId)
         : this.createNewSerial(metadata, key, duration || 0, kpId);
 
-      this.attachEpisode(serial, key, duration || 0, seasonNumber, episodeNumber, voiceoverLabel);
+      const previousVideoUrl = this.attachEpisode(
+        serial,
+        key,
+        duration || 0,
+        seasonNumber,
+        episodeNumber,
+        voiceoverLabel,
+      );
 
       serial.updateAvailabilityStatus(MovieAvailabilityStatus.AVAILABLE);
       this.moviesService.setHandleProductionStatus(serial);
@@ -174,7 +185,7 @@ export class NewSerialNotificationCommandHandler
       }
 
       await queryRunner.commitTransaction();
-      return this.appNotification.success(null);
+      return this.appNotification.success({ previousVideoUrl });
     } catch (e) {
       this.logger.error(e, this.execute.name);
       await queryRunner.rollbackTransaction();
@@ -191,7 +202,7 @@ export class NewSerialNotificationCommandHandler
     seasonNumber?: number,
     episodeNumber?: number,
     voiceoverLabel?: string,
-  ): void {
+  ): string | null {
     const previewUrl = serial.previewUrl || serial.backgroundContentUrl || serial.titleUrl || key;
     const releaseDate = serial.releaseDate ? new Date(serial.releaseDate) : new Date();
     const normalizedDuration = this.normalizeDuration(duration);
@@ -208,7 +219,7 @@ export class NewSerialNotificationCommandHandler
       if ((existingEpisode.duration ?? 0) <= 0 && normalizedDuration > 0) {
         existingEpisode.duration = normalizedDuration;
       }
-      return;
+      return null;
     }
 
     const resolvedSeasonNumber = seasonNumber || 1;
@@ -235,6 +246,7 @@ export class NewSerialNotificationCommandHandler
     });
 
     if (existingBySlot) {
+      const previousVideoUrl = existingBySlot.videoUrl;
       existingBySlot.videoUrl = key;
       existingBySlot.previewUrl = previewUrl;
       existingBySlot.releaseDate = releaseDate;
@@ -250,7 +262,7 @@ export class NewSerialNotificationCommandHandler
         season.episodes.push(existingBySlot);
       }
 
-      return;
+      return previousVideoUrl !== key ? previousVideoUrl : null;
     }
 
     const episode: Partial<SerialEpisode> = {
@@ -269,6 +281,8 @@ export class NewSerialNotificationCommandHandler
 
     serial.episodes.push(episode as SerialEpisode);
     season.episodes.push(episode as SerialEpisode);
+
+    return null;
   }
 
   private getOrCreateSeason(serial: Serial, seasonNumber: number): SerialSeason {

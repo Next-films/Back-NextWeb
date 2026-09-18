@@ -14,7 +14,10 @@ import {
 import { RpcPayload } from '@/common/decorators/rpc-payload.decorator';
 import { AppNotificationResult } from '@/common/utils/app-notification.util';
 import { ErrorFieldExceptionDto } from '@/common/exception-filters/http/http-exception.filter';
-import { NewSerialNotificationCommand } from '@/serials/application/handlers/new-serial-notification.handler';
+import {
+  NewSerialNotificationCommand,
+  NewSerialNotificationResult,
+} from '@/serials/application/handlers/new-serial-notification.handler';
 import { NewSerialIsHandleNotificationCommand } from '@/serials/application/handlers/new-serial-is-handle-notification.handler';
 import { NewSerialNotificationPayloadDto } from '@/serials/api/dtos/input/new-serial-notification.input.dto';
 import { NewMovieIsHandleNotificationPayloadDto } from '@/movies/api/dtos/input/new-movie-is-handle-notification.input.dto';
@@ -53,15 +56,19 @@ export class SerialPrivateRpcController {
   }
 
   @MessagePattern({ cmd: NEW_SERIAL_CMD })
-  async newSerial(@RpcPayload() payload: NewSerialNotificationPayloadDto): Promise<void> {
+  async newSerial(
+    @RpcPayload() payload: NewSerialNotificationPayloadDto,
+  ): Promise<AppNotificationResult<NewSerialNotificationResult, ErrorFieldExceptionDto | null>> {
     this.logger.log(`Execute: New serial notification`, this.newSerial.name);
 
     const result = await this.commandBus.execute<
       NewSerialNotificationCommand,
-      AppNotificationResult<null, ErrorFieldExceptionDto | null>
+      AppNotificationResult<NewSerialNotificationResult, ErrorFieldExceptionDto | null>
     >(new NewSerialNotificationCommand(payload));
 
     this.logger.log(result.appResult, this.newSerial.name);
+
+    return result;
   }
 
   @MessagePattern({ cmd: NEW_SERIAL_IS_HANDLE_CMD })

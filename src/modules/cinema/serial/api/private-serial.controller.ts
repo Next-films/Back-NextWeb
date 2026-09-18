@@ -27,7 +27,10 @@ import { BACKEND_TO_BACKEND_AUTH_JWT_SCHEMA_NAME } from '@/common/constants/auth
 import { PRIVATE_SERIALS_ROUTE } from '@/common/constants/route.constants';
 import { NewMovieIsHandleNotificationPayloadDto } from '@/movies/api/dtos/input/new-movie-is-handle-notification.input.dto';
 import { NewSerialNotificationPayloadDto } from '@/serials/api/dtos/input/new-serial-notification.input.dto';
-import { NewSerialNotificationCommand } from '@/serials/application/handlers/new-serial-notification.handler';
+import {
+  NewSerialNotificationCommand,
+  NewSerialNotificationResult,
+} from '@/serials/application/handlers/new-serial-notification.handler';
 import { NewSerialIsHandleNotificationCommand } from '@/serials/application/handlers/new-serial-is-handle-notification.handler';
 import { GetPrivateSerialByKinopoiskIdQuery } from '@/serials/application/query-handlers/get-private-serial-by-kinopoisk-id.query-handler';
 import { SerialPrivateOutputDto } from '@/serials/api/dtos/output/serials-private.output.dto';
@@ -117,12 +120,15 @@ export class SerialPrivateController {
   @SwaggerDecoratorNewSerial()
   async newSerial(
     @Body() body: NewSerialNotificationPayloadDto,
-  ): Promise<AppNotificationResult<null, ErrorFieldExceptionDto | null> | void> {
+  ): Promise<AppNotificationResult<
+    NewSerialNotificationResult,
+    ErrorFieldExceptionDto | null
+  > | void> {
     this.logger.log(`Execute: New serial notification`, this.newSerial.name);
 
     const result = await this.commandBus.execute<
       NewSerialNotificationCommand,
-      AppNotificationResult<null, ErrorFieldExceptionDto | null>
+      AppNotificationResult<NewSerialNotificationResult, ErrorFieldExceptionDto | null>
     >(new NewSerialNotificationCommand(body));
 
     this.logger.log(result.appResult, this.newSerial.name);
