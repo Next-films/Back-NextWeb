@@ -148,10 +148,28 @@ describe('TmdbService', () => {
     });
     const resolver = service as unknown as {
       getTmdbAddress(): Promise<string>;
+      lookupHostname(
+        hostname: string,
+        options: { all: boolean },
+        callback: (
+          error: Error | null,
+          addresses: Array<{ address: string; family: number }>,
+        ) => void,
+      ): void;
     };
 
     await expect(resolver.getTmdbAddress()).resolves.toBe('203.0.113.10');
     await expect(resolver.getTmdbAddress()).resolves.toBe('203.0.113.11');
     expect(global.fetch).toHaveBeenCalledTimes(1);
+
+    const lookupResult = await new Promise<Array<{ address: string; family: number }>>(
+      (resolve, reject) => {
+        resolver.lookupHostname('api.themoviedb.org', { all: true }, (error, addresses) => {
+          if (error) reject(error);
+          else resolve(addresses);
+        });
+      },
+    );
+    expect(lookupResult).toEqual([{ address: '203.0.113.10', family: 4 }]);
   });
 });

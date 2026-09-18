@@ -75,8 +75,31 @@ export class TmdbService {
     }
 
     void this.getTmdbAddress()
-      .then(address => callback(null, address, 4))
-      .catch(error => callback(error instanceof Error ? error : new Error(String(error)), '', 4));
+      .then(address => {
+        if ((options as { all?: boolean }).all) {
+          const callbackAll = callback as unknown as (
+            error: NodeJS.ErrnoException | null,
+            addresses: Array<{ address: string; family: number }>,
+          ) => void;
+          callbackAll(null, [{ address, family: 4 }]);
+          return;
+        }
+
+        callback(null, address, 4);
+      })
+      .catch(error => {
+        const lookupError = error instanceof Error ? error : new Error(String(error));
+        if ((options as { all?: boolean }).all) {
+          const callbackAll = callback as unknown as (
+            error: NodeJS.ErrnoException | null,
+            addresses: Array<{ address: string; family: number }>,
+          ) => void;
+          callbackAll(lookupError, []);
+          return;
+        }
+
+        callback(lookupError, '', 4);
+      });
   };
   private readonly httpsAgent = new HttpsAgent({
     keepAlive: true,
