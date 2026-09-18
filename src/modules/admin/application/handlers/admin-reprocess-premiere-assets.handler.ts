@@ -433,13 +433,23 @@ export class AdminReprocessPremiereAssetsCommandHandler
 
     const [backgroundContentUrl, previewUrl, titleUrl] = await Promise.all([
       shouldRefreshBackground
-        ? this.moviesService.getBackgroundContentUrlFromSources(trailerSources, movie.id, movieType)
+        ? this.getOptionalLibraryAsset(row, 'background', () =>
+            this.moviesService.getBackgroundContentUrlFromSources(
+              trailerSources,
+              movie.id,
+              movieType,
+            ),
+          )
         : Promise.resolve(null),
       shouldRefreshPoster && metadata.posterUrl
-        ? this.moviesService.getPosterUrl(metadata.posterUrl, movie.id, movieType)
+        ? this.getOptionalLibraryAsset(row, 'poster', () =>
+            this.moviesService.getPosterUrl(metadata.posterUrl, movie.id, movieType),
+          )
         : Promise.resolve(null),
       shouldRefreshTitle && metadata.titleUrl
-        ? this.moviesService.getLogoUrl(metadata.titleUrl, movie.id, movieType)
+        ? this.getOptionalLibraryAsset(row, 'title', () =>
+            this.moviesService.getLogoUrl(metadata.titleUrl, movie.id, movieType),
+          )
         : Promise.resolve(null),
     ]);
 
@@ -504,6 +514,22 @@ export class AdminReprocessPremiereAssetsCommandHandler
     if (titleUpdated) result.titlesUpdated++;
     if (movie.handleStatus === MovieHandleStatus.PRODUCTION) result.published++;
     else result.moderated++;
+  }
+
+  private async getOptionalLibraryAsset(
+    row: ReprocessPremiereRow,
+    asset: string,
+    load: () => Promise<string | null>,
+  ): Promise<string | null> {
+    try {
+      return await load();
+    } catch (error) {
+      this.logger.warn(
+        `Could not refresh ${asset} for ${row.type}:${row.kpId || row.id}: ${String(error)}`,
+        this.getOptionalLibraryAsset.name,
+      );
+      return null;
+    }
   }
 
   private mergeLibraryMetadata(

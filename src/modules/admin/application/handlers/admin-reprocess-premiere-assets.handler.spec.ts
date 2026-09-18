@@ -3,8 +3,9 @@ import { MovieEntity } from '@/movies/domain/movie.entity';
 import { MovieKpMetadata } from '@/movies/domain/types';
 
 describe('AdminReprocessPremiereAssetsCommandHandler', () => {
+  const logger = { setContext: jest.fn(), warn: jest.fn() };
   const handler = new AdminReprocessPremiereAssetsCommandHandler(
-    { setContext: jest.fn() } as never,
+    logger as never,
     null as never,
     null as never,
     {
@@ -96,5 +97,27 @@ describe('AdminReprocessPremiereAssetsCommandHandler', () => {
       releaseDate: '2020-01-01',
     });
     expect(movie.genres).toEqual([{ id: 7 }]);
+  });
+
+  it('does not discard metadata when an optional asset cannot be generated', async () => {
+    const subject = handler as unknown as {
+      getOptionalLibraryAsset: (
+        row: { id: number; type: 'serial'; kpId: string },
+        asset: string,
+        load: () => Promise<string | null>,
+      ) => Promise<string | null>;
+    };
+
+    const result = await subject.getOptionalLibraryAsset(
+      { id: 18, type: 'serial', kpId: '5024113' },
+      'background',
+      () => Promise.reject(new Error('downloader unavailable')),
+    );
+
+    expect(result).toBeNull();
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.stringContaining('serial:5024113'),
+      'getOptionalLibraryAsset',
+    );
   });
 });
