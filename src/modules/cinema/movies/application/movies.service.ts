@@ -238,6 +238,7 @@ export class MoviesService {
       countries,
       premiere,
       description,
+      shortDescription,
       genres: rawGenres,
       poster,
       backdrop,
@@ -257,6 +258,11 @@ export class MoviesService {
       : null;
 
     const { universe, studio } = this.extractUniverseAndStudio(kpMovie);
+    const russianDescription = this.hasRussianText(description)
+      ? description!.trim()
+      : this.hasRussianText(shortDescription)
+      ? shortDescription!.trim()
+      : null;
 
     return {
       name,
@@ -266,7 +272,7 @@ export class MoviesService {
       studio,
       genres,
       countries: countries?.map(c => c.name) || null,
-      description: this.hasRussianText(description) ? description!.trim() : null,
+      description: russianDescription,
       releaseDate: worldReleaseDate ? this.dateUtil.formatDateYyMmDd(worldReleaseDate) : null,
       posterUrl,
       backdropUrl,

@@ -59,6 +59,15 @@ describe('MoviesService', () => {
     );
   });
 
+  it('uses a Russian short description when the full description is missing', async () => {
+    const metadata = await service.extractMovieMetadata({
+      name: 'Сериал',
+      shortDescription: 'Короткое описание на русском.',
+    });
+
+    expect(metadata.description).toBe('Короткое описание на русском.');
+  });
+
   it('falls back to the next trailer source when the native player is unavailable', async () => {
     const getBackgroundContentUrl = jest
       .spyOn(service, 'getBackgroundContentUrl')
