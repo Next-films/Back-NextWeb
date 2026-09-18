@@ -462,6 +462,27 @@ export class TmdbService {
         },
       );
       videos.push(...(response.data?.results || []));
+      const seriesTrailerUrl = this.getTrailerUrl(videos);
+      if (seriesTrailerUrl) return seriesTrailerUrl;
+
+      const seasonNumbers = await this.getRepresentativeTvSeasonNumbers(requestConfig, tmdbId);
+      for (const seasonNumber of seasonNumbers) {
+        const seasonResponse = await this.httpService.axiosRef.get<TmdbVideosResponse>(
+          `/tv/${tmdbId}/season/${seasonNumber}/videos`,
+          {
+            ...requestConfig,
+            params: {
+              ...requestConfig.params,
+              language: 'ru-RU',
+              include_video_language: TMDB_INCLUDED_VIDEO_LANGUAGES,
+            },
+          },
+        );
+        videos.push(...(seasonResponse.data?.results || []));
+
+        const seasonTrailerUrl = this.getTrailerUrl(videos);
+        if (seasonTrailerUrl) return seasonTrailerUrl;
+      }
     } else {
       for (const language of TMDB_TRAILER_LANGUAGES) {
         if (language === 'en-US' && existingVideos.length) continue;
@@ -481,6 +502,32 @@ export class TmdbService {
     }
 
     return this.getTrailerUrl(videos);
+  }
+
+  private async getRepresentativeTvSeasonNumbers(
+    requestConfig: TmdbRequestConfig,
+    tmdbId: number,
+  ): Promise<number[]> {
+    const response = await this.httpService.axiosRef.get<TmdbMediaDetails>(`/tv/${tmdbId}`, {
+      ...requestConfig,
+      params: {
+        ...requestConfig.params,
+        language: 'en-US',
+      },
+    });
+    const seasonNumbers = (response.data?.seasons || [])
+      .map(season => Number(season.season_number))
+      .filter(seasonNumber => Number.isInteger(seasonNumber) && seasonNumber > 0)
+      .filter((seasonNumber, index, allSeasonNumbers) => {
+        return allSeasonNumbers.indexOf(seasonNumber) === index;
+      })
+      .sort((a, b) => a - b);
+
+    if (!seasonNumbers.length) return [];
+
+    const firstSeason = seasonNumbers[0];
+    const lastSeason = seasonNumbers[seasonNumbers.length - 1];
+    return firstSeason === lastSeason ? [firstSeason] : [firstSeason, lastSeason];
   }
 
   private async getImageConfig(

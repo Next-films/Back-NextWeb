@@ -92,6 +92,42 @@ describe('TmdbService', () => {
     expect(get.mock.calls.map(([, config]) => config.params.language)).toEqual(['ru-RU', 'en-US']);
   });
 
+  it('uses a representative season trailer when a TV series has no videos', async () => {
+    const { service, get } = createService();
+    get
+      .mockResolvedValueOnce({ data: { results: [] } })
+      .mockResolvedValueOnce({
+        data: {
+          seasons: [{ season_number: 0 }, { season_number: 1 }, { season_number: 5 }],
+        },
+      })
+      .mockResolvedValueOnce({
+        data: {
+          results: [
+            {
+              key: 'first-season-trailer',
+              site: 'YouTube',
+              type: 'Trailer',
+              official: false,
+              iso_639_1: 'en',
+            },
+          ],
+        },
+      });
+
+    const result = await service.getTrailerCandidate({
+      movieType: MovieTypesEnum.SERIAL,
+      tmdbId: 1396,
+    });
+
+    expect(result).toBe('https://www.youtube.com/watch?v=first-season-trailer');
+    expect(get.mock.calls.map(([url]) => url)).toEqual([
+      '/tv/1396/videos',
+      '/tv/1396',
+      '/tv/1396/season/1/videos',
+    ]);
+  });
+
   it('prefers a Russian trailer when both languages have equivalent candidates', async () => {
     const { service, get } = createService();
     get

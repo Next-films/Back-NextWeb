@@ -48,6 +48,9 @@ export type TmdbMediaDetails = {
   id?: number;
   backdrop_path?: string | null;
   overview?: string | null;
+  seasons?: Array<{
+    season_number?: number;
+  }>;
   images?: {
     backdrops?: TmdbImage[];
   };
