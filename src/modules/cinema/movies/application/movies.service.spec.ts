@@ -1,5 +1,4 @@
 import { MoviesService } from '@/movies/application/movies.service';
-import { buildPoiskkinoTrailerPlayerUrl } from '@/movies/application/poiskkino-trailer.util';
 import { MovieTypesEnum } from '@/common/types/types';
 import { MovieAvailabilityStatus, MovieHandleStatus } from '@/movies/domain/types';
 
@@ -47,15 +46,6 @@ describe('MoviesService', () => {
     } as never);
 
     expect(trailerUrl).toBe('https://www.youtube.com/watch?v=fallback');
-  });
-
-  it('builds the native Poiskkino player URL for films and serials', () => {
-    expect(buildPoiskkinoTrailerPlayerUrl('535341')).toBe(
-      'https://play.poiskkino.dev/embed/535341',
-    );
-    expect(buildPoiskkinoTrailerPlayerUrl('5024113')).toBe(
-      'https://play.poiskkino.dev/embed/5024113',
-    );
   });
 
   it('falls back to the next trailer source when the native player is unavailable', async () => {

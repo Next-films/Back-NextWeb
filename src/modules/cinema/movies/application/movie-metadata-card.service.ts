@@ -2,7 +2,6 @@ import { Injectable } from '@nestjs/common';
 import { MovieTypesEnum } from '@/common/types/types';
 import { MoviesService } from '@/movies/application/movies.service';
 import { MovieEntity } from '@/movies/domain/movie.entity';
-import { buildPoiskkinoTrailerPlayerUrl } from '@/movies/application/poiskkino-trailer.util';
 import {
   MovieAvailabilityStatus,
   MovieCreateDto,
@@ -211,12 +210,7 @@ export class MovieMetadataCardService {
     const shouldHydrateBackground = !this.hasProcessedPreviewClip(movie.backgroundContentUrl);
     const shouldHydratePoster = !this.hasProcessedImage(movie.previewUrl);
     const shouldHydrateTitle = !this.hasProcessedImage(movie.titleUrl);
-    const trailerSourceUrls = [
-      buildPoiskkinoTrailerPlayerUrl(movie.kpId),
-      metadata.trailerUrl,
-      movie.trailerUrl,
-      metadata.backdropUrl,
-    ];
+    const trailerSourceUrls = [metadata.trailerUrl, movie.trailerUrl, metadata.backdropUrl];
     const posterSourceUrl = metadata.posterUrl || movie.previewUrl;
 
     const [backgroundContentUrl, posterUrl, titleUrl] = await Promise.all([

@@ -143,7 +143,6 @@ describe('MovieMetadataCardService', () => {
 
     expect(moviesService.getBackgroundContentUrlFromSources).toHaveBeenCalledWith(
       [
-        'https://play.poiskkino.dev/embed/1264562',
         'https://youtube.com/watch?v=test',
         'https://youtube.com/watch?v=test',
         'https://image.example/backdrop.jpg',
@@ -304,7 +303,6 @@ describe('MovieMetadataCardService', () => {
     expect(moviesService.getBackgroundContentUrlFromSources).toHaveBeenCalledTimes(1);
     expect(moviesService.getBackgroundContentUrlFromSources).toHaveBeenCalledWith(
       [
-        'https://play.poiskkino.dev/embed/1264562',
         'https://youtube.com/watch?v=test',
         'https://youtube.com/watch?v=test',
         'https://image.example/backdrop.jpg',

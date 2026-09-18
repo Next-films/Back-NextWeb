@@ -13,7 +13,6 @@ import { FilmCreateDto, FilmUpdateDto } from '@/films/domain/types';
 import { Film } from '@/films/domain/film.entity';
 import { MovieAvailabilityStatus, MovieHandleStatus, MovieKpMetadata } from '@/movies/domain/types';
 import { MoviesService } from '@/movies/application/movies.service';
-import { buildPoiskkinoTrailerPlayerUrl } from '@/movies/application/poiskkino-trailer.util';
 import { NewFilmNotificationPayloadDto } from '@/films/api/dtos/input/new-film-notification.input.dto';
 import { CreateModerationDto } from '@/moderation-movie/domain/types';
 import { ModerationFilmRepository } from '@/moderation-movie/infrastructure/moderation-film.repository';
@@ -105,7 +104,6 @@ export class NewFilmNotificationCommandHandler
         const { titleUrl, posterUrl, backgroundContentUrl, trailerUrl } =
           await this.getContentUrlForNewFilm(
             savedFilm.id,
-            kpId,
             metadata.trailerUrl,
             metadata.backdropUrl,
             metadata.titleUrl,
@@ -159,11 +157,7 @@ export class NewFilmNotificationCommandHandler
     kpId: string,
   ): Promise<Film> {
     const { id } = film;
-    const backgroundSourceUrls = [
-      buildPoiskkinoTrailerPlayerUrl(kpId),
-      metadata.trailerUrl,
-      metadata.backdropUrl,
-    ];
+    const backgroundSourceUrls = [metadata.trailerUrl, metadata.backdropUrl];
     const [previewUrl, backgroundContentUrl, titleUrl] = await Promise.all([
       !film.previewUrl
         ? this.moviesService.getPosterUrl(metadata.posterUrl, id, MovieTypesEnum.FILM)
@@ -256,13 +250,12 @@ export class NewFilmNotificationCommandHandler
 
   private async getContentUrlForNewFilm(
     filmId: number,
-    kpId: string,
     trailerUrl: string | null,
     backdropUrl: string | null,
     logoUrl: string | null,
     previewUrl: string | null,
   ) {
-    const backgroundSourceUrls = [buildPoiskkinoTrailerPlayerUrl(kpId), trailerUrl, backdropUrl];
+    const backgroundSourceUrls = [trailerUrl, backdropUrl];
     const [backgroundContentUrl, posterUrl, titleUrl] = await Promise.all([
       this.moviesService.getBackgroundContentUrlFromSources(
         backgroundSourceUrls,

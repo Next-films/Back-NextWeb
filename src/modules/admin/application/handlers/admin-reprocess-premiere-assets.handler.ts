@@ -16,7 +16,6 @@ import {
 import { AdminReprocessPremiereAssetsOutputDto } from '@/admin/api/dtos/output/admin-reprocess-premiere-assets.output.dto';
 import { KinopoiskService } from '@/external-api/kinopoisk/application/kinopoisk.service';
 import { MoviesService } from '@/movies/application/movies.service';
-import { buildPoiskkinoTrailerPlayerUrl } from '@/movies/application/poiskkino-trailer.util';
 import { ExternalMovieAssetsService } from '@/movies/application/external-movie-assets.service';
 import { KinopoiskMovie } from '@/external-api/kinopoisk/domain/types';
 import { MovieKpMetadata } from '@/movies/domain/types';
@@ -308,11 +307,7 @@ export class AdminReprocessPremiereAssetsCommandHandler
     }
 
     const trailerSourceUrl = metadata.trailerUrl?.trim() || null;
-    const trailerSourceUrls = [
-      buildPoiskkinoTrailerPlayerUrl(row.kpId),
-      trailerSourceUrl,
-      row.trailerUrl,
-    ];
+    const trailerSourceUrls = [trailerSourceUrl, row.trailerUrl];
     const description = this.moviesService.hasRussianText(metadata.description)
       ? metadata.description!.trim()
       : null;
@@ -424,12 +419,7 @@ export class AdminReprocessPremiereAssetsCommandHandler
       !this.hasProcessedTrailer(movie.trailerUrl);
     const shouldRefreshPoster = !onlyMissingMetadata || !this.hasProcessedImage(movie.previewUrl);
     const shouldRefreshTitle = !onlyMissingMetadata || !this.hasProcessedImage(movie.titleUrl);
-    const trailerSources = [
-      buildPoiskkinoTrailerPlayerUrl(row.kpId),
-      metadata.trailerUrl,
-      movie.trailerUrl,
-      metadata.backdropUrl,
-    ];
+    const trailerSources = [metadata.trailerUrl, movie.trailerUrl, metadata.backdropUrl];
 
     const [backgroundContentUrl, previewUrl, titleUrl] = await Promise.all([
       shouldRefreshBackground
