@@ -1,5 +1,8 @@
 import { HttpService } from '@nestjs/axios';
 import { Injectable } from '@nestjs/common';
+import { lookup as systemLookup } from 'node:dns';
+import { Agent as HttpsAgent } from 'node:https';
+import { isIPv4, LookupFunction } from 'node:net';
 
 import { MovieTypesEnum } from '@/common/types/types';
 import { LoggerService } from '@/common/utils/logger/logger.service';
@@ -25,12 +28,27 @@ type TmdbRequestConfig = {
   headers: Record<string, string>;
   params: Record<string, string | number | boolean>;
   timeout: number;
+  httpsAgent: HttpsAgent;
 };
 
 type TmdbImageConfigCacheEntry = {
   baseUrl: string;
   backdropSize: string;
   expiresAt: number;
+};
+
+type TmdbDnsCacheEntry = {
+  addresses: string[];
+  nextIndex: number;
+  expiresAt: number;
+};
+
+type DnsOverHttpsResponse = {
+  Status?: number;
+  Answer?: Array<{
+    type?: number;
+    data?: string;
+  }>;
 };
 
 const EMPTY_ASSET_CANDIDATES: TmdbAssetCandidates = {
@@ -42,11 +60,30 @@ const EMPTY_ASSET_CANDIDATES: TmdbAssetCandidates = {
 const TMDB_REQUEST_TIMEOUT_MS = 15_000;
 const TMDB_TRAILER_LANGUAGES = ['ru-RU', 'en-US'] as const;
 const TMDB_INCLUDED_VIDEO_LANGUAGES = 'ru,en,null';
+const TMDB_API_HOSTNAME = 'api.themoviedb.org';
+const TMDB_DNS_CACHE_TTL_MS = 10 * 60 * 1000;
+const TMDB_DOH_URL = `https://cloudflare-dns.com/dns-query?name=${TMDB_API_HOSTNAME}&type=A`;
 
 @Injectable()
 export class TmdbService {
   private readonly imageConfigCache = new Map<string, TmdbImageConfigCacheEntry>();
   private readonly imageConfigTtlMs = 60 * 60 * 1000;
+  private readonly lookupHostname: LookupFunction = (hostname, options, callback) => {
+    if (hostname !== TMDB_API_HOSTNAME) {
+      systemLookup(hostname, options, callback);
+      return;
+    }
+
+    void this.getTmdbAddress()
+      .then(address => callback(null, address, 4))
+      .catch(error => callback(error instanceof Error ? error : new Error(String(error)), '', 4));
+  };
+  private readonly httpsAgent = new HttpsAgent({
+    keepAlive: true,
+    lookup: this.lookupHostname.bind(this),
+  });
+  private tmdbDnsCache: TmdbDnsCacheEntry | null = null;
+  private tmdbDnsRequest: Promise<string[]> | null = null;
 
   constructor(
     private readonly logger: LoggerService,
@@ -190,7 +227,58 @@ export class TmdbService {
       headers,
       params,
       timeout: TMDB_REQUEST_TIMEOUT_MS,
+      httpsAgent: this.httpsAgent,
     };
+  }
+
+  private async getTmdbAddress(): Promise<string> {
+    const now = Date.now();
+    if (this.tmdbDnsCache && this.tmdbDnsCache.expiresAt > now) {
+      return this.takeNextTmdbAddress(this.tmdbDnsCache);
+    }
+
+    if (!this.tmdbDnsRequest) {
+      this.tmdbDnsRequest = this.resolveTmdbAddresses().finally(() => {
+        this.tmdbDnsRequest = null;
+      });
+    }
+
+    const addresses = await this.tmdbDnsRequest;
+    this.tmdbDnsCache = {
+      addresses,
+      nextIndex: 0,
+      expiresAt: now + TMDB_DNS_CACHE_TTL_MS,
+    };
+    return this.takeNextTmdbAddress(this.tmdbDnsCache);
+  }
+
+  private async resolveTmdbAddresses(): Promise<string[]> {
+    const response = await fetch(TMDB_DOH_URL, {
+      headers: { accept: 'application/dns-json' },
+      signal: AbortSignal.timeout(TMDB_REQUEST_TIMEOUT_MS),
+    });
+
+    if (!response.ok) {
+      throw new Error(`TMDB DNS lookup failed with status ${response.status}`);
+    }
+
+    const payload = (await response.json()) as DnsOverHttpsResponse;
+    const addresses = (payload.Answer || [])
+      .filter(answer => answer.type === 1 && isIPv4(answer.data || ''))
+      .map(answer => answer.data as string)
+      .filter((address, index, allAddresses) => allAddresses.indexOf(address) === index);
+
+    if (payload.Status !== 0 || !addresses.length) {
+      throw new Error('TMDB DNS lookup returned no IPv4 addresses');
+    }
+
+    return addresses;
+  }
+
+  private takeNextTmdbAddress(cache: TmdbDnsCacheEntry): string {
+    const address = cache.addresses[cache.nextIndex % cache.addresses.length];
+    cache.nextIndex = (cache.nextIndex + 1) % cache.addresses.length;
+    return address;
   }
 
   private normalizeApiBaseUrl(baseUrl: string): string {

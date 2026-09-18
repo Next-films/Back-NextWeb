@@ -2,6 +2,12 @@ import { MovieTypesEnum } from '@/common/types/types';
 import { TmdbService } from '@/external-api/tmdb/application/tmdb.service';
 
 describe('TmdbService', () => {
+  const originalFetch = global.fetch;
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+  });
+
   const createService = () => {
     const get = jest.fn();
     const externalApiConfigService = {
@@ -124,5 +130,28 @@ describe('TmdbService', () => {
     });
 
     expect(result).toBe('https://www.youtube.com/watch?v=russian-trailer');
+  });
+
+  it('resolves and rotates TMDB addresses through DNS over HTTPS', async () => {
+    const { service } = createService();
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: jest.fn().mockResolvedValue({
+        Status: 0,
+        Answer: [
+          { type: 1, data: '203.0.113.10' },
+          { type: 28, data: '2001:db8::1' },
+          { type: 1, data: '203.0.113.11' },
+        ],
+      }),
+    });
+    const resolver = service as unknown as {
+      getTmdbAddress(): Promise<string>;
+    };
+
+    await expect(resolver.getTmdbAddress()).resolves.toBe('203.0.113.10');
+    await expect(resolver.getTmdbAddress()).resolves.toBe('203.0.113.11');
+    expect(global.fetch).toHaveBeenCalledTimes(1);
   });
 });
