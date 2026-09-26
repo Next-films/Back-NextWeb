@@ -56,6 +56,10 @@ export interface ICancelModerationMovieTaskByIdStrategy {
 export interface IAdminModerationMovieTaskCreateByTorrentStrategy {
   getMovie: (kpId: string) => Promise<Film | Cartoon | Serial | null>;
 
+  getModerationMovieTask: (
+    movieId: number,
+  ) => Promise<ModerationFilmEntity | ModerationCartoonEntity | ModerationSerialEntity | null>;
+
   createMovie: (dto: CartonCreateDto | FilmCreateDto | SerialCreateDto) => Film | Cartoon | Serial;
 
   saveMovie: (movie: Film | Cartoon | Serial) => Promise<Film | Cartoon | Serial>;

@@ -249,6 +249,7 @@ describe('AdminModerateRequestByTorrentCommandHandler (integration)', () => {
           backgroundContentUrl: 'https://video.com',
           titleUrl: 'https://video.com',
           previewUrl: 'https://video.com',
+          horizontalPreviewUrl: 'https://video.com',
           country: ['Russia'],
           genres: null,
         }),
@@ -269,6 +270,7 @@ describe('AdminModerateRequestByTorrentCommandHandler (integration)', () => {
           backgroundContentUrl: 'https://video.com',
           titleUrl: 'https://video.com',
           previewUrl: 'https://video.com',
+          horizontalPreviewUrl: 'https://video.com',
           country: ['Russia'],
           genres: null,
         }),
@@ -287,13 +289,13 @@ describe('AdminModerateRequestByTorrentCommandHandler (integration)', () => {
     expect(resultCartoon.errorField?.errorKey).toBe(EXCEPTION_KEYS_ENUM.MOVIE_ALREADY_EXIST);
   });
 
-  it('should return error if movie already exists in database with moderation state', async () => {
+  it('should create an idempotent moderation task for an existing movie without video', async () => {
     await Promise.all([
       filmRepository.save(
         Film.create({
           name: 'Film',
-          handleStatus: MovieHandleStatus.MODERATE,
-          hidden: true,
+          handleStatus: MovieHandleStatus.PRODUCTION,
+          hidden: false,
           kpId: moderateFilmRequestData.kpId,
           key: null,
           originalName: null,
@@ -305,6 +307,7 @@ describe('AdminModerateRequestByTorrentCommandHandler (integration)', () => {
           backgroundContentUrl: null,
           titleUrl: null,
           previewUrl: null,
+          horizontalPreviewUrl: null,
           country: null,
           genres: null,
         }),
@@ -325,6 +328,7 @@ describe('AdminModerateRequestByTorrentCommandHandler (integration)', () => {
           backgroundContentUrl: null,
           titleUrl: null,
           previewUrl: null,
+          horizontalPreviewUrl: null,
           country: null,
           genres: null,
         }),
@@ -336,11 +340,26 @@ describe('AdminModerateRequestByTorrentCommandHandler (integration)', () => {
       handler.execute(new AdminModerateRequestByTorrentCommand(moderateCartoonRequestData)),
     ]);
 
-    expect(resultFilm.appResult).toBe(AppNotificationResultEnum.BadRequest);
-    expect(resultFilm.errorField?.errorKey).toBe(EXCEPTION_KEYS_ENUM.MOVIE_ALREADY_EXIST);
+    expect(resultFilm.appResult).toBe(AppNotificationResultEnum.Success);
+    expect(resultCartoon.appResult).toBe(AppNotificationResultEnum.Success);
 
-    expect(resultCartoon.appResult).toBe(AppNotificationResultEnum.BadRequest);
-    expect(resultCartoon.errorField?.errorKey).toBe(EXCEPTION_KEYS_ENUM.MOVIE_ALREADY_EXIST);
+    const [secondFilmResult, secondCartoonResult] = await Promise.all([
+      handler.execute(new AdminModerateRequestByTorrentCommand(moderateFilmRequestData)),
+      handler.execute(new AdminModerateRequestByTorrentCommand(moderateCartoonRequestData)),
+    ]);
+
+    expect(secondFilmResult.appResult).toBe(AppNotificationResultEnum.Success);
+    expect(secondCartoonResult.appResult).toBe(AppNotificationResultEnum.Success);
+
+    const [filmTasks, cartoonTasks] = await Promise.all([
+      moderationFilmRepository.getAllModeration(),
+      moderationCartoonRepository.getAllModeration(),
+    ]);
+
+    expect(filmTasks).toHaveLength(1);
+    expect(cartoonTasks).toHaveLength(1);
+    expect(filmTasks[0].torrentData).toEqual(moderateFilmRequestData.torrent);
+    expect(cartoonTasks[0].torrentData).toEqual(moderateCartoonRequestData.torrent);
   });
 
   it('should return error for invalid movie type', async () => {

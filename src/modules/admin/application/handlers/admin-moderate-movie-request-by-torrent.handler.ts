@@ -105,42 +105,54 @@ export class AdminModerateRequestByTorrentCommandHandler
       }
 
       const movie = await strategy.getMovie(kpId);
+      let movieId: number;
 
       if (movie) {
-        await queryRunner.rollbackTransaction();
+        if (movie.videoUrl) {
+          await queryRunner.rollbackTransaction();
 
-        return this.appNotification.badRequest({
-          message: 'Movie already exist and moderate',
-          errorKey: EXCEPTION_KEYS_ENUM.MOVIE_ALREADY_EXIST,
-          field: 'kpId',
-        });
+          return this.appNotification.badRequest({
+            message: 'Movie already exists with video',
+            errorKey: EXCEPTION_KEYS_ENUM.MOVIE_ALREADY_EXIST,
+            field: 'kpId',
+          });
+        }
+
+        const existingModeration = await strategy.getModerationMovieTask(movie.id);
+
+        if (existingModeration) {
+          await queryRunner.commitTransaction();
+          return this.appNotification.success(null);
+        }
+
+        movieId = movie.id;
+      } else {
+        const createDto: MovieCreateDto = {
+          kpId,
+          hidden: true,
+          handleStatus: MovieHandleStatus.MODERATE,
+          name: movieName || 'unknown',
+          duration: 0,
+          country: null,
+          alternativeName: 'unknown',
+          description: null,
+          genres: null,
+          key: null,
+          releaseDate: null,
+          originalName: null,
+          backgroundContentUrl: null,
+          trailerUrl: null,
+          previewUrl: null,
+          horizontalPreviewUrl: null,
+          titleUrl: null,
+        };
+
+        const newMovie = strategy.createMovie(createDto);
+
+        const result = await strategy.saveMovie(newMovie);
+
+        movieId = result.id;
       }
-
-      const createDto: MovieCreateDto = {
-        kpId,
-        hidden: true,
-        handleStatus: MovieHandleStatus.MODERATE,
-        name: movieName || 'unknown',
-        duration: 0,
-        country: null,
-        alternativeName: 'unknown',
-        description: null,
-        genres: null,
-        key: null,
-        releaseDate: null,
-        originalName: null,
-        backgroundContentUrl: null,
-        trailerUrl: null,
-        previewUrl: null,
-        horizontalPreviewUrl: null,
-        titleUrl: null,
-      };
-
-      const newMovie = strategy.createMovie(createDto);
-
-      const result = await strategy.saveMovie(newMovie);
-
-      const { id: movieId } = result;
 
       const createModerationDto: CreateModerationDto = {
         movieId,
@@ -183,6 +195,8 @@ export class AdminModerateRequestByTorrentCommandHandler
         return {
           getMovie: (...args): Promise<Film | null> =>
             this.filmRepository.getFilmByKinopoiskId(...args, queryRunner),
+          getModerationMovieTask: (...args): Promise<ModerationFilmEntity | null> =>
+            this.moderationFilmRepository.getModerationByMovieId(...args, queryRunner),
           createMovie: (...args) => this.filmEntity.create(...args),
           saveMovie: (movie: Film) => this.filmRepository.save(movie, queryRunner),
           createModerationMovieTask: (...args): ModerationFilmEntity =>
@@ -195,6 +209,8 @@ export class AdminModerateRequestByTorrentCommandHandler
         return {
           getMovie: (...args): Promise<Cartoon | null> =>
             this.cartoonRepository.getCartoonByKinopoiskId(...args, queryRunner),
+          getModerationMovieTask: (...args): Promise<ModerationCartoonEntity | null> =>
+            this.moderationCartoonRepository.getModerationByMovieId(...args, queryRunner),
           createMovie: (...args) => this.cartoonEntity.create(...args),
           saveMovie: (movie: Cartoon) => this.cartoonRepository.save(movie, queryRunner),
           createModerationMovieTask: (...args): ModerationCartoonEntity =>
@@ -209,6 +225,8 @@ export class AdminModerateRequestByTorrentCommandHandler
         return {
           getMovie: (...args): Promise<Serial | null> =>
             this.serialRepository.getSerialByKinopoiskId(...args, queryRunner),
+          getModerationMovieTask: (...args): Promise<ModerationSerialEntity | null> =>
+            this.moderationSerialRepository.getModerationByMovieId(...args, queryRunner),
           createMovie: (...args) => this.serialEntity.create(...args),
           saveMovie: (movie: Serial) => this.serialRepository.save(movie, queryRunner),
           createModerationMovieTask: (...args): ModerationSerialEntity =>
