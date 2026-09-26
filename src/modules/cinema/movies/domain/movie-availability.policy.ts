@@ -23,10 +23,6 @@ export class MovieAvailabilityPolicy {
   }
 
   static resolveStatus(movie: MovieAvailabilitySubject): MovieAvailabilityStatus {
-    if (movie.availabilityStatus !== MovieAvailabilityStatus.AVAILABLE) {
-      return movie.availabilityStatus;
-    }
-
     if (this.hasPlayableMedia(movie)) return MovieAvailabilityStatus.AVAILABLE;
 
     if (this.isFutureReleaseDate(movie.releaseDate)) {

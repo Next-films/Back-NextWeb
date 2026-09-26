@@ -18,7 +18,7 @@ import { KinopoiskService } from '@/external-api/kinopoisk/application/kinopoisk
 import { MoviesService } from '@/movies/application/movies.service';
 import { ExternalMovieAssetsService } from '@/movies/application/external-movie-assets.service';
 import { KinopoiskMovie } from '@/external-api/kinopoisk/domain/types';
-import { MovieKpMetadata } from '@/movies/domain/types';
+import { MovieAvailabilityStatus, MovieKpMetadata } from '@/movies/domain/types';
 import { MovieTypesEnum } from '@/common/types/types';
 import { MovieHandleStatus } from '@/movies/domain/types';
 import { Film } from '@/films/domain/film.entity';
@@ -35,6 +35,8 @@ type ReprocessPremiereRow = {
   trailerUrl: string | null;
   description: string | null;
   backgroundContentUrl: string | null;
+  videoUrl: string | null;
+  availabilityStatus: MovieAvailabilityStatus;
 };
 
 export class AdminReprocessPremiereAssetsCommand implements ICommand {
@@ -79,6 +81,7 @@ export class AdminReprocessPremiereAssetsCommandHandler
         backgroundsUpdated: 0,
         postersUpdated: 0,
         titlesUpdated: 0,
+        availabilityUpdated: 0,
         unchanged: 0,
         published: 0,
         moderated: 0,
@@ -142,6 +145,12 @@ export class AdminReprocessPremiereAssetsCommandHandler
           OR m."backgroundContentUrl" IS NULL
           OR btrim(m."backgroundContentUrl") = ''
           OR lower(split_part(m."backgroundContentUrl", '?', 1)) NOT LIKE '%.webm'
+          OR m."videoUrl" IS NULL
+          OR btrim(m."videoUrl") = ''
+          OR (
+            btrim(m."videoUrl") <> ''
+            AND m."availabilityStatus" <> 'available'
+          )
         )`);
       }
 
@@ -153,6 +162,8 @@ export class AdminReprocessPremiereAssetsCommandHandler
           m."trailerUrl" AS "trailerUrl",
           m."description" AS "description",
           m."backgroundContentUrl" AS "backgroundContentUrl",
+          m."videoUrl" AS "videoUrl",
+          m."availabilityStatus" AS "availabilityStatus",
           m."releaseDate" AS "releaseDate",
           m."updatedAt" AS "updatedAt"
         FROM "${table.table}" m
@@ -163,7 +174,7 @@ export class AdminReprocessPremiereAssetsCommandHandler
     values.push(limit);
     return this.dataSource.query<ReprocessPremiereRow[]>(
       `
-        SELECT "id", "type", "kpId", "trailerUrl", "description", "backgroundContentUrl"
+        SELECT "id", "type", "kpId", "trailerUrl", "description", "backgroundContentUrl", "videoUrl", "availabilityStatus"
         FROM (${queries.join(' UNION ALL ')}) premieres
         ORDER BY "updatedAt" ASC NULLS FIRST, "releaseDate" ASC NULLS LAST, "id" ASC
         LIMIT $${values.length}
@@ -214,6 +225,12 @@ export class AdminReprocessPremiereAssetsCommandHandler
           OR m."backgroundContentUrl" IS NULL
           OR btrim(m."backgroundContentUrl") = ''
           OR lower(split_part(m."backgroundContentUrl", '?', 1)) NOT LIKE '%.webm'
+          OR m."videoUrl" IS NULL
+          OR btrim(m."videoUrl") = ''
+          OR (
+            btrim(m."videoUrl") <> ''
+            AND m."availabilityStatus" <> 'available'
+          )
           OR NOT EXISTS (
             SELECT 1
             FROM "${table.table}_genres_genre" mg
@@ -230,6 +247,8 @@ export class AdminReprocessPremiereAssetsCommandHandler
           m."trailerUrl" AS "trailerUrl",
           m."description" AS "description",
           m."backgroundContentUrl" AS "backgroundContentUrl",
+          m."videoUrl" AS "videoUrl",
+          m."availabilityStatus" AS "availabilityStatus",
           m."releaseDate" AS "releaseDate",
           m."updatedAt" AS "updatedAt"
         FROM "${table.table}" m
@@ -240,7 +259,7 @@ export class AdminReprocessPremiereAssetsCommandHandler
     values.push(limit);
     return this.dataSource.query<ReprocessPremiereRow[]>(
       `
-        SELECT "id", "type", "kpId", "trailerUrl", "description", "backgroundContentUrl"
+        SELECT "id", "type", "kpId", "trailerUrl", "description", "backgroundContentUrl", "videoUrl", "availabilityStatus"
         FROM (${queries.join(' UNION ALL ')}) media
         ORDER BY "updatedAt" ASC NULLS FIRST, "releaseDate" ASC NULLS LAST, "id" ASC
         LIMIT $${values.length}
@@ -340,11 +359,17 @@ export class AdminReprocessPremiereAssetsCommandHandler
       onlyMissingMetadata,
     );
 
-    const handleStatus = await this.refreshPremiereStatus(row);
-    if (handleStatus === MovieHandleStatus.PRODUCTION) result.published++;
+    const refreshedStatus = await this.refreshPremiereStatus(row);
+    if (refreshedStatus.availabilityUpdated) result.availabilityUpdated++;
+    if (refreshedStatus.handleStatus === MovieHandleStatus.PRODUCTION) result.published++;
     else result.moderated++;
 
-    if (!updated.trailerUpdated && !updated.descriptionUpdated && !updated.backgroundUpdated) {
+    if (
+      !updated.trailerUpdated &&
+      !updated.descriptionUpdated &&
+      !updated.backgroundUpdated &&
+      !refreshedStatus.availabilityUpdated
+    ) {
       result.unchanged++;
       return;
     }
@@ -415,6 +440,7 @@ export class AdminReprocessPremiereAssetsCommandHandler
       trailerUrl: movie.trailerUrl,
       backgroundContentUrl: movie.backgroundContentUrl,
       handleStatus: movie.handleStatus,
+      availabilityStatus: movie.availabilityStatus,
       isHidden: movie.isHidden,
     };
 
@@ -480,6 +506,8 @@ export class AdminReprocessPremiereAssetsCommandHandler
       movie.updateTrailerUrl(metadata.trailerUrl);
     }
 
+    this.moviesService.syncAvailabilityStatus(movie);
+
     if (this.moviesService.isPremiereWithoutVideo(movie)) {
       this.moviesService.setHandleProductionStatusForPremiere(movie);
     } else {
@@ -509,6 +537,7 @@ export class AdminReprocessPremiereAssetsCommandHandler
       trailerUrl: movie.trailerUrl,
       backgroundContentUrl: movie.backgroundContentUrl,
       handleStatus: movie.handleStatus,
+      availabilityStatus: movie.availabilityStatus,
       isHidden: movie.isHidden,
     };
     const changed = JSON.stringify(previous) !== JSON.stringify(currentComparable);
@@ -528,6 +557,7 @@ export class AdminReprocessPremiereAssetsCommandHandler
     if (backgroundUpdated) result.backgroundsUpdated++;
     if (posterUpdated) result.postersUpdated++;
     if (titleUpdated) result.titlesUpdated++;
+    if (previous.availabilityStatus !== movie.availabilityStatus) result.availabilityUpdated++;
     if (movie.handleStatus === MovieHandleStatus.PRODUCTION) result.published++;
     else result.moderated++;
   }
@@ -860,7 +890,10 @@ export class AdminReprocessPremiereAssetsCommandHandler
     return needsDescription || needsTrailer || needsBackground;
   }
 
-  private async refreshPremiereStatus(row: ReprocessPremiereRow): Promise<MovieHandleStatus> {
+  private async refreshPremiereStatus(row: ReprocessPremiereRow): Promise<{
+    handleStatus: MovieHandleStatus;
+    availabilityUpdated: boolean;
+  }> {
     const target = this.entityTarget(row.type);
     const repository = this.dataSource.getRepository(target);
     const movie = await repository.findOne({
@@ -868,11 +901,22 @@ export class AdminReprocessPremiereAssetsCommandHandler
       relations: { genres: true },
     });
 
-    if (!movie) return MovieHandleStatus.MODERATE;
+    if (!movie) {
+      return { handleStatus: MovieHandleStatus.MODERATE, availabilityUpdated: false };
+    }
 
-    this.moviesService.setHandleProductionStatusForPremiere(movie);
+    const previousAvailabilityStatus = movie.availabilityStatus;
+    this.moviesService.syncAvailabilityStatus(movie);
+    if (this.moviesService.isPremiereWithoutVideo(movie)) {
+      this.moviesService.setHandleProductionStatusForPremiere(movie);
+    } else {
+      this.moviesService.setHandleProductionStatus(movie);
+    }
     await repository.save(movie);
-    return movie.handleStatus;
+    return {
+      handleStatus: movie.handleStatus,
+      availabilityUpdated: previousAvailabilityStatus !== movie.availabilityStatus,
+    };
   }
 
   private entityTarget(

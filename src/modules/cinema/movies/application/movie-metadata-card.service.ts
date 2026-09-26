@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { MovieTypesEnum } from '@/common/types/types';
 import { MoviesService } from '@/movies/application/movies.service';
 import { MovieEntity } from '@/movies/domain/movie.entity';
+import { MovieAvailabilityPolicy } from '@/movies/domain/movie-availability.policy';
 import {
   MovieAvailabilityStatus,
   MovieCreateDto,
@@ -51,7 +52,11 @@ export class MovieMetadataCardService {
       country: metadata.countries,
       description: metadata.description,
       releaseDate: metadata.releaseDate,
-      availabilityStatus: MovieAvailabilityStatus.UPCOMING,
+      availabilityStatus: MovieAvailabilityPolicy.resolveStatus({
+        availabilityStatus: MovieAvailabilityStatus.UPCOMING,
+        releaseDate: metadata.releaseDate,
+        videoUrl: null,
+      }),
       trailerUrl: metadata.trailerUrl,
       backgroundContentUrl: null,
       horizontalPreviewUrl: null,
@@ -67,7 +72,7 @@ export class MovieMetadataCardService {
 
     movie.update(updateDto);
     movie.showOrHiddeMovie(true, MovieHandleStatus.MODERATE);
-    movie.updateAvailabilityStatus(MovieAvailabilityStatus.UPCOMING);
+    movie.updateAvailabilityStatus(MovieAvailabilityPolicy.resolveStatus(movie));
     return movie;
   }
 

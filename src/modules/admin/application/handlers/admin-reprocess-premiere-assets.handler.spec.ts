@@ -127,6 +127,37 @@ describe('AdminReprocessPremiereAssetsCommandHandler', () => {
     );
   });
 
+  it('selects cards without a video URL in missing-only mode', async () => {
+    const query = jest.fn().mockResolvedValue([]);
+    const handlerWithDatabase = new AdminReprocessPremiereAssetsCommandHandler(
+      logger as never,
+      null as never,
+      null as never,
+      {
+        hasRussianText: jest.fn(),
+        isPlayablePremiereTrailer: jest.fn(),
+      } as never,
+      null as never,
+      { query } as never,
+    );
+    const subject = handlerWithDatabase as unknown as {
+      getPremieresForReprocess: (input: unknown) => Promise<unknown[]>;
+    };
+
+    await subject.getPremieresForReprocess({
+      scope: 'premieres',
+      type: 'film',
+      handleStatus: 'all',
+      onlyMissingAssets: true,
+      limit: 50,
+    });
+
+    expect(query).toHaveBeenCalledTimes(1);
+    expect(query.mock.calls[0][0]).toContain('m."videoUrl" IS NULL');
+    expect(query.mock.calls[0][0]).toContain('btrim(m."videoUrl") = \'\'');
+    expect(query.mock.calls[0][0]).toContain('m."availabilityStatus" <> \'available\'');
+  });
+
   it('clears a stale player URL when no working trailer was found', () => {
     const subject = handler as unknown as {
       shouldUpdateTrailerUrl: (

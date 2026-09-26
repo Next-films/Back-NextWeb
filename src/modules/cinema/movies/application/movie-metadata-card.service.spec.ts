@@ -69,13 +69,13 @@ describe('MovieMetadataCardService', () => {
     expect(service.shouldPublishUpcomingCard({ ...completeMetadata(), genres: [] })).toBe(false);
   });
 
-  it('creates upcoming cards even when source release date is in the past', () => {
+  it('creates released-no-video cards when source release date is in the past', () => {
     const dto = service.createMovieDto(
       { ...metadata(['США']), releaseDate: '2020-04-15' },
       '1264562',
     );
 
-    expect(dto.availabilityStatus).toBe(MovieAvailabilityStatus.UPCOMING);
+    expect(dto.availabilityStatus).toBe(MovieAvailabilityStatus.RELEASED_NO_VIDEO);
   });
 
   it('creates upcoming cards in moderation until assets are processed', () => {
@@ -165,7 +165,7 @@ describe('MovieMetadataCardService', () => {
     expect(movie.trailerUrl).toBe('https://cdn.example/preview-clip/film/42/trailer/trailer.mp4');
   });
 
-  it('keeps existing metadata cards in upcoming status', () => {
+  it('reconciles existing metadata card status from release date and video URL', () => {
     const existingMovie = {
       videoUrl: null,
       duration: 0,
@@ -195,7 +195,7 @@ describe('MovieMetadataCardService', () => {
     );
 
     expect(existingMovie.updateAvailabilityStatus).toHaveBeenCalledWith(
-      MovieAvailabilityStatus.UPCOMING,
+      MovieAvailabilityStatus.RELEASED_NO_VIDEO,
     );
     expect(existingMovie.showOrHiddeMovie).toHaveBeenCalledWith(true, MovieHandleStatus.MODERATE);
   });

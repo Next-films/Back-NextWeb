@@ -14,6 +14,30 @@ describe('MovieAvailabilityPolicy', () => {
     expect(MovieAvailabilityPolicy.getUnavailableReason(movie)).toBe('upcoming');
   });
 
+  it('turns a past upcoming premiere without video into released_no_video', () => {
+    const movie = {
+      availabilityStatus: MovieAvailabilityStatus.UPCOMING,
+      releaseDate: '2020-01-01',
+      videoUrl: null,
+    };
+
+    expect(MovieAvailabilityPolicy.resolveStatus(movie)).toBe(
+      MovieAvailabilityStatus.RELEASED_NO_VIDEO,
+    );
+    expect(MovieAvailabilityPolicy.getUnavailableReason(movie)).toBe('video_not_available');
+  });
+
+  it('uses the video URL even when the stored status is stale upcoming', () => {
+    const movie = {
+      availabilityStatus: MovieAvailabilityStatus.UPCOMING,
+      releaseDate: '2020-01-01',
+      videoUrl: 'films/example/master.m3u8',
+    };
+
+    expect(MovieAvailabilityPolicy.resolveStatus(movie)).toBe(MovieAvailabilityStatus.AVAILABLE);
+    expect(MovieAvailabilityPolicy.isPlayable(movie)).toBe(true);
+  });
+
   it('marks available movie as playable only when media exists', () => {
     const movie = {
       availabilityStatus: MovieAvailabilityStatus.AVAILABLE,

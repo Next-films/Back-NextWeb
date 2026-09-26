@@ -10,6 +10,7 @@ import { Genre } from '@/movies/domain/genre.entity';
 import { GenreRepository } from '@/movies/infrastructure/genre.repository';
 import { QueryRunner } from 'typeorm';
 import { MovieEntity } from '@/movies/domain/movie.entity';
+import { MovieAvailabilityPolicy } from '@/movies/domain/movie-availability.policy';
 import { MovieAvailabilityStatus, MovieHandleStatus, MovieKpMetadata } from '@/movies/domain/types';
 import { DateUtil } from '@/common/utils/date.util';
 import { MovieTypesEnum } from '@/common/types/types';
@@ -147,6 +148,12 @@ export class MoviesService {
       !isValid,
       isValid ? MovieHandleStatus.PRODUCTION : MovieHandleStatus.MODERATE,
     );
+  }
+
+  syncAvailabilityStatus<T extends MovieEntity>(movie: T): MovieAvailabilityStatus {
+    const status = MovieAvailabilityPolicy.resolveStatus(movie);
+    movie.updateAvailabilityStatus(status);
+    return status;
   }
 
   private isValidMovieForPremiereProduction<T extends MovieEntity>(movie: T): boolean {

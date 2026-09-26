@@ -29,6 +29,9 @@ export class AdminReprocessPremiereAssetsOutputDto {
   titlesUpdated: number;
 
   @ApiProperty()
+  availabilityUpdated: number;
+
+  @ApiProperty()
   unchanged: number;
 
   @ApiProperty()
