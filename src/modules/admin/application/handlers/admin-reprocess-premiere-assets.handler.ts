@@ -25,6 +25,7 @@ import { Film } from '@/films/domain/film.entity';
 import { Cartoon } from '@/cartoons/domain/cartoon.entity';
 import { Serial } from '@/serials/domain/serial.entity';
 import { MovieEntity } from '@/movies/domain/movie.entity';
+import { DownloaderServiceAdapter } from '@/common/infrastructure/rmq/downloader-service.adapter';
 
 const REPROCESS_METADATA_CONCURRENCY = 5;
 
@@ -37,6 +38,7 @@ type ReprocessPremiereRow = {
   backgroundContentUrl: string | null;
   videoUrl: string | null;
   availabilityStatus: MovieAvailabilityStatus;
+  releaseDate: Date | string | null;
 };
 
 export class AdminReprocessPremiereAssetsCommand implements ICommand {
@@ -57,6 +59,7 @@ export class AdminReprocessPremiereAssetsCommandHandler
     private readonly kinopoiskService: KinopoiskService,
     private readonly moviesService: MoviesService,
     private readonly externalMovieAssetsService: ExternalMovieAssetsService,
+    private readonly downloaderServiceAdapter: DownloaderServiceAdapter,
     @InjectDataSource() private readonly dataSource: DataSource,
   ) {
     this.logger.setContext(AdminReprocessPremiereAssetsCommandHandler.name);
@@ -82,6 +85,8 @@ export class AdminReprocessPremiereAssetsCommandHandler
         postersUpdated: 0,
         titlesUpdated: 0,
         availabilityUpdated: 0,
+        downloadSearchCandidates: 0,
+        downloadSearchQueued: 0,
         unchanged: 0,
         published: 0,
         moderated: 0,
@@ -90,6 +95,15 @@ export class AdminReprocessPremiereAssetsCommandHandler
         errors: [],
       };
       const onlyMissingMetadata = command.inputDto.onlyMissingAssets ?? true;
+      const downloadCandidates =
+        command.inputDto.scope === AdminReprocessMediaScopeEnum.ALL
+          ? []
+          : rows.filter(row => this.isReleasedPremiereWithoutVideo(row));
+      const downloadPayload = this.createDownloadPayload(downloadCandidates);
+      result.downloadSearchCandidates = Object.values(downloadPayload).reduce(
+        (count, kpIds) => count + kpIds.length,
+        0,
+      );
 
       if (command.inputDto.dryRun) {
         return this.appNotification.success(result);
@@ -103,6 +117,7 @@ export class AdminReprocessPremiereAssetsCommandHandler
               this.reprocessPremiereMetadata(row, result, onlyMissingMetadata);
 
       await this.processInChunks(rows, reprocess);
+      await this.queueReleasedPremieres(downloadPayload, result);
 
       return this.appNotification.success(result);
     } catch (error) {
@@ -128,6 +143,16 @@ export class AdminReprocessPremiereAssetsCommandHandler
       if (handleStatus !== AdminPremiereHandleStatusEnum.ALL) {
         values.push(handleStatus);
         conditions.push(`m."handleStatus" = $${values.length}`);
+      }
+
+      if (inputDto.movieId) {
+        values.push(inputDto.movieId);
+        conditions.push(`m."id" = $${values.length}`);
+      }
+
+      if (inputDto.kpId) {
+        values.push(inputDto.kpId);
+        conditions.push(`m."kpId" = $${values.length}`);
       }
 
       if (inputDto.onlyMissingAssets ?? true) {
@@ -174,7 +199,7 @@ export class AdminReprocessPremiereAssetsCommandHandler
     values.push(limit);
     return this.dataSource.query<ReprocessPremiereRow[]>(
       `
-        SELECT "id", "type", "kpId", "trailerUrl", "description", "backgroundContentUrl", "videoUrl", "availabilityStatus"
+        SELECT "id", "type", "kpId", "trailerUrl", "description", "backgroundContentUrl", "videoUrl", "availabilityStatus", "releaseDate"
         FROM (${queries.join(' UNION ALL ')}) premieres
         ORDER BY "updatedAt" ASC NULLS FIRST, "releaseDate" ASC NULLS LAST, "id" ASC
         LIMIT $${values.length}
@@ -259,7 +284,7 @@ export class AdminReprocessPremiereAssetsCommandHandler
     values.push(limit);
     return this.dataSource.query<ReprocessPremiereRow[]>(
       `
-        SELECT "id", "type", "kpId", "trailerUrl", "description", "backgroundContentUrl", "videoUrl", "availabilityStatus"
+        SELECT "id", "type", "kpId", "trailerUrl", "description", "backgroundContentUrl", "videoUrl", "availabilityStatus", "releaseDate"
         FROM (${queries.join(' UNION ALL ')}) media
         ORDER BY "updatedAt" ASC NULLS FIRST, "releaseDate" ASC NULLS LAST, "id" ASC
         LIMIT $${values.length}
@@ -621,6 +646,62 @@ export class AdminReprocessPremiereAssetsCommandHandler
   private async processInChunks<T>(items: T[], handler: (item: T) => Promise<void>): Promise<void> {
     for (let index = 0; index < items.length; index += REPROCESS_METADATA_CONCURRENCY) {
       await Promise.all(items.slice(index, index + REPROCESS_METADATA_CONCURRENCY).map(handler));
+    }
+  }
+
+  private isReleasedPremiereWithoutVideo(row: ReprocessPremiereRow): boolean {
+    if (!row.kpId?.trim() || this.hasText(row.videoUrl)) return false;
+    if (row.availabilityStatus === MovieAvailabilityStatus.RELEASED_NO_VIDEO) return true;
+    if (!row.releaseDate) return false;
+
+    const releaseDate = new Date(row.releaseDate);
+    if (Number.isNaN(releaseDate.getTime())) return false;
+
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+    return releaseDate <= today;
+  }
+
+  private createDownloadPayload(rows: ReprocessPremiereRow[]): {
+    films: string[];
+    cartoons: string[];
+    serials: string[];
+  } {
+    const payload = {
+      films: new Set<string>(),
+      cartoons: new Set<string>(),
+      serials: new Set<string>(),
+    };
+
+    for (const row of rows) {
+      const kpId = row.kpId?.trim();
+      if (!kpId) continue;
+
+      if (row.type === AdminPremiereTypeEnum.CARTOON) payload.cartoons.add(kpId);
+      else if (row.type === AdminPremiereTypeEnum.SERIAL) payload.serials.add(kpId);
+      else payload.films.add(kpId);
+    }
+
+    return {
+      films: [...payload.films],
+      cartoons: [...payload.cartoons],
+      serials: [...payload.serials],
+    };
+  }
+
+  private async queueReleasedPremieres(
+    payload: { films: string[]; cartoons: string[]; serials: string[] },
+    result: AdminReprocessPremiereAssetsOutputDto,
+  ): Promise<void> {
+    if (result.downloadSearchCandidates === 0) return;
+
+    try {
+      await this.downloaderServiceAdapter.bridgeRunByKpIds(payload);
+      result.downloadSearchQueued = result.downloadSearchCandidates;
+    } catch (error) {
+      result.assetWarnings++;
+      result.errors.push(`download search was not started: ${String(error)}`);
+      this.logger.warn(String(error), this.queueReleasedPremieres.name);
     }
   }
 

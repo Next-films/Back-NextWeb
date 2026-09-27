@@ -228,6 +228,14 @@ export class DownloaderServiceRestAdapter implements IDownloaderServiceAdapter {
     );
   }
 
+  bridgeRunByKpIds(payload: DownloaderRunByListInputDto): Promise<void> {
+    return this.postVoid(
+      this.url(BRIDGE.MAIN, BRIDGE.RUN_BY_KPIDS),
+      payload,
+      this.bridgeRunByKpIds.name,
+    );
+  }
+
   bridgeFindFilms(): Promise<void> {
     return this.postVoid(
       this.url(BRIDGE.MAIN, BRIDGE.FILMS, BRIDGE.FIND),

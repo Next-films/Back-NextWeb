@@ -15,6 +15,7 @@ describe('AdminReprocessPremiereAssetsCommandHandler', () => {
     } as never,
     null as never,
     null as never,
+    null as never,
   );
   const mergeMetadata = (
     movie: MovieEntity,
@@ -138,6 +139,7 @@ describe('AdminReprocessPremiereAssetsCommandHandler', () => {
         isPlayablePremiereTrailer: jest.fn(),
       } as never,
       null as never,
+      null as never,
       { query } as never,
     );
     const subject = handlerWithDatabase as unknown as {
@@ -156,6 +158,63 @@ describe('AdminReprocessPremiereAssetsCommandHandler', () => {
     expect(query.mock.calls[0][0]).toContain('m."videoUrl" IS NULL');
     expect(query.mock.calls[0][0]).toContain('btrim(m."videoUrl") = \'\'');
     expect(query.mock.calls[0][0]).toContain('m."availabilityStatus" <> \'available\'');
+    expect(query.mock.calls[0][0]).toContain('"releaseDate"');
+  });
+
+  it('queues only released premieres that still have no video URL', () => {
+    const subject = handler as unknown as {
+      isReleasedPremiereWithoutVideo: (row: {
+        kpId: string | null;
+        videoUrl: string | null;
+        availabilityStatus: string;
+        releaseDate: string | null;
+      }) => boolean;
+    };
+
+    expect(
+      subject.isReleasedPremiereWithoutVideo({
+        kpId: '7378605',
+        videoUrl: null,
+        availabilityStatus: 'released_no_video',
+        releaseDate: '2026-09-01',
+      }),
+    ).toBe(true);
+    expect(
+      subject.isReleasedPremiereWithoutVideo({
+        kpId: '7378605',
+        videoUrl: 'https://cdn.example/movie/master.m3u8',
+        availabilityStatus: 'available',
+        releaseDate: '2026-09-01',
+      }),
+    ).toBe(false);
+    expect(
+      subject.isReleasedPremiereWithoutVideo({
+        kpId: '7378605',
+        videoUrl: null,
+        availabilityStatus: 'upcoming',
+        releaseDate: '2099-09-01',
+      }),
+    ).toBe(false);
+  });
+
+  it('groups and deduplicates download searches by media type and kpId', () => {
+    const subject = handler as unknown as {
+      createDownloadPayload: (rows: Array<{ type: string; kpId: string | null }>) => {
+        films: string[];
+        cartoons: string[];
+        serials: string[];
+      };
+    };
+
+    expect(
+      subject.createDownloadPayload([
+        { type: 'film', kpId: '7378605' },
+        { type: 'film', kpId: '7378605' },
+        { type: 'cartoon', kpId: '123' },
+        { type: 'serial', kpId: '456' },
+        { type: 'film', kpId: null },
+      ]),
+    ).toEqual({ films: ['7378605'], cartoons: ['123'], serials: ['456'] });
   });
 
   it('clears a stale player URL when no working trailer was found', () => {

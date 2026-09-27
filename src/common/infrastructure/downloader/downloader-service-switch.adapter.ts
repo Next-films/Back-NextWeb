@@ -137,6 +137,10 @@ export class DownloaderServiceSwitchAdapter {
     return this.restAdapter.bridgeRunByList(payload);
   }
 
+  bridgeRunByKpIds(payload: DownloaderRunByListInputDto): Promise<void> {
+    return this.restAdapter.bridgeRunByKpIds(payload);
+  }
+
   cancelBridgeProcess(): Promise<FallbackResult<{ message: string }>> {
     return this.restAdapter.cancelBridgeProcess();
   }

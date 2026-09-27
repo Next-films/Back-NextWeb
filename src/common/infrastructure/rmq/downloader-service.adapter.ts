@@ -145,6 +145,11 @@ export class DownloaderServiceAdapter implements IDownloaderServiceAdapter {
     throw new Error('Run-by-list is available only via HTTP transport adapter.');
   }
 
+  bridgeRunByKpIds(_payload: DownloaderRunByListInputDto): Promise<void> {
+    void _payload;
+    throw new Error('Run-by-kpIds is available only via HTTP transport adapter.');
+  }
+
   cancelBridgeProcess(): Promise<Res<{ message: string }>> {
     throw new Error('Cancel process is available only via HTTP transport adapter.');
   }
@@ -348,6 +353,13 @@ export class DownloaderServiceAdapterMock implements IDownloaderServiceAdapter {
     this.mockLog(
       `Execute: run by lists (mock). Payload: ${JSON.stringify(payload)}`,
       this.bridgeRunByList.name,
+    );
+  }
+
+  bridgeRunByKpIds(payload: DownloaderRunByListInputDto): void {
+    this.mockLog(
+      `Execute: run by kpIds (mock). Payload: ${JSON.stringify(payload)}`,
+      this.bridgeRunByKpIds.name,
     );
   }
 

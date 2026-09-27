@@ -3,6 +3,7 @@ export const DOWNLOADER_HTTP_SERVICE = 'DOWNLOADER_HTTP_SERVICE';
 export const DOWNLOADER_SERVICE_REST_BRIDGE_METHODS_CONSTANTS = {
   MAIN: 'bridge',
   RUN_BY_LIST: 'run-by-list',
+  RUN_BY_KPIDS: 'run-by-kpids',
   CANCEL: 'cancel',
   FILMS: 'films',
   CARTOONS: 'cartoons',

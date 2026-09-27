@@ -32,6 +32,12 @@ export class AdminReprocessPremiereAssetsOutputDto {
   availabilityUpdated: number;
 
   @ApiProperty()
+  downloadSearchCandidates: number;
+
+  @ApiProperty()
+  downloadSearchQueued: number;
+
+  @ApiProperty()
   unchanged: number;
 
   @ApiProperty()

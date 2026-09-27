@@ -194,6 +194,7 @@ export type HandledRmqErrorType = {
 
 export interface IDownloaderServiceAdapter {
   bridgeRunByList(payload: DownloaderRunByListInputDto): void | Promise<void>;
+  bridgeRunByKpIds(payload: DownloaderRunByListInputDto): void | Promise<void>;
   cancelBridgeProcess():
     | AppNotificationResult<{ message: string }, ErrorFieldExceptionDto | null>
     | Promise<AppNotificationResult<{ message: string }, ErrorFieldExceptionDto | null>>;
