@@ -11,7 +11,9 @@ import { ExternalApiConfigService } from '@/external-api-config/application/exte
 import { ExternalApiProviderEnum, ExternalApiTargetEnum } from '@/external-api-config/domain/types';
 import {
   VibixCatalogResponse,
+  VibixDetails,
   VibixMediaType,
+  VibixPerson,
   VibixPublicItem,
   VibixVideoRecord,
 } from '@/external-api/vibix/domain/vibix.types';
@@ -166,7 +168,11 @@ export class VibixCatalogService {
     return {
       id,
       name: this.firstString(record.name_rus, record.name, record.name_eng, record.name_original),
-      description: this.firstString(record.description, record.description_short),
+      description: this.firstString(
+        record.description_rus,
+        record.description,
+        record.description_short,
+      ),
       duration: Number(record.duration) || 0,
       releaseDate,
       subTitle: this.firstString(record.name_original, record.name_eng),
@@ -184,6 +190,7 @@ export class VibixCatalogService {
       },
       country: this.toStringList(record.country),
       genres: genres.map((name, index) => ({ id: index + 1, name })),
+      details: this.toDetails(record, Number.isInteger(year) && year > 1800 ? year : null),
       availabilityStatus: 'available',
       isPlayable: true,
       unavailableReason: null,
@@ -195,6 +202,78 @@ export class VibixCatalogService {
       },
       source: 'vibix',
     };
+  }
+
+  private toDetails(record: VibixVideoRecord, year: number | null): VibixDetails {
+    const persons = this.groupPersons(record.persons);
+    const seasons = this.toSeasons(record.episodes);
+    return {
+      year,
+      kpId: this.toNullableString(String(record.kp_id ?? record.kinopoisk_id ?? '')),
+      imdbId: this.toNullableString(record.imdb_id),
+      kpRating: this.toPositiveNumber(record.kp_rating),
+      kpVotes: this.toPositiveNumber(record.kp_votes),
+      imdbRating: this.toPositiveNumber(record.imdb_rating),
+      imdbVotes: this.toPositiveNumber(record.imdb_votes),
+      quality: this.toNullableString(record.quality),
+      voiceovers: this.toNameList(record.voiceovers),
+      directors: persons.director ?? [],
+      writers: persons.writer ?? [],
+      actors: (persons.actor ?? []).slice(0, 12),
+      seasonsCount: seasons.length > 0 ? seasons.length : null,
+      episodesCount:
+        seasons.length > 0 ? seasons.reduce((sum, season) => sum + season, 0) || null : null,
+    };
+  }
+
+  /* persons приходит либо списком с occupation, либо уже сгруппированным
+     объектом { actor: [...], director: [...] } — плагин Vibix поддерживает оба. */
+  private groupPersons(value: VibixVideoRecord['persons']): Record<string, string[]> {
+    const grouped: Record<string, string[]> = {};
+    const add = (occupation: string, person: VibixPerson) => {
+      const name = this.firstString(person?.name_anyway, person?.name);
+      if (!occupation || !name) return;
+      (grouped[occupation] ??= []).push(name);
+    };
+    if (Array.isArray(value)) {
+      value.forEach(person => add(String(person?.occupation ?? ''), person));
+    } else if (value && typeof value === 'object') {
+      Object.entries(value).forEach(([occupation, list]) => {
+        if (Array.isArray(list)) list.forEach(person => add(occupation, person));
+      });
+    }
+    return grouped;
+  }
+
+  // episodes: { "1": [...серии], "2": [...] } или массив сезонов.
+  private toSeasons(value: VibixVideoRecord['episodes']): number[] {
+    if (!value || typeof value !== 'object') return [];
+    return Object.values(value).map(season =>
+      Array.isArray(season)
+        ? season.length
+        : season && typeof season === 'object'
+        ? Object.keys(season).length
+        : 0,
+    );
+  }
+
+  private toNameList(value: unknown): string[] {
+    if (typeof value === 'string') return this.toStringList(value);
+    if (!Array.isArray(value)) return [];
+    return value
+      .map(item =>
+        typeof item === 'string'
+          ? item.trim()
+          : item && typeof item === 'object'
+          ? this.firstString((item as { name?: unknown }).name)
+          : '',
+      )
+      .filter(Boolean);
+  }
+
+  private toPositiveNumber(value: unknown): number | null {
+    const number = Number(value);
+    return Number.isFinite(number) && number > 0 ? number : null;
   }
 
   private toStringList(value: string[] | string | null | undefined): string[] {

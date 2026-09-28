@@ -162,4 +162,47 @@ describe('VibixCatalogService', () => {
       }),
     );
   });
+
+  it('maps Russian description, ratings, persons and seasons', async () => {
+    const { service, post } = createService();
+    post.mockResolvedValue({
+      data: {
+        data: [
+          {
+            ...movie,
+            type: 'serial',
+            description: 'English text',
+            description_rus: 'Русское описание',
+            kp_rating: '7.4',
+            imdb_rating: 0,
+            quality: 'FHD',
+            voiceovers: [{ name: 'LostFilm' }, 'HDRezka'],
+            persons: [
+              { occupation: 'director', name_anyway: 'Режиссёр' },
+              { occupation: 'actor', name_anyway: 'Актёр' },
+            ],
+            episodes: { 1: [1, 2, 3], 2: [1, 2] },
+          },
+        ],
+        recordsFiltered: 1,
+      },
+    });
+
+    const item = await service.getById(101);
+
+    expect(item.description).toBe('Русское описание');
+    expect(item.details).toEqual(
+      expect.objectContaining({
+        year: 2026,
+        kpRating: 7.4,
+        imdbRating: null,
+        quality: 'FHD',
+        voiceovers: ['LostFilm', 'HDRezka'],
+        directors: ['Режиссёр'],
+        actors: ['Актёр'],
+        seasonsCount: 2,
+        episodesCount: 5,
+      }),
+    );
+  });
 });

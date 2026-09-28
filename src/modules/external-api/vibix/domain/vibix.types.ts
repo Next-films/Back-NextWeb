@@ -21,7 +21,40 @@ export interface VibixVideoRecord {
   country?: string[] | string | null;
   description?: string | null;
   description_short?: string | null;
+  description_rus?: string | null;
   uploaded_at?: string | null;
+  quality?: string | null;
+  voiceovers?: unknown;
+  persons?: VibixPerson[] | Record<string, VibixPerson[]> | null;
+  episodes?: Record<string, unknown> | unknown[] | null;
+  kp_rating?: number | string | null;
+  kp_votes?: number | string | null;
+  imdb_id?: string | null;
+  imdb_rating?: number | string | null;
+  imdb_votes?: number | string | null;
+}
+
+export interface VibixPerson {
+  name_anyway?: string | null;
+  name?: string | null;
+  occupation?: string | null;
+}
+
+export interface VibixDetails {
+  year: number | null;
+  kpId: string | null;
+  imdbId: string | null;
+  kpRating: number | null;
+  kpVotes: number | null;
+  imdbRating: number | null;
+  imdbVotes: number | null;
+  quality: string | null;
+  voiceovers: string[];
+  directors: string[];
+  writers: string[];
+  actors: string[];
+  seasonsCount: number | null;
+  episodesCount: number | null;
 }
 
 export interface VibixCatalogResponse {
@@ -52,6 +85,7 @@ export interface VibixPublicItem {
   };
   country: string[];
   genres: Array<{ id: number; name: string }>;
+  details: VibixDetails;
   availabilityStatus: 'available';
   isPlayable: true;
   unavailableReason: null;
