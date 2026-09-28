@@ -18,6 +18,7 @@ import { AnalyticsModule } from '@/analytics/analytics.module';
 import { BannerModule } from '@/banner/banner.module';
 import { ViewerButtonModule } from '@/viewer-button/viewer-button.module';
 import { HomeSectionsModule } from '@/home-sections/home-sections.module';
+import { PlaybackSettingsModule } from '@/playback-settings/playback-settings.module';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { HomeSectionsModule } from '@/home-sections/home-sections.module';
     BannerModule,
     ViewerButtonModule,
     HomeSectionsModule,
+    PlaybackSettingsModule,
   ],
   controllers: [],
   providers: [AsyncLocalStorageService],

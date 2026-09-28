@@ -54,6 +54,7 @@ export const ADMIN_CINEMA_ROUTE = {
   CARTOONS: `cartoons`,
   SERIALS: `serials`,
   PREMIERES: `premieres`,
+  SHORT_CONTENT: `short-content`,
 };
 
 export const ADMIN_BANNER_ROUTE = {
@@ -78,6 +79,14 @@ export const ADMIN_HOME_SECTIONS_ROUTE = {
 
 export const HOME_SECTIONS_ROUTE = {
   MAIN: `home-sections`,
+};
+
+export const ADMIN_PLAYBACK_SETTINGS_ROUTE = {
+  MAIN: `${ADMIN_PREFIX}/cinema/playback-settings`,
+};
+
+export const PLAYBACK_SETTINGS_ROUTE = {
+  MAIN: `playback-settings`,
 };
 
 export const ADMIN_PRIVATE_CINEMA_ROUTE = {

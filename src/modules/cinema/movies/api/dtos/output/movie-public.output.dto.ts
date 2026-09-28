@@ -14,6 +14,20 @@ export class MovieGenreOutputDto {
   name: string;
 }
 
+export class ExternalPlayerOutputDto {
+  @ApiProperty({ enum: ['vibix'] })
+  provider: 'vibix';
+
+  @ApiProperty({ enum: ['kp'] })
+  lookupType: 'kp';
+
+  @ApiProperty({ description: 'Kinopoisk ID used by the player SDK' })
+  lookupId: string;
+
+  @ApiProperty({ enum: ['movie', 'series'] })
+  mediaType: 'movie' | 'series';
+}
+
 class MoviePublicContentOutputDto {
   @ApiProperty({ nullable: true })
   movieUrl: string | null;
@@ -69,6 +83,9 @@ export class MoviesPublicOutputDto {
 
   @ApiProperty({ nullable: true })
   unavailableReason: string | null;
+
+  @ApiProperty({ type: ExternalPlayerOutputDto, nullable: true })
+  externalPlayer: ExternalPlayerOutputDto | null;
 }
 /*
  *
@@ -117,6 +134,9 @@ export class MoviePublicOutputDto {
 
   @ApiProperty({ nullable: true })
   unavailableReason: string | null;
+
+  @ApiProperty({ type: ExternalPlayerOutputDto, nullable: true })
+  externalPlayer: ExternalPlayerOutputDto | null;
 }
 
 @Injectable()
@@ -136,6 +156,22 @@ export class MoviePublicOutputDtoMapper {
 
   protected formatGenresString(genres: Genre[] = []): string {
     return genres.map(g => g.name.charAt(0).toUpperCase() + g.name.slice(1)).join('/');
+  }
+
+  protected mapExternalPlayer(
+    movie: Pick<MovieEntity, 'kpId'>,
+    mediaType: ExternalPlayerOutputDto['mediaType'],
+  ): ExternalPlayerOutputDto | null {
+    const lookupId = movie.kpId?.trim();
+
+    if (!lookupId || !/^\d+$/.test(lookupId)) return null;
+
+    return {
+      provider: 'vibix',
+      lookupType: 'kp',
+      lookupId,
+      mediaType,
+    };
   }
   /*
    *
@@ -188,6 +224,7 @@ export class MoviePublicOutputDtoMapper {
       availabilityStatus,
       isPlayable,
       unavailableReason: MovieAvailabilityPolicy.getUnavailableReason(movie),
+      externalPlayer: this.mapExternalPlayer(movie, 'movie'),
     };
   }
 
@@ -215,6 +252,7 @@ export class MoviePublicOutputDtoMapper {
       availabilityStatus,
       isPlayable: MovieAvailabilityPolicy.isPlayable(movie),
       unavailableReason: MovieAvailabilityPolicy.getUnavailableReason(movie),
+      externalPlayer: this.mapExternalPlayer(movie, 'movie'),
     };
   }
 

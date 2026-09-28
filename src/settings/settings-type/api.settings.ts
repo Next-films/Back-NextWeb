@@ -79,4 +79,10 @@ export class ApiSettings {
 
   @IsString()
   ADMIN_PANEL_URL: string = this.environmentVariables.ADMIN_PANEL_URL;
+
+  @IsString()
+  SHORT_CONTENT_SERVICE_URL: string = this.environmentVariables.SHORT_CONTENT_SERVICE_URL || '';
+
+  @IsString()
+  SHORT_CONTENT_SERVICE_TOKEN: string = this.environmentVariables.SHORT_CONTENT_SERVICE_TOKEN || '';
 }

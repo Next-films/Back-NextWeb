@@ -86,6 +86,10 @@ import { AdminRemoveAdminCommandHandler } from '@/admin/application/handlers/adm
 import { AdminGetPremieresQueryHandler } from '@/admin/application/query-handlers/admin-get-premieres.query-handler';
 import { AdminReprocessPremiereAssetsCommandHandler } from '@/admin/application/handlers/admin-reprocess-premiere-assets.handler';
 import { KinopoiskModule } from '@/external-api/kinopoisk/kinopoisk.module';
+import { AdminShortContentController } from '@/admin/api/admin-short-content.controller';
+import { ShortContentClientService } from '@/admin/application/services/short-content-client.service';
+import { ShortContentJob } from '@/admin/domain/short-content-job.entity';
+import { ShortContentJobRepository } from '@/admin/infrastructure/short-content-job.repository';
 
 export const AdminProvider = {
   provide: 'Admin',
@@ -154,7 +158,7 @@ const exportProviders = [
 @Module({
   imports: [
     MoviesModules,
-    TypeOrmModule.forFeature([Admin, AdminTelegram, AdminRole]),
+    TypeOrmModule.forFeature([Admin, AdminTelegram, AdminRole, ShortContentJob]),
     BcryptModule,
     JwtModule,
     ExternalApiAuthModule,
@@ -178,6 +182,7 @@ const exportProviders = [
     AdminCinemaCartoonsController,
     AdminCinemaSerialsController,
     AdminCinemaPremieresController,
+    AdminShortContentController,
     AdminController,
   ],
   providers: [
@@ -200,6 +205,8 @@ const exportProviders = [
     AdminGetAllAdminOutputDtoMapper,
     AdminRoleRepository,
     AdminMediaUrlSigningService,
+    ShortContentClientService,
+    ShortContentJobRepository,
   ],
   exports: [...exportProviders],
 })

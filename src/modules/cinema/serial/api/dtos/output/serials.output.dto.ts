@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import {
+  ExternalPlayerOutputDto,
   MovieGenreOutputDto,
   MoviePublicOutputDtoMapper,
 } from '@/movies/api/dtos/output/movie-public.output.dto';
@@ -55,6 +56,9 @@ export class SerialsOutputDto {
 
   @ApiProperty({ nullable: true })
   unavailableReason: string | null;
+
+  @ApiProperty({ type: ExternalPlayerOutputDto, nullable: true })
+  externalPlayer: ExternalPlayerOutputDto | null;
 }
 
 type GroupedEpisodeVariants = {
@@ -175,6 +179,7 @@ export class SerialsOutputDtoMapper extends MoviePublicOutputDtoMapper {
       availabilityStatus: MovieAvailabilityPolicy.resolveStatus(availabilitySubject),
       isPlayable: MovieAvailabilityPolicy.isPlayable(availabilitySubject),
       unavailableReason: MovieAvailabilityPolicy.getUnavailableReason(availabilitySubject),
+      externalPlayer: this.mapExternalPlayer(serial, 'series'),
     };
   }
 
