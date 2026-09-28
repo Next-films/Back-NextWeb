@@ -11,7 +11,11 @@ export class PlaybackSettingsRepository {
   ) {}
 
   async getOrCreateDefault(): Promise<PlaybackSettings> {
-    const settings = await this.repository.findOne({ order: { id: 'ASC' } });
+    const [settings] = await this.repository.find({
+      order: { id: 'ASC' },
+      take: 1,
+    });
+
     return settings ?? this.repository.save(PlaybackSettings.createDefault());
   }
 
