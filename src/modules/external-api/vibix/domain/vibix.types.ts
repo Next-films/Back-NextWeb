@@ -61,6 +61,12 @@ export interface VibixDetails {
   composers: string[];
   seasonsCount: number | null;
   episodesCount: number | null;
+  seasons: VibixSeason[];
+}
+
+export interface VibixSeason {
+  number: number;
+  episodes: Array<{ number: number; title: string | null }>;
 }
 
 export interface VibixCatalogResponse {

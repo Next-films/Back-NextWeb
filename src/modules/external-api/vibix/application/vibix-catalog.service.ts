@@ -12,6 +12,7 @@ import { ExternalApiProviderEnum, ExternalApiTargetEnum } from '@/external-api-c
 import {
   VibixCatalogResponse,
   VibixDetails,
+  VibixSeason,
   VibixMediaType,
   VibixPerson,
   VibixPublicItem,
@@ -301,8 +302,8 @@ export class VibixCatalogService {
       operators: persons.operator ?? [],
       composers: persons.composer ?? [],
       seasonsCount: seasons.length > 0 ? seasons.length : null,
-      episodesCount:
-        seasons.length > 0 ? seasons.reduce((sum, season) => sum + season, 0) || null : null,
+      episodesCount: seasons.reduce((sum, season) => sum + season.episodes.length, 0) || null,
+      seasons,
     };
   }
 
@@ -326,16 +327,47 @@ export class VibixCatalogService {
     return grouped;
   }
 
-  // episodes: { "1": [...серии], "2": [...] } или массив сезонов.
-  private toSeasons(value: VibixVideoRecord['episodes']): number[] {
+  /* episodes: { "1": [...серии], "2": [...] } или массив сезонов. Серия —
+     число, строка или объект с номером/названием; берём что есть. */
+  private toSeasons(value: VibixVideoRecord['episodes']): VibixSeason[] {
     if (!value || typeof value !== 'object') return [];
-    return Object.values(value).map(season =>
-      Array.isArray(season)
-        ? season.length
-        : season && typeof season === 'object'
-        ? Object.keys(season).length
-        : 0,
-    );
+    const entries = Array.isArray(value)
+      ? value.map((season, index) => [String(index + 1), season] as const)
+      : Object.entries(value);
+    return entries
+      .map(([key, season], index) => {
+        const list = Array.isArray(season)
+          ? season
+          : season && typeof season === 'object'
+          ? Object.entries(season).map(([episodeKey, episode]) =>
+              episode && typeof episode === 'object'
+                ? { number: episodeKey, ...(episode as object) }
+                : episodeKey,
+            )
+          : [];
+        const seasonNumber = Number(key);
+        return {
+          number: Number.isInteger(seasonNumber) && seasonNumber > 0 ? seasonNumber : index + 1,
+          episodes: list.map((episode, episodeIndex) => this.toEpisode(episode, episodeIndex)),
+        };
+      })
+      .filter(season => season.episodes.length > 0)
+      .sort((left, right) => left.number - right.number);
+  }
+
+  private toEpisode(value: unknown, index: number): VibixSeason['episodes'][number] {
+    const fallback = index + 1;
+    if (typeof value === 'number' || typeof value === 'string') {
+      const number = Number(value);
+      return { number: Number.isInteger(number) && number > 0 ? number : fallback, title: null };
+    }
+    const episode = (value ?? {}) as Record<string, unknown>;
+    const number = Number(episode.episode ?? episode.number ?? episode.num);
+    const title = this.firstString(episode.name_rus, episode.name, episode.title);
+    return {
+      number: Number.isInteger(number) && number > 0 ? number : fallback,
+      title: title || null,
+    };
   }
 
   private toNameList(value: unknown): string[] {
