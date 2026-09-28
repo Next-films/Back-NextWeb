@@ -25,9 +25,10 @@ describe('VibixCatalogService', () => {
     genre: ['драма'],
     country: ['Россия'],
     description: 'Описание',
+    embed_code_new: 'data-publisher-id="1" data-type="movie" data-id="5001"',
   };
 
-  it('maps Vibix records and uses their internal id for the player', async () => {
+  it('maps Vibix records and uses the embed id for the player', async () => {
     const { service, post } = createService();
     post.mockResolvedValue({
       data: { data: [movie], recordsFiltered: 1 },
@@ -44,7 +45,7 @@ describe('VibixCatalogService', () => {
         externalPlayer: {
           provider: 'vibix',
           lookupType: 'movie',
-          lookupId: '101',
+          lookupId: '5001',
           mediaType: 'movie',
         },
       }),
@@ -104,12 +105,22 @@ describe('VibixCatalogService', () => {
   it('maps serial records to the series player type', async () => {
     const { service, post } = createService();
     post.mockResolvedValue({
-      data: { data: [{ ...movie, id: 201, type: 'serial' }], recordsFiltered: 1 },
+      data: {
+        data: [
+          {
+            ...movie,
+            id: 201,
+            type: 'serial',
+            embed_code_new: 'data-publisher-id="1" data-type="series" data-id="7001"',
+          },
+        ],
+        recordsFiltered: 1,
+      },
     });
 
     const result = await service.getPage('serials', 1);
     expect(result.items[0].externalPlayer).toEqual(
-      expect.objectContaining({ lookupType: 'series', mediaType: 'series' }),
+      expect.objectContaining({ lookupType: 'series', mediaType: 'series', lookupId: '7001' }),
     );
   });
 
@@ -232,5 +243,16 @@ describe('VibixCatalogService', () => {
     expect(post.mock.calls[1][1]).toContain(
       'filter%5Bgenre%5D%5B0%5D=7&filter%5Bgenre%5D%5B1%5D=9',
     );
+  });
+
+  it('skips records that have no Vibix player yet', async () => {
+    const { service, post } = createService();
+    post.mockResolvedValue({
+      data: { data: [movie, { ...movie, id: 102, embed_code_new: null }], recordsFiltered: 2 },
+    });
+
+    const result = await service.getPage('films', 1);
+
+    expect(result.items.map(item => item.id)).toEqual([101]);
   });
 });

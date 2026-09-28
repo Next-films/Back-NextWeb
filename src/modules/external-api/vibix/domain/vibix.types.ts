@@ -22,6 +22,9 @@ export interface VibixVideoRecord {
   description?: string | null;
   description_short?: string | null;
   description_rus?: string | null;
+  description_eng?: string | null;
+  embed_code_new?: string | null;
+  iframe_video_id?: number | string | null;
   uploaded_at?: string | null;
   quality?: string | null;
   voiceovers?: unknown;
@@ -90,13 +93,13 @@ export interface VibixPublicItem {
   genres: Array<{ id: number; name: string }>;
   details: VibixDetails;
   availabilityStatus: 'available';
-  isPlayable: true;
+  isPlayable: boolean;
   unavailableReason: null;
   externalPlayer: {
     provider: 'vibix';
     lookupType: 'movie' | 'series';
     lookupId: string;
     mediaType: 'movie' | 'series';
-  };
+  } | null;
   source: 'vibix';
 }

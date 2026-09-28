@@ -67,6 +67,8 @@ export class VibixCatalogService {
     const items = this.getRecords(response)
       .filter(record => this.matchesType(record, mediaType))
       .map(record => this.toPublicItem(record))
+      // Без кода плеера запись в Vibix ещё не загружена — смотреть нечего.
+      .filter(item => Boolean(item.externalPlayer))
       .filter(item => Boolean(item.previewUrl || item.backgroundImg));
     const total = this.getTotal(response);
 
@@ -221,6 +223,7 @@ export class VibixCatalogService {
       record.backdrop_url ?? record.preview_backdrop ?? record.backdrop,
     );
     const previewUrl = posterUrl ?? backdropUrl;
+    const externalPlayer = this.toExternalPlayer(record, mediaType);
     const backgroundUrl = backdropUrl ?? posterUrl;
 
     return {
@@ -230,6 +233,7 @@ export class VibixCatalogService {
         record.description_rus,
         record.description,
         record.description_short,
+        record.description_eng,
       ),
       duration: Number(record.duration) || 0,
       releaseDate,
@@ -250,16 +254,31 @@ export class VibixCatalogService {
       genres: genres.map((name, index) => ({ id: index + 1, name })),
       details: this.toDetails(record, Number.isInteger(year) && year > 1800 ? year : null),
       availabilityStatus: 'available',
-      isPlayable: true,
+      isPlayable: Boolean(externalPlayer),
       unavailableReason: null,
-      externalPlayer: {
-        provider: 'vibix',
-        lookupType: mediaType,
-        lookupId: String(id),
-        mediaType,
-      },
+      externalPlayer,
       source: 'vibix',
     };
+  }
+
+  /* Плеер Vibix ищет видео по своему id из кода встраивания
+     (embed_code_new: data-id="245936"), а не по id записи каталога.
+     С id каталога плеер отвечает «контент ещё не добавлен». */
+  private toExternalPlayer(
+    record: VibixVideoRecord,
+    fallbackType: 'movie' | 'series',
+  ): VibixPublicItem['externalPlayer'] {
+    const embed = typeof record.embed_code_new === 'string' ? record.embed_code_new : '';
+    const embedId = /data-id="(\d+)"/.exec(embed)?.[1];
+    const embedType = /data-type="(movie|series)"/.exec(embed)?.[1] as
+      | 'movie'
+      | 'series'
+      | undefined;
+    const iframeId = String(record.iframe_video_id ?? '').trim();
+    const lookupId = embedId ?? (/^\d+$/.test(iframeId) ? iframeId : null);
+    if (!lookupId) return null;
+    const mediaType = embedType ?? fallbackType;
+    return { provider: 'vibix', lookupType: mediaType, lookupId, mediaType };
   }
 
   private toDetails(record: VibixVideoRecord, year: number | null): VibixDetails {
