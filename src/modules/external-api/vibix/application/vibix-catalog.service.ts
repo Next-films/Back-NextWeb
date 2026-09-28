@@ -233,7 +233,8 @@ export class VibixCatalogService {
     const add = (occupation: string, person: VibixPerson) => {
       const name = this.firstString(person?.name_anyway, person?.name);
       if (!occupation || !name) return;
-      (grouped[occupation] ??= []).push(name);
+      const names = (grouped[occupation] ??= []);
+      if (!names.includes(name)) names.push(name);
     };
     if (Array.isArray(value)) {
       value.forEach(person => add(String(person?.occupation ?? ''), person));
