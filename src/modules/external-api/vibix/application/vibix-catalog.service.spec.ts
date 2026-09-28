@@ -33,7 +33,7 @@ describe('VibixCatalogService', () => {
       data: { data: [movie], recordsFiltered: 1 },
     });
 
-    const result = await service.getPage('films', 1, 25);
+    const result = await service.getPage('films', 1);
 
     expect(result.items).toHaveLength(1);
     expect(result.items[0]).toEqual(
@@ -52,7 +52,7 @@ describe('VibixCatalogService', () => {
     expect(post).toHaveBeenCalledWith(
       'https://vibix.org/api/v1/publisher/catalog/data',
       expect.stringMatching(
-        /length=150.*filter%5Btype%5D%5B0%5D=movie.*filter%5Bactivity%5D%5B0%5D=1/,
+        /length=150.*columns%5B0%5D%5Bdata%5D=year.*order%5B0%5D%5Bdir%5D=desc.*filter%5Btype%5D%5B0%5D=movie.*filter%5Bactivity%5D%5B0%5D=1/,
       ),
       expect.objectContaining({
         headers: expect.objectContaining({
@@ -76,7 +76,7 @@ describe('VibixCatalogService', () => {
       },
     });
 
-    const cartoons = await service.getPage('cartoons', 1, 25);
+    const cartoons = await service.getPage('cartoons', 1);
     expect(cartoons.items.map(item => item.id)).toEqual([102, 103]);
     expect(post).toHaveBeenCalledWith(
       expect.any(String),
@@ -97,7 +97,7 @@ describe('VibixCatalogService', () => {
       },
     });
 
-    const serials = await service.getPage('serials', 1, 25);
+    const serials = await service.getPage('serials', 1);
     expect(serials.items.map(item => item.id)).toEqual([201]);
   });
 
@@ -107,7 +107,7 @@ describe('VibixCatalogService', () => {
       data: { data: [{ ...movie, id: 201, type: 'serial' }], recordsFiltered: 1 },
     });
 
-    const result = await service.getPage('serials', 1, 25);
+    const result = await service.getPage('serials', 1);
     expect(result.items[0].externalPlayer).toEqual(
       expect.objectContaining({ lookupType: 'series', mediaType: 'series' }),
     );
@@ -130,7 +130,7 @@ describe('VibixCatalogService', () => {
       },
     });
 
-    const result = await service.getPage('films', 1, 25);
+    const result = await service.getPage('films', 1);
     expect(result.items[0].previewUrl).toBe('https://vibix.org/storage/posters/101.jpg');
     expect(result.items[0].backgroundImg).toBe('https://cdn.vibix.org/backdrops/101.jpg');
   });
@@ -152,7 +152,7 @@ describe('VibixCatalogService', () => {
       },
     });
 
-    const result = await service.getPage('films', 1, 25);
+    const result = await service.getPage('films', 1);
     expect(result.items).toHaveLength(1);
     expect(result.items[0]).toEqual(
       expect.objectContaining({

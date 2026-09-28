@@ -12,16 +12,10 @@ export class PublicVibixCatalogController {
   getPage(
     @Param('mediaType') mediaType: VibixMediaType,
     @Query('page') page = '1',
-    @Query('size') size = '25',
     @Query('search') search?: string,
   ) {
     this.assertMediaType(mediaType);
-    return this.vibixCatalogService.getPage(
-      mediaType,
-      Number(page) || 1,
-      Number(size) || 25,
-      search,
-    );
+    return this.vibixCatalogService.getPage(mediaType, Number(page) || 1, search);
   }
 
   @Get(':mediaType/:id')

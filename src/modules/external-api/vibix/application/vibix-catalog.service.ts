@@ -29,9 +29,11 @@ export class VibixCatalogService {
     this.logger.setContext(VibixCatalogService.name);
   }
 
-  async getPage(mediaType: VibixMediaType, page: number, size: number, search?: string) {
+  /* Страница — это ровно одно окно Vibix из MAX_PAGE_SIZE записей: её нельзя
+     обрезать до меньшего размера, иначе следующая страница начнётся с
+     MAX_PAGE_SIZE и всё между ними потеряется. */
+  async getPage(mediaType: VibixMediaType, page: number, search?: string) {
     const safePage = Math.max(1, Math.floor(page));
-    const safeSize = Math.min(MAX_PAGE_SIZE, Math.max(1, Math.floor(size)));
     const apiTypes =
       mediaType === 'films'
         ? ['movie']
@@ -42,7 +44,8 @@ export class VibixCatalogService {
       draw: safePage,
       start: (safePage - 1) * MAX_PAGE_SIZE,
       length: MAX_PAGE_SIZE,
-      columns: [{ data: '', name: '', searchable: true, orderable: true }],
+      // Vibix сортирует по columns[order.column].data: новые по году — первыми.
+      columns: [{ data: 'year', name: '', searchable: true, orderable: true }],
       order: [{ column: 0, dir: 'desc' }],
       filter: { type: apiTypes, activity: [1] },
       ...(search?.trim() ? { search: { value: search.trim() } } : {}),
@@ -51,8 +54,7 @@ export class VibixCatalogService {
     const items = this.getRecords(response)
       .filter(record => this.matchesType(record, mediaType))
       .map(record => this.toPublicItem(record))
-      .filter(item => Boolean(item.previewUrl || item.backgroundImg))
-      .slice(0, safeSize);
+      .filter(item => Boolean(item.previewUrl || item.backgroundImg));
     const total = this.getTotal(response);
 
     return {
