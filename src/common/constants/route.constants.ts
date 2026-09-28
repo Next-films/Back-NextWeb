@@ -89,6 +89,10 @@ export const PLAYBACK_SETTINGS_ROUTE = {
   MAIN: `playback-settings`,
 };
 
+export const VIBIX_CATALOG_ROUTE = {
+  MAIN: `vibix/catalog`,
+};
+
 export const ADMIN_PRIVATE_CINEMA_ROUTE = {
   MAIN: `${ADMIN_PREFIX}/private/cinema`,
   FILMS: `films`,
