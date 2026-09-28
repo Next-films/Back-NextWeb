@@ -32,14 +32,19 @@ export class VibixCatalogService {
   async getPage(mediaType: VibixMediaType, page: number, size: number, search?: string) {
     const safePage = Math.max(1, Math.floor(page));
     const safeSize = Math.min(MAX_PAGE_SIZE, Math.max(1, Math.floor(size)));
-    const apiType = mediaType === 'serials' ? 'serial' : 'movie';
+    const apiTypes =
+      mediaType === 'films'
+        ? ['movie']
+        : mediaType === 'serials'
+        ? ['serial']
+        : ['movie', 'serial'];
     const response = await this.requestCatalog({
       draw: safePage,
       start: (safePage - 1) * MAX_PAGE_SIZE,
       length: MAX_PAGE_SIZE,
       columns: [{ data: '', name: '', searchable: true, orderable: true }],
       order: [{ column: 0, dir: 'desc' }],
-      filter: { type: [apiType], activity: [1] },
+      filter: { type: apiTypes, activity: [1] },
       ...(search?.trim() ? { search: { value: search.trim() } } : {}),
     });
 
@@ -129,14 +134,13 @@ export class VibixCatalogService {
 
   private matchesType(record: VibixVideoRecord, mediaType: VibixMediaType): boolean {
     const isSerial = record.type === 'serial' || record.type === 'series';
-    if (mediaType === 'serials') return isSerial;
-    if (isSerial) return false;
-
     const genres = this.toStringList(record.genre).map(value => value.toLowerCase());
     const isAnimated = genres.some(value =>
-      ['мультфильм', 'анимация', 'animation'].includes(value.trim()),
+      ['мультфильм', 'анимация', 'аниме', 'animation'].includes(value.trim()),
     );
-    return mediaType === 'cartoons' ? isAnimated : !isAnimated;
+    if (mediaType === 'cartoons') return isAnimated;
+    if (mediaType === 'serials') return isSerial && !isAnimated;
+    return !isSerial && !isAnimated;
   }
 
   private toPublicItem(record: VibixVideoRecord): VibixPublicItem {

@@ -67,13 +67,38 @@ describe('VibixCatalogService', () => {
     const { service, post } = createService();
     post.mockResolvedValue({
       data: {
-        data: [movie, { ...movie, id: 102, name: 'Мультфильм', genre: ['мультфильм'] }],
-        recordsFiltered: 2,
+        data: [
+          movie,
+          { ...movie, id: 102, name: 'Мультфильм', genre: ['мультфильм'] },
+          { ...movie, id: 103, name: 'Мультсериал', type: 'serial', genre: ['анимация'] },
+        ],
+        recordsFiltered: 3,
       },
     });
 
     const cartoons = await service.getPage('cartoons', 1, 25);
-    expect(cartoons.items.map(item => item.id)).toEqual([102]);
+    expect(cartoons.items.map(item => item.id)).toEqual([102, 103]);
+    expect(post).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.stringMatching(/filter%5Btype%5D%5B0%5D=movie.*filter%5Btype%5D%5B1%5D=serial/),
+      expect.any(Object),
+    );
+  });
+
+  it('does not mix animated series into the serials catalogue', async () => {
+    const { service, post } = createService();
+    post.mockResolvedValue({
+      data: {
+        data: [
+          { ...movie, id: 201, type: 'serial' },
+          { ...movie, id: 202, type: 'serial', genre: ['аниме'] },
+        ],
+        recordsFiltered: 2,
+      },
+    });
+
+    const serials = await service.getPage('serials', 1, 25);
+    expect(serials.items.map(item => item.id)).toEqual([201]);
   });
 
   it('maps serial records to the series player type', async () => {
