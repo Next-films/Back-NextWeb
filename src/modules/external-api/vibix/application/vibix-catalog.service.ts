@@ -35,20 +35,24 @@ export class VibixCatalogService {
     const apiType = mediaType === 'serials' ? 'serial' : 'movie';
     const response = await this.requestCatalog({
       draw: safePage,
-      start: (safePage - 1) * safeSize,
-      length: safeSize,
+      start: (safePage - 1) * MAX_PAGE_SIZE,
+      length: MAX_PAGE_SIZE,
       columns: [{ data: '', name: '', searchable: true, orderable: true }],
       order: [{ column: 0, dir: 'desc' }],
-      filter: { type: [apiType] },
+      filter: { type: [apiType], activity: [1] },
       ...(search?.trim() ? { search: { value: search.trim() } } : {}),
     });
 
-    const records = this.getRecords(response).filter(record => this.matchesType(record, mediaType));
+    const items = this.getRecords(response)
+      .filter(record => this.matchesType(record, mediaType))
+      .map(record => this.toPublicItem(record))
+      .filter(item => Boolean(item.previewUrl || item.backgroundImg))
+      .slice(0, safeSize);
     const total = this.getTotal(response);
 
     return {
-      items: records.map(record => this.toPublicItem(record)),
-      pagesCount: Math.ceil(total / safeSize),
+      items,
+      pagesCount: Math.ceil(total / MAX_PAGE_SIZE),
       totalCount: total,
     };
   }
@@ -145,10 +149,12 @@ export class VibixCatalogService {
     const genres = this.toStringList(record.genre);
     const year = Number(record.year);
     const releaseDate = Number.isInteger(year) && year > 1800 ? `${year}-01-01` : '';
-    const previewUrl = this.normalizeImageUrl(record.poster_url ?? record.preview ?? record.poster);
-    const backgroundUrl =
-      this.normalizeImageUrl(record.backdrop_url ?? record.preview_backdrop ?? record.backdrop) ??
-      previewUrl;
+    const posterUrl = this.normalizeImageUrl(record.poster_url ?? record.preview ?? record.poster);
+    const backdropUrl = this.normalizeImageUrl(
+      record.backdrop_url ?? record.preview_backdrop ?? record.backdrop,
+    );
+    const previewUrl = posterUrl ?? backdropUrl;
+    const backgroundUrl = backdropUrl ?? posterUrl;
 
     return {
       id,

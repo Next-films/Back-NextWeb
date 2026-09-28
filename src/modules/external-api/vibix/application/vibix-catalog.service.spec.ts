@@ -51,7 +51,9 @@ describe('VibixCatalogService', () => {
     );
     expect(post).toHaveBeenCalledWith(
       'https://vibix.org/api/v1/publisher/catalog/data',
-      expect.stringContaining('filter%5Btype%5D%5B0%5D=movie'),
+      expect.stringMatching(
+        /length=150.*filter%5Btype%5D%5B0%5D=movie.*filter%5Bactivity%5D%5B0%5D=1/,
+      ),
       expect.objectContaining({
         headers: expect.objectContaining({
           Authorization: 'Bearer test-token',
@@ -106,5 +108,33 @@ describe('VibixCatalogService', () => {
     const result = await service.getPage('films', 1, 25);
     expect(result.items[0].previewUrl).toBe('https://vibix.org/storage/posters/101.jpg');
     expect(result.items[0].backgroundImg).toBe('https://cdn.vibix.org/backdrops/101.jpg');
+  });
+
+  it('uses a backdrop for the card and skips records without artwork', async () => {
+    const { service, post } = createService();
+    post.mockResolvedValue({
+      data: {
+        data: [
+          { ...movie, id: 103, poster_url: null, backdrop_url: null },
+          {
+            ...movie,
+            id: 104,
+            poster_url: null,
+            backdrop_url: 'https://cdn.example/wide.jpg',
+          },
+        ],
+        recordsFiltered: 2,
+      },
+    });
+
+    const result = await service.getPage('films', 1, 25);
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0]).toEqual(
+      expect.objectContaining({
+        id: 104,
+        previewUrl: 'https://cdn.example/wide.jpg',
+        backgroundImg: 'https://cdn.example/wide.jpg',
+      }),
+    );
   });
 });
