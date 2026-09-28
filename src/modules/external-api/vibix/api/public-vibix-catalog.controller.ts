@@ -18,6 +18,12 @@ export class PublicVibixCatalogController {
     return this.vibixCatalogService.getPage(mediaType, Number(page) || 1, search);
   }
 
+  // TEMP: отладка полей Vibix, удалить после проверки.
+  @Get('debug-raw/:id')
+  debugRaw(@Param('id', ParseIntPipe) id: number) {
+    return this.vibixCatalogService.debugRaw(id);
+  }
+
   @Get(':mediaType/:id')
   getById(
     @Param('mediaType') mediaType: VibixMediaType,

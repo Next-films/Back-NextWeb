@@ -92,6 +92,22 @@ export class VibixCatalogService {
     return this.toPublicItem(record);
   }
 
+  // TEMP: отладка полей Vibix, удалить после проверки.
+  async debugRaw(id: number) {
+    const [record, filters] = await Promise.all([
+      this.requestCatalog({
+        draw: 1,
+        start: 0,
+        length: MAX_PAGE_SIZE,
+        columns: [{ data: '', name: '', searchable: true, orderable: true }],
+        order: [{ column: 0, dir: 'desc' }],
+        filter: { id: [id] },
+      }),
+      this.requestApi<{ error?: string }>('/publisher/catalog/getFilters', {}),
+    ]);
+    return { record: this.getRecords(record)[0] ?? null, filters };
+  }
+
   async hasActiveConfiguration(): Promise<boolean> {
     const config = await this.externalApiConfigService.getActiveConfig(
       ExternalApiProviderEnum.VIBIX,
