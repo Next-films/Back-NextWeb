@@ -66,7 +66,8 @@ export class VibixCatalogService {
     const response = await this.requestCatalog({
       draw: 1,
       start: 0,
-      length: 1,
+      // С length=1 Vibix отвечал ошибкой (502 на каждую деталь); шлём тот же размер, что и в списке.
+      length: MAX_PAGE_SIZE,
       columns: [{ data: '', name: '', searchable: true, orderable: true }],
       order: [{ column: 0, dir: 'desc' }],
       filter: { id: [id] },
