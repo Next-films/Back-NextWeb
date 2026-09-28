@@ -3,6 +3,7 @@ import { VibixCatalogService } from '@/external-api/vibix/application/vibix-cata
 describe('VibixCatalogService', () => {
   const createService = () => {
     const post = jest.fn();
+    const videoseed = { findByIds: jest.fn().mockResolvedValue(null) };
     const config = {
       baseUrl: 'https://vibix.org/api/v1/',
       token: 'test-token',
@@ -11,8 +12,9 @@ describe('VibixCatalogService', () => {
       { setContext: jest.fn(), error: jest.fn() } as never,
       { axiosRef: { post } } as never,
       { getActiveConfig: jest.fn().mockResolvedValue(config) } as never,
+      videoseed as never,
     );
-    return { service, post };
+    return { service, post, videoseed };
   };
 
   const movie = {
@@ -254,5 +256,29 @@ describe('VibixCatalogService', () => {
     const result = await service.getPage('films', 1);
 
     expect(result.items.map(item => item.id)).toEqual([101]);
+  });
+
+  it('adds the Videoseed fallback player and fills missing details on the card', async () => {
+    const { service, post, videoseed } = createService();
+    post.mockResolvedValue({
+      data: { data: [{ ...movie, description: null, kp_id: 555 }], recordsFiltered: 1 },
+    });
+    videoseed.findByIds.mockResolvedValue({
+      iframeUrl: 'https://tv-1-kinoserial.net/embed/9/?token=t',
+      description: 'Описание из Videoseed',
+      countries: [],
+      actors: ['Актёр'],
+      directors: ['Режиссёр'],
+    });
+
+    const item = await service.getById(101);
+
+    expect(videoseed.findByIds).toHaveBeenCalledWith({ kp: '555', imdb: null }, 'movie');
+    expect(item.fallbackPlayer).toEqual({
+      provider: 'videoseed',
+      iframeUrl: 'https://tv-1-kinoserial.net/embed/9/?token=t',
+    });
+    expect(item.description).toBe('Описание из Videoseed');
+    expect(item.details.actors).toEqual(['Актёр']);
   });
 });

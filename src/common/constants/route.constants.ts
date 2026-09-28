@@ -93,6 +93,10 @@ export const VIBIX_CATALOG_ROUTE = {
   MAIN: `vibix/catalog`,
 };
 
+export const VIDEOSEED_CATALOG_ROUTE = {
+  MAIN: `videoseed/catalog`,
+};
+
 export const ADMIN_PRIVATE_CINEMA_ROUTE = {
   MAIN: `${ADMIN_PREFIX}/private/cinema`,
   FILMS: `films`,

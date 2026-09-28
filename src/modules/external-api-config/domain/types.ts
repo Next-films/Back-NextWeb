@@ -3,6 +3,7 @@ export enum ExternalApiProviderEnum {
   TOR_API = 'tor-api',
   TMDB = 'tmdb',
   VIBIX = 'vibix',
+  VIDEOSEED = 'videoseed',
 }
 
 export enum ExternalApiTargetEnum {

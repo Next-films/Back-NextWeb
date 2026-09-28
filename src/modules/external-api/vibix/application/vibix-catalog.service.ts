@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 
 import { LoggerService } from '@/common/utils/logger/logger.service';
+import { VideoseedService } from '@/external-api/videoseed/application/videoseed.service';
 import { ExternalApiConfigService } from '@/external-api-config/application/external-api-config.service';
 import { ExternalApiProviderEnum, ExternalApiTargetEnum } from '@/external-api-config/domain/types';
 import {
@@ -30,6 +31,7 @@ export class VibixCatalogService {
     private readonly logger: LoggerService,
     private readonly httpService: HttpService,
     private readonly externalApiConfigService: ExternalApiConfigService,
+    private readonly videoseedService: VideoseedService,
   ) {
     this.logger.setContext(VibixCatalogService.name);
   }
@@ -92,7 +94,31 @@ export class VibixCatalogService {
     });
     const record = this.getRecords(response).find(item => Number(item.id) === id);
     if (!record) throw new NotFoundException('Vibix content not found');
-    return this.toPublicItem(record);
+    return this.withVideoseed(this.toPublicItem(record));
+  }
+
+  /* Карточка Vibix + запасной плеер Videoseed и то, чего нет у Vibix
+     (описание, актёры, режиссёр). Только для карточки — не для списков,
+     чтобы не расходовать дневной лимит Videoseed. */
+  private async withVideoseed(item: VibixPublicItem): Promise<VibixPublicItem> {
+    const fallback = await this.videoseedService.findByIds(
+      { kp: item.details.kpId, imdb: item.details.imdbId },
+      item.externalPlayer?.mediaType === 'series' ? 'serial' : 'movie',
+    );
+    if (!fallback) return item;
+
+    return {
+      ...item,
+      description: item.description || fallback.description,
+      country: item.country.length > 0 ? item.country : fallback.countries,
+      isPlayable: true,
+      fallbackPlayer: { provider: 'videoseed', iframeUrl: fallback.iframeUrl },
+      details: {
+        ...item.details,
+        actors: item.details.actors.length > 0 ? item.details.actors : fallback.actors.slice(0, 20),
+        directors: item.details.directors.length > 0 ? item.details.directors : fallback.directors,
+      },
+    };
   }
 
   async hasActiveConfiguration(): Promise<boolean> {
@@ -258,6 +284,7 @@ export class VibixCatalogService {
       isPlayable: Boolean(externalPlayer),
       unavailableReason: null,
       externalPlayer,
+      fallbackPlayer: null,
       source: 'vibix',
     };
   }

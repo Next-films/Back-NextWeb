@@ -107,5 +107,7 @@ export interface VibixPublicItem {
     lookupId: string;
     mediaType: 'movie' | 'series';
   } | null;
-  source: 'vibix';
+  /** Запасной плеер Videoseed (iframe), если запись найдена там по kp/imdb. */
+  fallbackPlayer: { provider: 'videoseed'; iframeUrl: string } | null;
+  source: 'vibix' | 'videoseed';
 }
