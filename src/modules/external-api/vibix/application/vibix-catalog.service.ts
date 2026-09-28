@@ -16,7 +16,7 @@ import {
   VibixVideoRecord,
 } from '@/external-api/vibix/domain/vibix.types';
 
-const VIBIX_REQUEST_TIMEOUT_MS = 15_000;
+const VIBIX_REQUEST_TIMEOUT_MS = 25_000;
 const MAX_PAGE_SIZE = 150;
 
 @Injectable()
@@ -141,8 +141,10 @@ export class VibixCatalogService {
     const genres = this.toStringList(record.genre);
     const year = Number(record.year);
     const releaseDate = Number.isInteger(year) && year > 1800 ? `${year}-01-01` : '';
-    const previewUrl = this.toNullableString(record.poster_url);
-    const backgroundUrl = this.toNullableString(record.backdrop_url) ?? previewUrl;
+    const previewUrl = this.normalizeImageUrl(record.poster_url ?? record.preview ?? record.poster);
+    const backgroundUrl =
+      this.normalizeImageUrl(record.backdrop_url ?? record.preview_backdrop ?? record.backdrop) ??
+      previewUrl;
 
     return {
       id,
@@ -194,6 +196,14 @@ export class VibixCatalogService {
 
   private toNullableString(value: unknown): string | null {
     return typeof value === 'string' && value.trim() ? value.trim() : null;
+  }
+
+  private normalizeImageUrl(value: unknown): string | null {
+    const url = this.toNullableString(value);
+    if (!url) return null;
+    if (url.startsWith('//')) return `https:${url}`;
+    if (url.startsWith('/')) return `https://vibix.org${url}`;
+    return url;
   }
 
   private firstString(...values: unknown[]): string {

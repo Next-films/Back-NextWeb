@@ -82,4 +82,26 @@ describe('VibixCatalogService', () => {
       expect.objectContaining({ lookupType: 'series', mediaType: 'series' }),
     );
   });
+
+  it('uses catalogue preview aliases and expands relative image urls', async () => {
+    const { service, post } = createService();
+    post.mockResolvedValue({
+      data: {
+        data: [
+          {
+            ...movie,
+            poster_url: null,
+            backdrop_url: null,
+            preview: '/storage/posters/101.jpg',
+            preview_backdrop: '//cdn.vibix.org/backdrops/101.jpg',
+          },
+        ],
+        recordsFiltered: 1,
+      },
+    });
+
+    const result = await service.getPage('films', 1, 25);
+    expect(result.items[0].previewUrl).toBe('https://vibix.org/storage/posters/101.jpg');
+    expect(result.items[0].backgroundImg).toBe('https://cdn.vibix.org/backdrops/101.jpg');
+  });
 });

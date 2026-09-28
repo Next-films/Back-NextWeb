@@ -12,6 +12,10 @@ export interface VibixVideoRecord {
   kinopoisk_id?: number | string | null;
   poster_url?: string | null;
   backdrop_url?: string | null;
+  preview?: string | null;
+  preview_backdrop?: string | null;
+  poster?: string | null;
+  backdrop?: string | null;
   duration?: number | string | null;
   genre?: string[] | string | null;
   country?: string[] | string | null;
