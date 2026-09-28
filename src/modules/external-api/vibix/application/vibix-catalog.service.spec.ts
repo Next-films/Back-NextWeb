@@ -269,6 +269,7 @@ describe('VibixCatalogService', () => {
       countries: [],
       actors: ['Актёр'],
       directors: ['Режиссёр'],
+      seasons: [],
     });
 
     const item = await service.getById(101);
@@ -297,6 +298,7 @@ describe('VibixCatalogService', () => {
       countries: [],
       actors: [],
       directors: [],
+      seasons: [],
     });
 
     const item = await service.getById(101);
@@ -316,11 +318,63 @@ describe('VibixCatalogService', () => {
       countries: [],
       actors: [],
       directors: [],
+      seasons: [],
     });
 
     const item = await service.getById(101);
 
     expect(item.name).toBe('Тестовый фильм');
     expect(item.description).toBe('Описание');
+  });
+
+  it('links Vibix episodes to the matching Videoseed episodes', async () => {
+    const { service, post, videoseed } = createService();
+    post.mockResolvedValue({
+      data: {
+        data: [
+          {
+            ...movie,
+            type: 'serial',
+            embed_code_new: 'data-publisher-id="1" data-type="series" data-id="7001"',
+            episodes: { 1: [1, 2] },
+          },
+        ],
+        recordsFiltered: 1,
+      },
+    });
+    videoseed.findByIds.mockResolvedValue({
+      iframeUrl: 'https://tv-1-kinoserial.net/embed_serial/9/?token=t',
+      name: '',
+      description: '',
+      countries: [],
+      actors: [],
+      directors: [],
+      seasons: [
+        {
+          number: 1,
+          episodes: [
+            {
+              number: 2,
+              title: null,
+              iframeUrl: 'https://tv-1-kinoserial.net/embed/22/?token=t',
+              previewUrl: null,
+            },
+          ],
+        },
+      ],
+    });
+
+    const item = await service.getById(101);
+
+    expect(videoseed.findByIds).toHaveBeenCalledWith(expect.anything(), 'serial');
+    expect(item.details.seasons[0].episodes).toEqual([
+      { number: 1, title: null },
+      {
+        number: 2,
+        title: null,
+        iframeUrl: 'https://tv-1-kinoserial.net/embed/22/?token=t',
+        previewUrl: null,
+      },
+    ]);
   });
 });

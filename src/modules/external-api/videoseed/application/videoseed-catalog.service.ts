@@ -87,9 +87,10 @@ export class VideoseedCatalogService {
         producers: [],
         operators: [],
         composers: [],
-        seasonsCount: isSeries ? item.seasonsCount : null,
-        episodesCount: null,
-        seasons: [],
+        seasonsCount: isSeries ? item.seasons.length || item.seasonsCount : null,
+        episodesCount:
+          item.seasons.reduce((sum, season) => sum + season.episodes.length, 0) || null,
+        seasons: item.seasons,
       },
       availabilityStatus: 'available',
       isPlayable: true,

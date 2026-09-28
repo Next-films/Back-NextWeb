@@ -66,7 +66,13 @@ export interface VibixDetails {
 
 export interface VibixSeason {
   number: number;
-  episodes: Array<{ number: number; title: string | null }>;
+  episodes: Array<{
+    number: number;
+    title: string | null;
+    /** Ссылка на эту серию во втором плеере (Videoseed), если она там есть. */
+    iframeUrl?: string;
+    previewUrl?: string | null;
+  }>;
 }
 
 export interface VibixCatalogResponse {

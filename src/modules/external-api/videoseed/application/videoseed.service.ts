@@ -5,6 +5,8 @@ import { LoggerService } from '@/common/utils/logger/logger.service';
 import { ExternalApiConfigService } from '@/external-api-config/application/external-api-config.service';
 import { ExternalApiProviderEnum, ExternalApiTargetEnum } from '@/external-api-config/domain/types';
 import {
+  VideoseedSeason,
+  VideoseedSeasonRecord,
   VideoseedItem,
   VideoseedKind,
   VideoseedLookup,
@@ -131,7 +133,34 @@ export class VideoseedService {
       kpId: this.text(String(record.id_kp ?? '')) || null,
       imdbId: this.text(record.id_imdb) || null,
       seasonsCount: seasons ? Object.keys(seasons).length || null : null,
+      seasons: seasons ? this.toSeasons(seasons) : [],
     };
+  }
+
+  // seasons: { "1": { videos: { "8": { iframe: ".../embed/591311/?token=…" } } } }
+  // У каждой серии свой iframe — плеер открывается сразу на ней.
+  private toSeasons(seasons: Record<string, VideoseedSeasonRecord>): VideoseedSeason[] {
+    return Object.entries(seasons)
+      .map(([seasonKey, season]) => ({
+        number: Number(seasonKey),
+        episodes: Object.entries(season?.videos ?? {})
+          .map(([episodeKey, episode]) => ({
+            number: Number(episodeKey),
+            title: null,
+            iframeUrl: this.text(episode?.iframe),
+            previewUrl: this.text(episode?.preview) || null,
+          }))
+          .filter(
+            episode =>
+              Number.isInteger(episode.number) &&
+              episode.number > 0 &&
+              episode.iframeUrl.startsWith('https://'),
+          )
+          .sort((left, right) => left.number - right.number),
+      }))
+      .filter(season => Number.isInteger(season.number) && season.number > 0)
+      .filter(season => season.episodes.length > 0)
+      .sort((left, right) => left.number - right.number);
   }
 
   private text(value: unknown): string {

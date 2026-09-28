@@ -73,4 +73,53 @@ describe('VideoseedService', () => {
     expect(await service.findByIds({ kp: '1' }, 'movie')).toBeNull();
     expect(get).not.toHaveBeenCalled();
   });
+
+  it('maps serial seasons with a player link per episode', async () => {
+    const { service, get } = createService();
+    get.mockResolvedValue({
+      data: {
+        status: 'success',
+        data: [
+          {
+            ...record,
+            type: 'serial',
+            iframe: 'https://tv-1-kinoserial.net/embed_serial/3738/?token=player',
+            seasons: {
+              1: {
+                videos: {
+                  2: { iframe: 'https://tv-1-kinoserial.net/embed/12/?token=player' },
+                  1: {
+                    iframe: 'https://tv-1-kinoserial.net/embed/11/?token=player',
+                    preview: 'https://api.videoseed.tv/1.jpg',
+                  },
+                },
+              },
+            },
+          },
+        ],
+      },
+    });
+
+    const item = await service.getById('3738', 'serial');
+
+    expect(item?.seasons).toEqual([
+      {
+        number: 1,
+        episodes: [
+          {
+            number: 1,
+            title: null,
+            iframeUrl: 'https://tv-1-kinoserial.net/embed/11/?token=player',
+            previewUrl: 'https://api.videoseed.tv/1.jpg',
+          },
+          {
+            number: 2,
+            title: null,
+            iframeUrl: 'https://tv-1-kinoserial.net/embed/12/?token=player',
+            previewUrl: null,
+          },
+        ],
+      },
+    ]);
+  });
 });

@@ -17,7 +17,23 @@ export interface VideoseedRecord {
   type?: string | null;
   iframe?: string | null;
   time?: string | null;
-  seasons?: Record<string, { name?: string; iframe?: string }> | null;
+  seasons?: Record<string, VideoseedSeasonRecord> | null;
+}
+
+export interface VideoseedSeasonRecord {
+  name?: string;
+  iframe?: string;
+  videos?: Record<string, { name?: string; iframe?: string; preview?: string }> | null;
+}
+
+export interface VideoseedSeason {
+  number: number;
+  episodes: Array<{
+    number: number;
+    title: string | null;
+    iframeUrl: string;
+    previewUrl: string | null;
+  }>;
 }
 
 export interface VideoseedResponse {
@@ -44,6 +60,7 @@ export interface VideoseedItem {
   kpId: string | null;
   imdbId: string | null;
   seasonsCount: number | null;
+  seasons: VideoseedSeason[];
 }
 
 export interface VideoseedLookup {

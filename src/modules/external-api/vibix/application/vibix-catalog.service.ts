@@ -116,6 +116,8 @@ export class VibixCatalogService {
       fallbackPlayer: { provider: 'videoseed', iframeUrl: fallback.iframeUrl },
       details: {
         ...item.details,
+        seasons: this.mergeSeasons(item.details.seasons, fallback.seasons),
+        seasonsCount: item.details.seasonsCount ?? (fallback.seasons.length || null),
         actors: item.details.actors.length > 0 ? item.details.actors : fallback.actors.slice(0, 20),
         directors: item.details.directors.length > 0 ? item.details.directors : fallback.directors,
       },
@@ -415,6 +417,25 @@ export class VibixCatalogService {
   private toPositiveNumber(value: unknown): number | null {
     const number = Number(value);
     return Number.isFinite(number) && number > 0 ? number : null;
+  }
+
+  /* К сериям Vibix добавляем ссылки Videoseed на те же сезон/серию
+     (для «Плеера 2»); если у Vibix список серий пуст — берём список Videoseed. */
+  private mergeSeasons(vibix: VibixSeason[], videoseed: VibixSeason[]): VibixSeason[] {
+    if (vibix.length === 0) return videoseed;
+    return vibix.map(season => {
+      const match = videoseed.find(item => item.number === season.number);
+      if (!match) return season;
+      return {
+        ...season,
+        episodes: season.episodes.map(episode => {
+          const link = match.episodes.find(item => item.number === episode.number);
+          return link
+            ? { ...episode, iframeUrl: link.iframeUrl, previewUrl: link.previewUrl }
+            : episode;
+        }),
+      };
+    });
   }
 
   /* Русский текст важнее: если у Vibix пусто или не по-русски (часто английский),
