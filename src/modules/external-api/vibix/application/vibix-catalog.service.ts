@@ -89,14 +89,18 @@ export class VibixCatalogService {
 
     const url = `${config.baseUrl.replace(/\/+$/, '')}/publisher/catalog/data`;
     try {
-      const response = await this.httpService.axiosRef.post<VibixCatalogResponse>(url, payload, {
-        timeout: VIBIX_REQUEST_TIMEOUT_MS,
-        headers: {
-          Accept: 'application/json',
-          Authorization: token.toLowerCase().startsWith('bearer ') ? token : `Bearer ${token}`,
-          'Content-Type': 'application/json',
+      const response = await this.httpService.axiosRef.post<VibixCatalogResponse>(
+        url,
+        this.toFormUrlEncoded(payload),
+        {
+          timeout: VIBIX_REQUEST_TIMEOUT_MS,
+          headers: {
+            Accept: 'application/json',
+            Authorization: token.toLowerCase().startsWith('bearer ') ? token : `Bearer ${token}`,
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
         },
-      });
+      );
       if (response.data?.error) throw new Error(response.data.error);
       return response.data;
     } catch (error) {
@@ -196,6 +200,29 @@ export class VibixCatalogService {
 
   private toNullableString(value: unknown): string | null {
     return typeof value === 'string' && value.trim() ? value.trim() : null;
+  }
+
+  private toFormUrlEncoded(payload: Record<string, unknown>): string {
+    const params = new URLSearchParams();
+    const append = (key: string, value: unknown): void => {
+      if (value === null || value === undefined) return;
+      if (Array.isArray(value)) {
+        value.forEach((item, index) => append(`${key}[${index}]`, item));
+        return;
+      }
+      if (typeof value === 'object') {
+        Object.entries(value).forEach(([childKey, childValue]) =>
+          append(`${key}[${childKey}]`, childValue),
+        );
+        return;
+      }
+      if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+        params.append(key, String(value));
+      }
+    };
+
+    Object.entries(payload).forEach(([key, value]) => append(key, value));
+    return params.toString();
   }
 
   private normalizeImageUrl(value: unknown): string | null {

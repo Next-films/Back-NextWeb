@@ -51,9 +51,12 @@ describe('VibixCatalogService', () => {
     );
     expect(post).toHaveBeenCalledWith(
       'https://vibix.org/api/v1/publisher/catalog/data',
-      expect.objectContaining({ filter: { type: ['movie'] } }),
+      expect.stringContaining('filter%5Btype%5D%5B0%5D=movie'),
       expect.objectContaining({
-        headers: expect.objectContaining({ Authorization: 'Bearer test-token' }),
+        headers: expect.objectContaining({
+          Authorization: 'Bearer test-token',
+          'Content-Type': 'application/x-www-form-urlencoded',
+        }),
       }),
     );
   });
