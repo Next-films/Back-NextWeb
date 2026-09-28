@@ -194,12 +194,6 @@ jobs:
             echo "Removing stale container not tracked by compose project: $CONTAINER_NAME"
             docker rm -f "$CONTAINER_NAME" || true
           fi
-
-          # Новые миграции (например, значения enum) не роняют старт контейнера,
-          # поэтому применяем их всегда. migration:run выполняет только ещё
-          # не применённые, повторный запуск безопасен.
-          dc run --rm --no-deps backend yarn apply-migration
-
           dc up -d --remove-orphans --no-build
 
           if check_container_stable "$CONTAINER_NAME"; then
