@@ -205,4 +205,32 @@ describe('VibixCatalogService', () => {
       }),
     );
   });
+
+  it('filters cartoons by animation genres from the Vibix filter catalogue', async () => {
+    const { service, post } = createService();
+    post
+      .mockResolvedValueOnce({
+        data: {
+          filters: {
+            genre: {
+              list: [
+                { name: 'Драма', value: 1 },
+                { name: 'Мультфильм', value: 7 },
+                { name: 'Аниме', value: 9 },
+              ],
+            },
+          },
+        },
+      })
+      .mockResolvedValue({ data: { data: [], recordsFiltered: 0 } });
+
+    await service.getPage('cartoons', 1);
+    await service.getPage('cartoons', 2);
+
+    expect(post).toHaveBeenCalledTimes(3);
+    expect(post.mock.calls[0][0]).toBe('https://vibix.org/api/v1/publisher/catalog/getFilters');
+    expect(post.mock.calls[1][1]).toContain(
+      'filter%5Bgenre%5D%5B0%5D=7&filter%5Bgenre%5D%5B1%5D=9',
+    );
+  });
 });

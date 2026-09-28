@@ -20,6 +20,8 @@ import {
 
 const VIBIX_REQUEST_TIMEOUT_MS = 25_000;
 const MAX_PAGE_SIZE = 150;
+const ANIMATION_GENRES = ['мультфильм', 'анимация', 'аниме', 'animation'];
+const FILTERS_CACHE_TTL_MS = 60 * 60 * 1000;
 
 @Injectable()
 export class VibixCatalogService {
@@ -30,6 +32,11 @@ export class VibixCatalogService {
   ) {
     this.logger.setContext(VibixCatalogService.name);
   }
+
+  private animationFilterCache: {
+    value: Record<string, string[]> | null;
+    expiresAt: number;
+  } | null = null;
 
   /* Страница — это ровно одно окно Vibix из MAX_PAGE_SIZE записей: её нельзя
      обрезать до меньшего размера, иначе следующая страница начнётся с
@@ -49,7 +56,11 @@ export class VibixCatalogService {
       // Vibix сортирует по columns[order.column].data: новые по году — первыми.
       columns: [{ data: 'year', name: '', searchable: true, orderable: true }],
       order: [{ column: 0, dir: 'desc' }],
-      filter: { type: apiTypes, activity: [1] },
+      filter: {
+        type: apiTypes,
+        activity: [1],
+        ...(mediaType === 'cartoons' ? await this.getAnimationFilter() : {}),
+      },
       ...(search?.trim() ? { search: { value: search.trim() } } : {}),
     });
 
@@ -89,7 +100,54 @@ export class VibixCatalogService {
     return Boolean(config?.baseUrl?.trim() && config?.token?.trim());
   }
 
-  private async requestCatalog(payload: Record<string, unknown>): Promise<VibixCatalogResponse> {
+  /* Мультфильмов в Vibix нет отдельным типом. Без фильтра по жанру на стороне
+     Vibix в окно из 150 новинок попадает 1–3 мультфильма, поэтому берём
+     значения жанров-анимации из справочника getFilters и фильтруем в запросе.
+     Справочник недоступен — остаётся фильтрация по жанру уже после загрузки. */
+  private async getAnimationFilter(): Promise<Record<string, string[]>> {
+    if (this.animationFilterCache && this.animationFilterCache.expiresAt > Date.now()) {
+      return this.animationFilterCache.value ?? {};
+    }
+    let value: Record<string, string[]> | null = null;
+    try {
+      const response = await this.requestApi<{
+        error?: string;
+        filters?: Record<
+          string,
+          { list?: Array<{ name?: string | number | null; value?: string | number | null }> }
+        >;
+      }>('/publisher/catalog/getFilters', {});
+      for (const [key, filter] of Object.entries(response.filters ?? {})) {
+        const values = (filter?.list ?? [])
+          .filter(item =>
+            ANIMATION_GENRES.includes(
+              String(item?.name ?? '')
+                .trim()
+                .toLowerCase(),
+            ),
+          )
+          .map(item => String(item?.value ?? '').trim())
+          .filter(Boolean);
+        if (values.length > 0) {
+          value = { [key]: values };
+          break;
+        }
+      }
+    } catch {
+      value = null;
+    }
+    this.animationFilterCache = { value, expiresAt: Date.now() + FILTERS_CACHE_TTL_MS };
+    return value ?? {};
+  }
+
+  private requestCatalog(payload: Record<string, unknown>): Promise<VibixCatalogResponse> {
+    return this.requestApi<VibixCatalogResponse>('/publisher/catalog/data', payload);
+  }
+
+  private async requestApi<T extends { error?: string }>(
+    path: string,
+    payload: Record<string, unknown>,
+  ): Promise<T> {
     const config = await this.externalApiConfigService.getActiveConfig(
       ExternalApiProviderEnum.VIBIX,
       ExternalApiTargetEnum.BACK,
@@ -101,9 +159,9 @@ export class VibixCatalogService {
       );
     }
 
-    const url = `${config.baseUrl.replace(/\/+$/, '')}/publisher/catalog/data`;
+    const url = `${config.baseUrl.replace(/\/+$/, '')}${path}`;
     try {
-      const response = await this.httpService.axiosRef.post<VibixCatalogResponse>(
+      const response = await this.httpService.axiosRef.post<T>(
         url,
         this.toFormUrlEncoded(payload),
         {
@@ -119,7 +177,7 @@ export class VibixCatalogService {
       return response.data;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      this.logger.error(message, this.requestCatalog.name);
+      this.logger.error(`${path}: ${message}`, this.requestApi.name);
       throw new BadGatewayException('Vibix catalog is temporarily unavailable');
     }
   }
