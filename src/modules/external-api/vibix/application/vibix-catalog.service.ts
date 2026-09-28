@@ -277,7 +277,10 @@ export class VibixCatalogService {
       voiceovers: this.toNameList(record.voiceovers),
       directors: persons.director ?? [],
       writers: persons.writer ?? [],
-      actors: (persons.actor ?? []).slice(0, 12),
+      actors: (persons.actor ?? []).slice(0, 20),
+      producers: (persons.producer ?? []).slice(0, 6),
+      operators: persons.operator ?? [],
+      composers: persons.composer ?? [],
       seasonsCount: seasons.length > 0 ? seasons.length : null,
       episodesCount:
         seasons.length > 0 ? seasons.reduce((sum, season) => sum + season, 0) || null : null,

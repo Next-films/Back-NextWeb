@@ -53,6 +53,9 @@ export interface VibixDetails {
   directors: string[];
   writers: string[];
   actors: string[];
+  producers: string[];
+  operators: string[];
+  composers: string[];
   seasonsCount: number | null;
   episodesCount: number | null;
 }
