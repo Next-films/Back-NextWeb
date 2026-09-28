@@ -281,4 +281,46 @@ describe('VibixCatalogService', () => {
     expect(item.description).toBe('Описание из Videoseed');
     expect(item.details.actors).toEqual(['Актёр']);
   });
+
+  it('prefers the Russian title and description from Videoseed over English ones', async () => {
+    const { service, post, videoseed } = createService();
+    post.mockResolvedValue({
+      data: {
+        data: [{ ...movie, name: 'Young Blood', name_rus: null, description: 'English text' }],
+        recordsFiltered: 1,
+      },
+    });
+    videoseed.findByIds.mockResolvedValue({
+      iframeUrl: 'https://tv-1-kinoserial.net/embed/9/?token=t',
+      name: 'Молодая кровь',
+      description: 'Русское описание',
+      countries: [],
+      actors: [],
+      directors: [],
+    });
+
+    const item = await service.getById(101);
+
+    expect(item.name).toBe('Молодая кровь');
+    expect(item.subTitle).toBe('');
+    expect(item.description).toBe('Русское описание');
+  });
+
+  it('keeps Vibix Russian text even when Videoseed has its own', async () => {
+    const { service, post, videoseed } = createService();
+    post.mockResolvedValue({ data: { data: [movie], recordsFiltered: 1 } });
+    videoseed.findByIds.mockResolvedValue({
+      iframeUrl: 'https://tv-1-kinoserial.net/embed/9/?token=t',
+      name: 'Другое название',
+      description: 'Другое описание',
+      countries: [],
+      actors: [],
+      directors: [],
+    });
+
+    const item = await service.getById(101);
+
+    expect(item.name).toBe('Тестовый фильм');
+    expect(item.description).toBe('Описание');
+  });
 });

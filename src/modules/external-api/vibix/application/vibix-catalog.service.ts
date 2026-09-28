@@ -109,7 +109,8 @@ export class VibixCatalogService {
 
     return {
       ...item,
-      description: item.description || fallback.description,
+      name: this.preferRussian(item.name, fallback.name),
+      description: this.preferRussian(item.description, fallback.description),
       country: item.country.length > 0 ? item.country : fallback.countries,
       isPlayable: true,
       fallbackPlayer: { provider: 'videoseed', iframeUrl: fallback.iframeUrl },
@@ -414,6 +415,15 @@ export class VibixCatalogService {
   private toPositiveNumber(value: unknown): number | null {
     const number = Number(value);
     return Number.isFinite(number) && number > 0 ? number : null;
+  }
+
+  /* Русский текст важнее: если у Vibix пусто или не по-русски (часто английский),
+     а у Videoseed есть русский вариант — берём его. Иначе оставляем Vibix. */
+  private preferRussian(primary: string, fallback: string): string {
+    const hasCyrillic = (value: string) => /[А-Яа-яЁё]/.test(value);
+    if (hasCyrillic(primary)) return primary;
+    if (hasCyrillic(fallback)) return fallback;
+    return primary || fallback;
   }
 
   private toStringList(value: string[] | string | null | undefined): string[] {
