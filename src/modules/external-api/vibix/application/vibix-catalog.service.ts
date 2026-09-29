@@ -221,22 +221,38 @@ export class VibixCatalogService {
           }
         >;
       }>('/publisher/catalog/getFilters', {});
-      for (const [key, filter] of Object.entries(response.filters ?? {})) {
-        const genres = (filter?.list ?? [])
+      const filters = Object.entries(response.filters ?? {}).map(([key, filter]) => ({
+        key,
+        items: (filter?.list ?? [])
           .map(item => ({
             name: String(item?.name ?? '').trim(),
             value: String(item?.value ?? '').trim(),
             count: Number(item?.count) || 0,
           }))
-          .filter(item => item.name && item.value);
-        const isGenreFilter = genres.some(item =>
-          [...ANIMATION_GENRES, 'драма', 'комедия'].includes(item.name.toLowerCase()),
-        );
-        if (isGenreFilter) {
-          value = { key, genres };
-          break;
-        }
-      }
+          .filter(item => item.name && item.value),
+      }));
+      const has = (items: Array<{ name: string }>, name: string) =>
+        items.some(item => item.name.toLowerCase() === name);
+      const animationOf = (items: Array<{ name: string; value: string }>) =>
+        items
+          .filter(item => ANIMATION_GENRES.includes(item.name.toLowerCase()))
+          .map(item => item.value);
+
+      // Жанровый фильтр узнаём по обычным жанрам: в других справочниках
+      // (категории, теги) тоже встречается «аниме», но нет драмы и комедии.
+      const genre = filters.find(
+        filter => has(filter.items, 'драма') && has(filter.items, 'комедия'),
+      );
+      const animationSource =
+        (genre && animationOf(genre.items).length > 0 ? genre : null) ??
+        filters.find(filter => animationOf(filter.items).length > 0);
+
+      value = {
+        genre: genre ? { key: genre.key, genres: genre.items } : null,
+        animation: animationSource
+          ? { key: animationSource.key, values: animationOf(animationSource.items) }
+          : null,
+      };
     } catch {
       value = null;
     }
@@ -247,7 +263,7 @@ export class VibixCatalogService {
   /** Жанры для фильтра на сайте: самые наполненные первыми. */
   async getGenres(): Promise<VibixGenre[]> {
     const catalogue = await this.getGenreCatalogue();
-    return (catalogue?.genres ?? [])
+    return (catalogue?.genre?.genres ?? [])
       .filter(genre => !ANIMATION_GENRES.includes(genre.name.toLowerCase()))
       .sort((left, right) => right.count - left.count)
       .map(genre => ({
@@ -265,12 +281,8 @@ export class VibixCatalogService {
   ): Promise<Record<string, string[]>> {
     if (!genre && mediaType !== 'cartoons') return {};
     const catalogue = await this.getGenreCatalogue();
-    if (!catalogue) return {};
-    if (genre) return { [catalogue.key]: [genre] };
-    const animation = catalogue.genres
-      .filter(item => ANIMATION_GENRES.includes(item.name.toLowerCase()))
-      .map(item => item.value);
-    return animation.length > 0 ? { [catalogue.key]: animation } : {};
+    if (genre) return catalogue?.genre ? { [catalogue.genre.key]: [genre] } : {};
+    return catalogue?.animation ? { [catalogue.animation.key]: catalogue.animation.values } : {};
   }
 
   private requestCatalog(payload: Record<string, unknown>): Promise<VibixCatalogResponse> {

@@ -9,8 +9,10 @@ export interface VibixGenre {
 }
 
 export interface VibixGenreCatalogue {
-  key: string;
-  genres: Array<VibixGenre & { count: number }>;
+  /** Фильтр жанров (драма, комедия…) — для выбора жанра на сайте. */
+  genre: { key: string; genres: Array<VibixGenre & { count: number }> } | null;
+  /** Значения «мультфильм/аниме» — для раздела мультфильмов. */
+  animation: { key: string; values: string[] } | null;
 }
 
 export interface VibixVideoRecord {
