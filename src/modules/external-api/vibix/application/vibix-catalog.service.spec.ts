@@ -437,8 +437,8 @@ describe('VibixCatalogService', () => {
     await service.getPage('films', 1, undefined, 'new', '3');
 
     expect(genres).toEqual([
-      { name: 'Комедия', value: '5' },
       { name: 'Драма', value: '3' },
+      { name: 'Комедия', value: '5' },
     ]);
     expect(post).toHaveBeenCalledTimes(2);
     expect(post.mock.calls[1][1]).toContain('filter%5Bgenre%5D%5B0%5D=3');

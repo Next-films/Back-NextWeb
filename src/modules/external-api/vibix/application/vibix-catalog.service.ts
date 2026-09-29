@@ -27,6 +27,38 @@ const VIBIX_REQUEST_TIMEOUT_MS = 25_000;
 const MAX_PAGE_SIZE = 150;
 const ANIMATION_GENRES = ['мультфильм', 'анимация', 'аниме', 'animation'];
 const FILTERS_CACHE_TTL_MS = 60 * 60 * 1000;
+// Жанры Vibix, которые не относятся к кино-каталогу (ТВ-форматы, 18+).
+const HIDDEN_GENRES = [
+  'для взрослых',
+  'игра',
+  'игровое шоу',
+  'новости',
+  'реальное тв',
+  'реальное-тв',
+  'ток-шоу',
+  'церемония',
+  'концерт',
+];
+// Vibix не отдаёт число фильмов в жанре — порядок кнопок задаём сами.
+const GENRE_ORDER = [
+  'драма',
+  'комедия',
+  'боевик',
+  'триллер',
+  'ужасы',
+  'фантастика',
+  'приключения',
+  'криминал',
+  'мелодрама',
+  'детектив',
+  'фэнтези',
+  'семейный',
+  'детский',
+  'военный',
+  'история',
+  'биография',
+  'документальный',
+];
 // Каталог Vibix меняется редко, а запрос страницы идёт ~1 с и упирается
 // в их rate limit — держим ответы в памяти.
 const PAGE_CACHE_TTL_MS = 10 * 60 * 1000;
@@ -263,9 +295,19 @@ export class VibixCatalogService {
   /** Жанры для фильтра на сайте: самые наполненные первыми. */
   async getGenres(): Promise<VibixGenre[]> {
     const catalogue = await this.getGenreCatalogue();
+    const rank = (name: string) => {
+      const index = GENRE_ORDER.indexOf(name.toLowerCase());
+      return index === -1 ? GENRE_ORDER.length : index;
+    };
     return (catalogue?.genre?.genres ?? [])
       .filter(genre => !ANIMATION_GENRES.includes(genre.name.toLowerCase()))
-      .sort((left, right) => right.count - left.count)
+      .filter(genre => !HIDDEN_GENRES.includes(genre.name.toLowerCase()))
+      .sort(
+        (left, right) =>
+          rank(left.name) - rank(right.name) ||
+          right.count - left.count ||
+          left.name.localeCompare(right.name, 'ru'),
+      )
       .map(genre => ({
         name: genre.name.charAt(0).toUpperCase() + genre.name.slice(1),
         value: genre.value,
