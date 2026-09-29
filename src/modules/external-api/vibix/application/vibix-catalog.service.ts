@@ -16,6 +16,7 @@ import {
   VibixSeason,
   VibixMediaType,
   VibixPerson,
+  VibixSort,
   VibixPublicItem,
   VibixVideoRecord,
 } from '@/external-api/vibix/domain/vibix.types';
@@ -51,9 +52,11 @@ export class VibixCatalogService {
     { value: Promise<unknown>; expiresAt: number }
   >();
 
-  getPage(mediaType: VibixMediaType, page: number, search?: string) {
-    const key = `page:${mediaType}:${Math.max(1, Math.floor(page))}:${search?.trim() ?? ''}`;
-    return this.cached(key, PAGE_CACHE_TTL_MS, () => this.loadPage(mediaType, page, search));
+  getPage(mediaType: VibixMediaType, page: number, search?: string, sort: VibixSort = 'new') {
+    const key = `page:${mediaType}:${sort}:${Math.max(1, Math.floor(page))}:${
+      search?.trim() ?? ''
+    }`;
+    return this.cached(key, PAGE_CACHE_TTL_MS, () => this.loadPage(mediaType, page, search, sort));
   }
 
   getById(id: number): Promise<VibixPublicItem> {
@@ -81,7 +84,12 @@ export class VibixCatalogService {
   /* Страница — это ровно одно окно Vibix из MAX_PAGE_SIZE записей: её нельзя
      обрезать до меньшего размера, иначе следующая страница начнётся с
      MAX_PAGE_SIZE и всё между ними потеряется. */
-  private async loadPage(mediaType: VibixMediaType, page: number, search?: string) {
+  private async loadPage(
+    mediaType: VibixMediaType,
+    page: number,
+    search?: string,
+    sort: VibixSort = 'new',
+  ) {
     const safePage = Math.max(1, Math.floor(page));
     const apiTypes =
       mediaType === 'films'
@@ -93,8 +101,16 @@ export class VibixCatalogService {
       draw: safePage,
       start: (safePage - 1) * MAX_PAGE_SIZE,
       length: MAX_PAGE_SIZE,
-      // Vibix сортирует по columns[order.column].data: новые по году — первыми.
-      columns: [{ data: 'year', name: '', searchable: true, orderable: true }],
+      // Vibix сортирует по columns[order.column].data: по году (новые первыми)
+      // или по числу оценок Кинопоиска (популярные первыми).
+      columns: [
+        {
+          data: sort === 'popular' ? 'kp_votes' : 'year',
+          name: '',
+          searchable: true,
+          orderable: true,
+        },
+      ],
       order: [{ column: 0, dir: 'desc' }],
       filter: {
         type: apiTypes,

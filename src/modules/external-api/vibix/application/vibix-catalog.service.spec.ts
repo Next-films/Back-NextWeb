@@ -402,4 +402,16 @@ describe('VibixCatalogService', () => {
     expect(result.items).toHaveLength(1);
     expect(post).toHaveBeenCalledTimes(2);
   });
+
+  it('sorts by Kinopoisk votes for the popular order and caches it separately', async () => {
+    const { service, post } = createService();
+    post.mockResolvedValue({ data: { data: [movie], recordsFiltered: 1 } });
+
+    await service.getPage('films', 1, undefined, 'popular');
+    await service.getPage('films', 1);
+
+    expect(post).toHaveBeenCalledTimes(2);
+    expect(post.mock.calls[0][1]).toContain('columns%5B0%5D%5Bdata%5D=kp_votes');
+    expect(post.mock.calls[1][1]).toContain('columns%5B0%5D%5Bdata%5D=year');
+  });
 });

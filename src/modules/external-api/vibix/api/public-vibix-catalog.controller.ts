@@ -2,7 +2,11 @@ import { BadRequestException, Controller, Get, Param, ParseIntPipe, Query } from
 
 import { VIBIX_CATALOG_ROUTE } from '@/common/constants/route.constants';
 import { VibixCatalogService } from '@/external-api/vibix/application/vibix-catalog.service';
-import { VibixMediaType, VibixPublicItem } from '@/external-api/vibix/domain/vibix.types';
+import {
+  VibixMediaType,
+  VibixPublicItem,
+  VibixSort,
+} from '@/external-api/vibix/domain/vibix.types';
 
 @Controller(VIBIX_CATALOG_ROUTE.MAIN)
 export class PublicVibixCatalogController {
@@ -13,9 +17,11 @@ export class PublicVibixCatalogController {
     @Param('mediaType') mediaType: VibixMediaType,
     @Query('page') page = '1',
     @Query('search') search?: string,
+    @Query('sort') sort?: string,
   ) {
     this.assertMediaType(mediaType);
-    return this.vibixCatalogService.getPage(mediaType, Number(page) || 1, search);
+    const safeSort: VibixSort = sort === 'popular' ? 'popular' : 'new';
+    return this.vibixCatalogService.getPage(mediaType, Number(page) || 1, search, safeSort);
   }
 
   @Get(':mediaType/:id')
