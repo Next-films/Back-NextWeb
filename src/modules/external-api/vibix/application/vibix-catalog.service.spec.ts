@@ -466,6 +466,7 @@ describe('VibixCatalogService', () => {
 
     const top = await service.getTopRecent(2);
 
+    // Разделы чередуются: лучший фильм, затем лучший сериал.
     expect(top.map(item => [item.id, item.mediaType])).toEqual([
       [2, 'films'],
       [3, 'serials'],

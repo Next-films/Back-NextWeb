@@ -95,44 +95,66 @@ export class VibixCatalogService {
     search?: string,
     sort: VibixSort = 'new',
     genre?: string,
+    years?: number[],
   ) {
     const safePage = Math.max(1, Math.floor(page));
-    const key = `page:${mediaType}:${sort}:${genre ?? ''}:${safePage}:${search?.trim() ?? ''}`;
+    const key = `page:${mediaType}:${sort}:${genre ?? ''}:${years?.join(',') ?? ''}:${safePage}:${
+      search?.trim() ?? ''
+    }`;
     return this.cached(key, PAGE_CACHE_TTL_MS, () =>
-      this.loadPage(mediaType, page, search, sort, genre),
+      this.loadPage(mediaType, page, search, sort, genre, years),
     );
   }
 
-  /* «Popular now»: среди недавно вышедших фильмов, сериалов и мультфильмов
-     (первые окна каталога по году) — самые популярные по числу оценок
-     Кинопоиска, затем IMDb. Страницы берутся из того же кэша, что и каталог. */
+  /* «Popular now»: самые популярные (по оценкам Кинопоиска) среди недавно
+     вышедших фильмов, сериалов и мультфильмов. Если у Vibix есть фильтр года —
+     «популярные за последние два года»; иначе — самые свежие окна каталога.
+     Разделы чередуются, чтобы список не заняли одни мультфильмы. */
   getTopRecent(limit: number): Promise<Array<VibixPublicItem & { mediaType: VibixMediaType }>> {
     const safeLimit = Math.min(30, Math.max(1, Math.floor(limit) || 10));
     return this.cached(`top:${safeLimit}`, TOP_CACHE_TTL_MS, async () => {
       const mediaTypes: VibixMediaType[] = ['films', 'serials', 'cartoons'];
-      const pages = await Promise.all(
-        mediaTypes.flatMap(mediaType =>
-          Array.from({ length: TOP_RECENT_PAGES }, (_, index) =>
-            this.getPage(mediaType, index + 1)
-              .then(page => page.items.map(item => ({ ...item, mediaType })))
-              .catch(() => []),
-          ),
-        ),
+      const currentYear = new Date().getFullYear();
+      const hasYearFilter = Boolean((await this.getGenreCatalogue())?.year);
+      const byVotes = (left: VibixPublicItem, right: VibixPublicItem) =>
+        (right.details.kpVotes ?? 0) - (left.details.kpVotes ?? 0) ||
+        (right.details.imdbVotes ?? 0) - (left.details.imdbVotes ?? 0);
+
+      const perType = await Promise.all(
+        mediaTypes.map(async mediaType => {
+          const pages = hasYearFilter
+            ? [
+                await this.getPage(mediaType, 1, undefined, 'popular', undefined, [
+                  currentYear,
+                  currentYear - 1,
+                ]).catch(() => ({ items: [] as VibixPublicItem[] })),
+              ]
+            : await Promise.all(
+                Array.from({ length: TOP_RECENT_PAGES }, (_, index) =>
+                  this.getPage(mediaType, index + 1).catch(() => ({
+                    items: [] as VibixPublicItem[],
+                  })),
+                ),
+              );
+          return pages
+            .flatMap(page => page.items)
+            .sort(byVotes)
+            .map(item => ({ ...item, mediaType }));
+        }),
       );
+
       const seen = new Set<number>();
-      return pages
-        .flat()
-        .filter(item => {
-          if (seen.has(item.id)) return false;
+      const result: Array<VibixPublicItem & { mediaType: VibixMediaType }> = [];
+      for (let index = 0; result.length < safeLimit; index += 1) {
+        const round = perType.map(list => list[index]).filter(Boolean);
+        if (round.length === 0) break;
+        for (const item of round) {
+          if (result.length >= safeLimit || seen.has(item.id)) continue;
           seen.add(item.id);
-          return true;
-        })
-        .sort(
-          (left, right) =>
-            (right.details.kpVotes ?? 0) - (left.details.kpVotes ?? 0) ||
-            (right.details.imdbVotes ?? 0) - (left.details.imdbVotes ?? 0),
-        )
-        .slice(0, safeLimit);
+          result.push(item);
+        }
+      }
+      return result;
     });
   }
 
@@ -167,6 +189,7 @@ export class VibixCatalogService {
     search?: string,
     sort: VibixSort = 'new',
     genre?: string,
+    years?: number[],
   ) {
     const safePage = Math.max(1, Math.floor(page));
     const apiTypes =
@@ -194,6 +217,7 @@ export class VibixCatalogService {
         type: apiTypes,
         activity: [1],
         ...(await this.getGenreFilter(mediaType, genre)),
+        ...(await this.getYearFilter(years)),
       },
       ...(search?.trim() ? { search: { value: search.trim() } } : {}),
     });
@@ -315,10 +339,28 @@ export class VibixCatalogService {
         (genre && animationOf(genre.items).length > 0 ? genre : null) ??
         filters.find(filter => animationOf(filter.items).length > 0);
 
+      // Фильтр года узнаём по значениям: почти все имена — четырёхзначные годы.
+      const yearFilter = filters.find(
+        filter =>
+          filter.items.length > 5 &&
+          filter.items.filter(item => /^(19|20)\d{2}$/.test(item.name)).length >=
+            filter.items.length * 0.8,
+      );
+
       value = {
         genre: genre ? { key: genre.key, genres: genre.items } : null,
         animation: animationSource
           ? { key: animationSource.key, values: animationOf(animationSource.items) }
+          : null,
+        year: yearFilter
+          ? {
+              key: yearFilter.key,
+              values: Object.fromEntries(
+                yearFilter.items
+                  .filter(item => /^(19|20)\d{2}$/.test(item.name))
+                  .map(item => [Number(item.name), item.value]),
+              ),
+            }
           : null,
       };
     } catch {
@@ -348,6 +390,14 @@ export class VibixCatalogService {
         name: genre.name.charAt(0).toUpperCase() + genre.name.slice(1),
         value: genre.value,
       }));
+  }
+
+  private async getYearFilter(years?: number[]): Promise<Record<string, string[]>> {
+    if (!years?.length) return {};
+    const year = (await this.getGenreCatalogue())?.year;
+    if (!year) return {};
+    const values = years.map(item => year.values[item]).filter(Boolean);
+    return values.length > 0 ? { [year.key]: values } : {};
   }
 
   /* Фильтр запроса: выбранный жанр, а для мультфильмов — жанры анимации.

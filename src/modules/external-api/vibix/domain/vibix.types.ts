@@ -13,6 +13,8 @@ export interface VibixGenreCatalogue {
   genre: { key: string; genres: Array<VibixGenre & { count: number }> } | null;
   /** Значения «мультфильм/аниме» — для раздела мультфильмов. */
   animation: { key: string; values: string[] } | null;
+  /** Фильтр по году выпуска: год → значение фильтра Vibix. */
+  year: { key: string; values: Record<number, string> } | null;
 }
 
 export interface VibixVideoRecord {
