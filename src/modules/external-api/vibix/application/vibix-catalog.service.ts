@@ -106,7 +106,7 @@ export class VibixCatalogService {
     );
   }
 
-  /* «Popular now»: самые популярные (по оценкам Кинопоиска) среди недавно
+  /* «Popular now»: самые популярные (по голосам IMDb) среди недавно
      вышедших фильмов, сериалов и мультфильмов. Если у Vibix есть фильтр года —
      «популярные за последние два года»; иначе — самые свежие окна каталога.
      Разделы чередуются, чтобы список не заняли одни мультфильмы. */
@@ -116,9 +116,10 @@ export class VibixCatalogService {
       const mediaTypes: VibixMediaType[] = ['films', 'serials', 'cartoons'];
       const currentYear = new Date().getFullYear();
       const hasYearFilter = Boolean((await this.getGenreCatalogue())?.year);
+      // Порядок — по IMDb: голоса Кинопоиска завышают отечественные тайтлы.
       const byVotes = (left: VibixPublicItem, right: VibixPublicItem) =>
-        (right.details.kpVotes ?? 0) - (left.details.kpVotes ?? 0) ||
-        (right.details.imdbVotes ?? 0) - (left.details.imdbVotes ?? 0);
+        (right.details.imdbVotes ?? 0) - (left.details.imdbVotes ?? 0) ||
+        (right.details.imdbRating ?? 0) - (left.details.imdbRating ?? 0);
 
       const perType = await Promise.all(
         mediaTypes.map(async mediaType => {
@@ -203,10 +204,10 @@ export class VibixCatalogService {
       start: (safePage - 1) * MAX_PAGE_SIZE,
       length: MAX_PAGE_SIZE,
       // Vibix сортирует по columns[order.column].data: по году (новые первыми)
-      // или по числу оценок Кинопоиска (популярные первыми).
+      // или по числу голосов IMDb (популярные первыми).
       columns: [
         {
-          data: sort === 'popular' ? 'kp_votes' : 'year',
+          data: sort === 'popular' ? 'imdb_votes' : 'year',
           name: '',
           searchable: true,
           orderable: true,

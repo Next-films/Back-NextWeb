@@ -1,6 +1,6 @@
 export type VibixMediaType = 'films' | 'serials' | 'cartoons';
 
-/** new — сначала новые (по году), popular — по числу оценок Кинопоиска. */
+/** new — сначала новые (по году), popular — по числу голосов IMDb. */
 export type VibixSort = 'new' | 'popular';
 
 export interface VibixGenre {

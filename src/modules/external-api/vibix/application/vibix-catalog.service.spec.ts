@@ -403,7 +403,7 @@ describe('VibixCatalogService', () => {
     expect(post).toHaveBeenCalledTimes(2);
   });
 
-  it('sorts by Kinopoisk votes for the popular order and caches it separately', async () => {
+  it('sorts by IMDb votes for the popular order and caches it separately', async () => {
     const { service, post } = createService();
     post.mockResolvedValue({ data: { data: [movie], recordsFiltered: 1 } });
 
@@ -411,7 +411,7 @@ describe('VibixCatalogService', () => {
     await service.getPage('films', 1);
 
     expect(post).toHaveBeenCalledTimes(2);
-    expect(post.mock.calls[0][1]).toContain('columns%5B0%5D%5Bdata%5D=kp_votes');
+    expect(post.mock.calls[0][1]).toContain('columns%5B0%5D%5Bdata%5D=imdb_votes');
     expect(post.mock.calls[1][1]).toContain('columns%5B0%5D%5Bdata%5D=year');
   });
 
@@ -444,12 +444,12 @@ describe('VibixCatalogService', () => {
     expect(post.mock.calls[1][1]).toContain('filter%5Bgenre%5D%5B0%5D=3');
   });
 
-  it('ranks recent releases across sections by Kinopoisk votes for the top list', async () => {
+  it('ranks recent releases across sections by IMDb votes for the top list', async () => {
     const { service, post } = createService();
     const record = (id: number, votes: number, extra = {}) => ({
       ...movie,
       id,
-      kp_votes: votes,
+      imdb_votes: votes,
       embed_code_new: `data-publisher-id="1" data-type="movie" data-id="${id}"`,
       ...extra,
     });
