@@ -204,10 +204,11 @@ export class VibixCatalogService {
       start: (safePage - 1) * MAX_PAGE_SIZE,
       length: MAX_PAGE_SIZE,
       // Vibix сортирует по columns[order.column].data: по году (новые первыми)
-      // или по числу голосов IMDb (популярные первыми).
+      // или по числу оценок Кинопоиска (популярные первыми).
       columns: [
         {
-          data: sort === 'popular' ? 'imdb_votes' : 'year',
+          // imdb_votes Vibix не сортирует (молча игнорирует) — только kp_votes.
+          data: sort === 'popular' ? 'kp_votes' : 'year',
           name: '',
           searchable: true,
           orderable: true,
