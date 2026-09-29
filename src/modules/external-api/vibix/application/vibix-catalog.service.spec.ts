@@ -377,4 +377,29 @@ describe('VibixCatalogService', () => {
       },
     ]);
   });
+
+  it('serves repeated page and card requests from the cache', async () => {
+    const { service, post } = createService();
+    post.mockResolvedValue({ data: { data: [movie], recordsFiltered: 1 } });
+
+    await Promise.all([service.getPage('films', 1), service.getPage('films', 1)]);
+    await service.getPage('films', 1);
+    await service.getById(101);
+    await service.getById(101);
+
+    expect(post).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not cache failed Vibix requests', async () => {
+    const { service, post } = createService();
+    post
+      .mockRejectedValueOnce(new Error('timeout'))
+      .mockResolvedValue({ data: { data: [movie], recordsFiltered: 1 } });
+
+    await expect(service.getPage('films', 1)).rejects.toThrow();
+    const result = await service.getPage('films', 1);
+
+    expect(result.items).toHaveLength(1);
+    expect(post).toHaveBeenCalledTimes(2);
+  });
 });

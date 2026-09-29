@@ -24,6 +24,11 @@ const VIBIX_REQUEST_TIMEOUT_MS = 25_000;
 const MAX_PAGE_SIZE = 150;
 const ANIMATION_GENRES = ['мультфильм', 'анимация', 'аниме', 'animation'];
 const FILTERS_CACHE_TTL_MS = 60 * 60 * 1000;
+// Каталог Vibix меняется редко, а запрос страницы идёт ~1 с и упирается
+// в их rate limit — держим ответы в памяти.
+const PAGE_CACHE_TTL_MS = 10 * 60 * 1000;
+const ITEM_CACHE_TTL_MS = 15 * 60 * 1000;
+const MAX_CACHE_ENTRIES = 1000;
 
 @Injectable()
 export class VibixCatalogService {
@@ -41,10 +46,42 @@ export class VibixCatalogService {
     expiresAt: number;
   } | null = null;
 
+  private readonly responseCache = new Map<
+    string,
+    { value: Promise<unknown>; expiresAt: number }
+  >();
+
+  getPage(mediaType: VibixMediaType, page: number, search?: string) {
+    const key = `page:${mediaType}:${Math.max(1, Math.floor(page))}:${search?.trim() ?? ''}`;
+    return this.cached(key, PAGE_CACHE_TTL_MS, () => this.loadPage(mediaType, page, search));
+  }
+
+  getById(id: number): Promise<VibixPublicItem> {
+    return this.cached(`item:${id}`, ITEM_CACHE_TTL_MS, () => this.loadById(id));
+  }
+
+  /* В кэше лежит сам промис: одновременные запросы одной страницы делят
+     один поход в Vibix. Ошибки не кэшируются — следующий запрос повторит. */
+  private cached<T>(key: string, ttl: number, load: () => Promise<T>): Promise<T> {
+    const hit = this.responseCache.get(key);
+    if (hit && hit.expiresAt > Date.now()) return hit.value as Promise<T>;
+
+    const value = load();
+    if (this.responseCache.size >= MAX_CACHE_ENTRIES) {
+      const oldest = this.responseCache.keys().next().value;
+      if (oldest !== undefined) this.responseCache.delete(oldest);
+    }
+    this.responseCache.set(key, { value, expiresAt: Date.now() + ttl });
+    value.catch(() => {
+      if (this.responseCache.get(key)?.value === value) this.responseCache.delete(key);
+    });
+    return value;
+  }
+
   /* Страница — это ровно одно окно Vibix из MAX_PAGE_SIZE записей: её нельзя
      обрезать до меньшего размера, иначе следующая страница начнётся с
      MAX_PAGE_SIZE и всё между ними потеряется. */
-  async getPage(mediaType: VibixMediaType, page: number, search?: string) {
+  private async loadPage(mediaType: VibixMediaType, page: number, search?: string) {
     const safePage = Math.max(1, Math.floor(page));
     const apiTypes =
       mediaType === 'films'
@@ -82,7 +119,7 @@ export class VibixCatalogService {
     };
   }
 
-  async getById(id: number): Promise<VibixPublicItem> {
+  private async loadById(id: number): Promise<VibixPublicItem> {
     const response = await this.requestCatalog({
       draw: 1,
       start: 0,
