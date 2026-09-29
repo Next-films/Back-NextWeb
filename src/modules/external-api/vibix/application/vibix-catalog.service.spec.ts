@@ -443,4 +443,32 @@ describe('VibixCatalogService', () => {
     expect(post).toHaveBeenCalledTimes(2);
     expect(post.mock.calls[1][1]).toContain('filter%5Bgenre%5D%5B0%5D=3');
   });
+
+  it('ranks recent releases across sections by Kinopoisk votes for the top list', async () => {
+    const { service, post } = createService();
+    const record = (id: number, votes: number, extra = {}) => ({
+      ...movie,
+      id,
+      kp_votes: votes,
+      embed_code_new: `data-publisher-id="1" data-type="movie" data-id="${id}"`,
+      ...extra,
+    });
+    post.mockImplementation((_url: string, body: string) =>
+      Promise.resolve({
+        data: {
+          data: body.includes('start=0')
+            ? [record(1, 50), record(2, 900), record(3, 300, { type: 'serial' })]
+            : [],
+          recordsFiltered: 3,
+        },
+      }),
+    );
+
+    const top = await service.getTopRecent(2);
+
+    expect(top.map(item => [item.id, item.mediaType])).toEqual([
+      [2, 'films'],
+      [3, 'serials'],
+    ]);
+  });
 });

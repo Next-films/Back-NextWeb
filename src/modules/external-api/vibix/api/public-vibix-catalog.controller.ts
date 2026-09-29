@@ -18,6 +18,11 @@ export class PublicVibixCatalogController {
     return this.vibixCatalogService.getGenres();
   }
 
+  @Get('top')
+  getTopRecent(@Query('limit') limit = '10') {
+    return this.vibixCatalogService.getTopRecent(Number(limit));
+  }
+
   @Get(':mediaType')
   getPage(
     @Param('mediaType') mediaType: VibixMediaType,

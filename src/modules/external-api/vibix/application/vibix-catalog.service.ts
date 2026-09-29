@@ -64,6 +64,9 @@ const GENRE_ORDER = [
 const PAGE_CACHE_TTL_MS = 10 * 60 * 1000;
 const ITEM_CACHE_TTL_MS = 15 * 60 * 1000;
 const MAX_CACHE_ENTRIES = 1000;
+const TOP_CACHE_TTL_MS = 30 * 60 * 1000;
+// «Недавно вышедшие» — самые новые окна каталога в каждом разделе.
+const TOP_RECENT_PAGES = 2;
 
 @Injectable()
 export class VibixCatalogService {
@@ -98,6 +101,39 @@ export class VibixCatalogService {
     return this.cached(key, PAGE_CACHE_TTL_MS, () =>
       this.loadPage(mediaType, page, search, sort, genre),
     );
+  }
+
+  /* «Popular now»: среди недавно вышедших фильмов, сериалов и мультфильмов
+     (первые окна каталога по году) — самые популярные по числу оценок
+     Кинопоиска, затем IMDb. Страницы берутся из того же кэша, что и каталог. */
+  getTopRecent(limit: number): Promise<Array<VibixPublicItem & { mediaType: VibixMediaType }>> {
+    const safeLimit = Math.min(30, Math.max(1, Math.floor(limit) || 10));
+    return this.cached(`top:${safeLimit}`, TOP_CACHE_TTL_MS, async () => {
+      const mediaTypes: VibixMediaType[] = ['films', 'serials', 'cartoons'];
+      const pages = await Promise.all(
+        mediaTypes.flatMap(mediaType =>
+          Array.from({ length: TOP_RECENT_PAGES }, (_, index) =>
+            this.getPage(mediaType, index + 1)
+              .then(page => page.items.map(item => ({ ...item, mediaType })))
+              .catch(() => []),
+          ),
+        ),
+      );
+      const seen = new Set<number>();
+      return pages
+        .flat()
+        .filter(item => {
+          if (seen.has(item.id)) return false;
+          seen.add(item.id);
+          return true;
+        })
+        .sort(
+          (left, right) =>
+            (right.details.kpVotes ?? 0) - (left.details.kpVotes ?? 0) ||
+            (right.details.imdbVotes ?? 0) - (left.details.imdbVotes ?? 0),
+        )
+        .slice(0, safeLimit);
+    });
   }
 
   getById(id: number): Promise<VibixPublicItem> {
