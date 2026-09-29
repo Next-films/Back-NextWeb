@@ -410,9 +410,10 @@ describe('VibixCatalogService', () => {
     await service.getPage('films', 1, undefined, 'popular');
     await service.getPage('films', 1);
 
-    expect(post).toHaveBeenCalledTimes(2);
+    // «По популярности» собирает окно из 4 страниц Vibix, «новые» — одна.
+    expect(post).toHaveBeenCalledTimes(5);
     expect(post.mock.calls[0][1]).toContain('columns%5B0%5D%5Bdata%5D=kp_votes');
-    expect(post.mock.calls[1][1]).toContain('columns%5B0%5D%5Bdata%5D=year');
+    expect(post.mock.calls[4][1]).toContain('columns%5B0%5D%5Bdata%5D=year');
   });
 
   it('filters by the chosen genre through the Vibix genre catalogue', async () => {
@@ -471,5 +472,35 @@ describe('VibixCatalogService', () => {
       [2, 'films'],
       [3, 'serials'],
     ]);
+  });
+
+  it('ranks the popular catalogue by IMDb votes within the first Vibix windows', async () => {
+    const { service, post } = createService();
+    const record = (id: number, imdbVotes: number) => ({
+      ...movie,
+      id,
+      imdb_votes: imdbVotes,
+      embed_code_new: `data-publisher-id="1" data-type="movie" data-id="${id}"`,
+    });
+    post.mockImplementation((_url: string, body: string) => {
+      const start = Number(/start=(\d+)/.exec(body)?.[1] ?? 0);
+      const window = start / 150;
+      const data =
+        window === 0
+          ? [record(1, 10), record(2, 5000)]
+          : window === 1
+          ? [record(3, 900), record(4, 20)]
+          : window === 4
+          ? [record(9, 1)]
+          : [];
+      return Promise.resolve({ data: { data, recordsFiltered: 1500 } });
+    });
+
+    const first = await service.getPage('films', 1, undefined, 'popular');
+    const fifth = await service.getPage('films', 5, undefined, 'popular');
+
+    expect(first.items.map(item => item.id)).toEqual([2]);
+    expect(first.pagesCount).toBe(10);
+    expect(fifth.items.map(item => item.id)).toEqual([9]);
   });
 });

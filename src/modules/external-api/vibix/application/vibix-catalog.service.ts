@@ -67,6 +67,9 @@ const MAX_CACHE_ENTRIES = 1000;
 const TOP_CACHE_TTL_MS = 30 * 60 * 1000;
 // «Недавно вышедшие» — самые новые окна каталога в каждом разделе.
 const TOP_RECENT_PAGES = 2;
+// «По популярности»: столько первых окон Vibix (по голосам Кинопоиска)
+// переупорядочиваем по голосам IMDb — Vibix сам по IMDb-голосам не сортирует.
+const IMDB_RANK_WINDOW_PAGES = 4;
 
 @Injectable()
 export class VibixCatalogService {
@@ -89,7 +92,57 @@ export class VibixCatalogService {
     { value: Promise<unknown>; expiresAt: number }
   >();
 
-  getPage(
+  /* Страница каталога для сайта. «По популярности» (без поиска) — по голосам
+     IMDb: первые IMDB_RANK_WINDOW_PAGES окон Vibix собираются и
+     переупорядочиваются по IMDb, дальше порядок Vibix (Кинопоиск) без повторов:
+     окно — ровно объединение этих страниц. */
+  async getPage(
+    mediaType: VibixMediaType,
+    page: number,
+    search?: string,
+    sort: VibixSort = 'new',
+    genre?: string,
+  ) {
+    const safePage = Math.max(1, Math.floor(page));
+    if (sort !== 'popular' || search?.trim() || safePage > IMDB_RANK_WINDOW_PAGES) {
+      return this.getVibixPage(mediaType, safePage, search, sort, genre);
+    }
+
+    const window = await this.cached(
+      `imdb-window:${mediaType}:${genre ?? ''}`,
+      PAGE_CACHE_TTL_MS,
+      async () => {
+        const pages = await Promise.all(
+          Array.from({ length: IMDB_RANK_WINDOW_PAGES }, (_, index) =>
+            this.getVibixPage(mediaType, index + 1, undefined, 'popular', genre),
+          ),
+        );
+        const seen = new Set<number>();
+        const items = pages
+          .flatMap(item => item.items)
+          .filter(item => {
+            if (seen.has(item.id)) return false;
+            seen.add(item.id);
+            return true;
+          })
+          .sort(
+            (left, right) =>
+              (right.details.imdbVotes ?? 0) - (left.details.imdbVotes ?? 0) ||
+              (right.details.kpVotes ?? 0) - (left.details.kpVotes ?? 0),
+          );
+        return { items, pagesCount: pages[0].pagesCount, totalCount: pages[0].totalCount };
+      },
+    );
+    const chunk = Math.ceil(window.items.length / IMDB_RANK_WINDOW_PAGES);
+    return {
+      items: window.items.slice((safePage - 1) * chunk, safePage * chunk),
+      pagesCount: window.pagesCount,
+      totalCount: window.totalCount,
+    };
+  }
+
+  /** Одно окно Vibix как есть (порядок самого Vibix), с кэшем. */
+  private getVibixPage(
     mediaType: VibixMediaType,
     page: number,
     search?: string,
@@ -125,14 +178,14 @@ export class VibixCatalogService {
         mediaTypes.map(async mediaType => {
           const pages = hasYearFilter
             ? [
-                await this.getPage(mediaType, 1, undefined, 'popular', undefined, [
+                await this.getVibixPage(mediaType, 1, undefined, 'popular', undefined, [
                   currentYear,
                   currentYear - 1,
                 ]).catch(() => ({ items: [] as VibixPublicItem[] })),
               ]
             : await Promise.all(
                 Array.from({ length: TOP_RECENT_PAGES }, (_, index) =>
-                  this.getPage(mediaType, index + 1).catch(() => ({
+                  this.getVibixPage(mediaType, index + 1).catch(() => ({
                     items: [] as VibixPublicItem[],
                   })),
                 ),
