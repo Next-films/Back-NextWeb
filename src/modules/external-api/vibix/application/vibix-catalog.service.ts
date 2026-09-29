@@ -13,6 +13,8 @@ import { ExternalApiProviderEnum, ExternalApiTargetEnum } from '@/external-api-c
 import {
   VibixCatalogResponse,
   VibixDetails,
+  VibixGenre,
+  VibixGenreCatalogue,
   VibixSeason,
   VibixMediaType,
   VibixPerson,
@@ -42,8 +44,8 @@ export class VibixCatalogService {
     this.logger.setContext(VibixCatalogService.name);
   }
 
-  private animationFilterCache: {
-    value: Record<string, string[]> | null;
+  private genreCatalogueCache: {
+    value: VibixGenreCatalogue | null;
     expiresAt: number;
   } | null = null;
 
@@ -52,11 +54,18 @@ export class VibixCatalogService {
     { value: Promise<unknown>; expiresAt: number }
   >();
 
-  getPage(mediaType: VibixMediaType, page: number, search?: string, sort: VibixSort = 'new') {
-    const key = `page:${mediaType}:${sort}:${Math.max(1, Math.floor(page))}:${
-      search?.trim() ?? ''
-    }`;
-    return this.cached(key, PAGE_CACHE_TTL_MS, () => this.loadPage(mediaType, page, search, sort));
+  getPage(
+    mediaType: VibixMediaType,
+    page: number,
+    search?: string,
+    sort: VibixSort = 'new',
+    genre?: string,
+  ) {
+    const safePage = Math.max(1, Math.floor(page));
+    const key = `page:${mediaType}:${sort}:${genre ?? ''}:${safePage}:${search?.trim() ?? ''}`;
+    return this.cached(key, PAGE_CACHE_TTL_MS, () =>
+      this.loadPage(mediaType, page, search, sort, genre),
+    );
   }
 
   getById(id: number): Promise<VibixPublicItem> {
@@ -89,6 +98,7 @@ export class VibixCatalogService {
     page: number,
     search?: string,
     sort: VibixSort = 'new',
+    genre?: string,
   ) {
     const safePage = Math.max(1, Math.floor(page));
     const apiTypes =
@@ -115,7 +125,7 @@ export class VibixCatalogService {
       filter: {
         type: apiTypes,
         activity: [1],
-        ...(mediaType === 'cartoons' ? await this.getAnimationFilter() : {}),
+        ...(await this.getGenreFilter(mediaType, genre)),
       },
       ...(search?.trim() ? { search: { value: search.trim() } } : {}),
     });
@@ -189,40 +199,78 @@ export class VibixCatalogService {
      Vibix в окно из 150 новинок попадает 1–3 мультфильма, поэтому берём
      значения жанров-анимации из справочника getFilters и фильтруем в запросе.
      Справочник недоступен — остаётся фильтрация по жанру уже после загрузки. */
-  private async getAnimationFilter(): Promise<Record<string, string[]>> {
-    if (this.animationFilterCache && this.animationFilterCache.expiresAt > Date.now()) {
-      return this.animationFilterCache.value ?? {};
+  /* Справочник жанров из getFilters (кэш на час): ключ фильтра жанров и его
+     значения. Ключ находим по наличию известных жанров — имя поля Vibix
+     не документировано. */
+  private async getGenreCatalogue(): Promise<VibixGenreCatalogue | null> {
+    if (this.genreCatalogueCache && this.genreCatalogueCache.expiresAt > Date.now()) {
+      return this.genreCatalogueCache.value;
     }
-    let value: Record<string, string[]> | null = null;
+    let value: VibixGenreCatalogue | null = null;
     try {
       const response = await this.requestApi<{
         error?: string;
         filters?: Record<
           string,
-          { list?: Array<{ name?: string | number | null; value?: string | number | null }> }
+          {
+            list?: Array<{
+              name?: string | number | null;
+              value?: string | number | null;
+              count?: string | number | null;
+            }>;
+          }
         >;
       }>('/publisher/catalog/getFilters', {});
       for (const [key, filter] of Object.entries(response.filters ?? {})) {
-        const values = (filter?.list ?? [])
-          .filter(item =>
-            ANIMATION_GENRES.includes(
-              String(item?.name ?? '')
-                .trim()
-                .toLowerCase(),
-            ),
-          )
-          .map(item => String(item?.value ?? '').trim())
-          .filter(Boolean);
-        if (values.length > 0) {
-          value = { [key]: values };
+        const genres = (filter?.list ?? [])
+          .map(item => ({
+            name: String(item?.name ?? '').trim(),
+            value: String(item?.value ?? '').trim(),
+            count: Number(item?.count) || 0,
+          }))
+          .filter(item => item.name && item.value);
+        const isGenreFilter = genres.some(item =>
+          [...ANIMATION_GENRES, 'драма', 'комедия'].includes(item.name.toLowerCase()),
+        );
+        if (isGenreFilter) {
+          value = { key, genres };
           break;
         }
       }
     } catch {
       value = null;
     }
-    this.animationFilterCache = { value, expiresAt: Date.now() + FILTERS_CACHE_TTL_MS };
-    return value ?? {};
+    this.genreCatalogueCache = { value, expiresAt: Date.now() + FILTERS_CACHE_TTL_MS };
+    return value;
+  }
+
+  /** Жанры для фильтра на сайте: самые наполненные первыми. */
+  async getGenres(): Promise<VibixGenre[]> {
+    const catalogue = await this.getGenreCatalogue();
+    return (catalogue?.genres ?? [])
+      .filter(genre => !ANIMATION_GENRES.includes(genre.name.toLowerCase()))
+      .sort((left, right) => right.count - left.count)
+      .map(genre => ({
+        name: genre.name.charAt(0).toUpperCase() + genre.name.slice(1),
+        value: genre.value,
+      }));
+  }
+
+  /* Фильтр запроса: выбранный жанр, а для мультфильмов — жанры анимации.
+     Оба условия в одном поле Vibix объединяет через «или», поэтому при
+     выбранном жанре анимацию для мультфильмов досеиваем уже после ответа. */
+  private async getGenreFilter(
+    mediaType: VibixMediaType,
+    genre?: string,
+  ): Promise<Record<string, string[]>> {
+    if (!genre && mediaType !== 'cartoons') return {};
+    const catalogue = await this.getGenreCatalogue();
+    if (!catalogue) return {};
+    if (genre) return { [catalogue.key]: [genre] };
+    const animation = catalogue.genres
+      .filter(item => ANIMATION_GENRES.includes(item.name.toLowerCase()))
+      .map(item => item.value);
+    return animation.length > 0 ? { [catalogue.key]: animation } : {};
   }
 
   private requestCatalog(payload: Record<string, unknown>): Promise<VibixCatalogResponse> {

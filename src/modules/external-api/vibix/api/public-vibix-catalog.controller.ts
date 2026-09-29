@@ -12,16 +12,30 @@ import {
 export class PublicVibixCatalogController {
   constructor(private readonly vibixCatalogService: VibixCatalogService) {}
 
+  // Объявлен до ':mediaType', иначе 'genres' попадёт в тип каталога.
+  @Get('genres')
+  getGenres() {
+    return this.vibixCatalogService.getGenres();
+  }
+
   @Get(':mediaType')
   getPage(
     @Param('mediaType') mediaType: VibixMediaType,
     @Query('page') page = '1',
     @Query('search') search?: string,
     @Query('sort') sort?: string,
+    @Query('genre') genre?: string,
   ) {
     this.assertMediaType(mediaType);
     const safeSort: VibixSort = sort === 'popular' ? 'popular' : 'new';
-    return this.vibixCatalogService.getPage(mediaType, Number(page) || 1, search, safeSort);
+    const safeGenre = genre && /^[\w-]{1,32}$/.test(genre) ? genre : undefined;
+    return this.vibixCatalogService.getPage(
+      mediaType,
+      Number(page) || 1,
+      search,
+      safeSort,
+      safeGenre,
+    );
   }
 
   @Get(':mediaType/:id')

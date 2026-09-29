@@ -414,4 +414,33 @@ describe('VibixCatalogService', () => {
     expect(post.mock.calls[0][1]).toContain('columns%5B0%5D%5Bdata%5D=kp_votes');
     expect(post.mock.calls[1][1]).toContain('columns%5B0%5D%5Bdata%5D=year');
   });
+
+  it('filters by the chosen genre through the Vibix genre catalogue', async () => {
+    const { service, post } = createService();
+    post
+      .mockResolvedValueOnce({
+        data: {
+          filters: {
+            genre: {
+              list: [
+                { name: 'драма', value: 3, count: 900 },
+                { name: 'комедия', value: 5, count: 1200 },
+                { name: 'мультфильм', value: 7, count: 400 },
+              ],
+            },
+          },
+        },
+      })
+      .mockResolvedValue({ data: { data: [movie], recordsFiltered: 1 } });
+
+    const genres = await service.getGenres();
+    await service.getPage('films', 1, undefined, 'new', '3');
+
+    expect(genres).toEqual([
+      { name: 'Комедия', value: '5' },
+      { name: 'Драма', value: '3' },
+    ]);
+    expect(post).toHaveBeenCalledTimes(2);
+    expect(post.mock.calls[1][1]).toContain('filter%5Bgenre%5D%5B0%5D=3');
+  });
 });
