@@ -15,6 +15,7 @@ import {
   DownloadPreviewYtClipPayloadDto,
   DownloaderRunByListInputDto,
   DownloaderSerialSeasonsOutputDto,
+  DownloaderSettingsDto,
   DownloaderTriggerScheduleDto,
   DownloaderTriggerTaskRuntimeStatusDto,
   IDownloaderServiceAdapter,
@@ -352,6 +353,23 @@ export class DownloaderServiceRestAdapter implements IDownloaderServiceAdapter {
   async getBridgeStatus(): Promise<DownloaderTriggerTaskRuntimeStatusDto> {
     const result = await this.httpService.axiosRef.get<DownloaderTriggerTaskRuntimeStatusDto>(
       this.url(BRIDGE.MAIN, BRIDGE.STATUS),
+      this.baseAuthHeaders,
+    );
+    return result.data;
+  }
+
+  async getBridgeSettings(): Promise<DownloaderSettingsDto> {
+    const result = await this.httpService.axiosRef.get<DownloaderSettingsDto>(
+      this.url(BRIDGE.MAIN, BRIDGE.SETTINGS),
+      this.baseAuthHeaders,
+    );
+    return result.data;
+  }
+
+  async updateBridgeSettings(settings: DownloaderSettingsDto): Promise<DownloaderSettingsDto> {
+    const result = await this.httpService.axiosRef.put<DownloaderSettingsDto>(
+      this.url(BRIDGE.MAIN, BRIDGE.SETTINGS),
+      settings,
       this.baseAuthHeaders,
     );
     return result.data;

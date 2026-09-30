@@ -16,6 +16,7 @@ export const DOWNLOADER_SERVICE_REST_BRIDGE_METHODS_CONSTANTS = {
   STATUS: 'status',
   QUEUE: 'queue',
   REMOVE_BY_KPID: 'remove-by-kpid',
+  SETTINGS: 'settings',
 };
 
 const CONVERTER_PREFIX = 'converter';

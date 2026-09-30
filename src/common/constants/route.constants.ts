@@ -33,6 +33,7 @@ export const ADMIN_EXTERNAL_API_ROUTE = {
   TRIGGERS_STATUS: 'triggers/status',
   TRIGGERS_RUN_BY_LIST: 'triggers/run-by-list',
   TRIGGERS_CANCEL: 'triggers/cancel',
+  TRIGGERS_SETTINGS: 'triggers/settings',
   SIGN_MEDIA_URL: 'media/sign-url',
 };
 

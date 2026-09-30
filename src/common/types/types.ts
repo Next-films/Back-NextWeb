@@ -243,6 +243,11 @@ export interface IDownloaderServiceAdapter {
     | DownloaderTriggerTaskRuntimeStatusDto
     | Promise<DownloaderTriggerTaskRuntimeStatusDto>;
 
+  /** Глобальный выключатель загрузок download-service. */
+  getBridgeSettings(): Promise<DownloaderSettingsDto>;
+
+  updateBridgeSettings(settings: DownloaderSettingsDto): Promise<DownloaderSettingsDto>;
+
   clearLogs(keys: string[]): Promise<AppNotificationResult<null, ErrorFieldExceptionDto | null>>;
 
   removeMovie(key: string): Promise<AppNotificationResult<null, ErrorFieldExceptionDto | null>>;
@@ -289,4 +294,8 @@ export class AdminUploadAvatarPayloadDto {
   extension: ImgExtEnum;
   adminId: number;
   currentAvatarPath: string;
+}
+
+export interface DownloaderSettingsDto {
+  downloadsEnabled: boolean;
 }

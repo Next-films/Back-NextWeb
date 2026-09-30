@@ -49,11 +49,12 @@ import {
   DownloaderTransportModeEnum,
   DownloaderTransportModeService,
 } from '@/common/services/downloader-transport-mode.service';
-import { IsArray, IsEnum, IsOptional, IsString } from 'class-validator';
+import { IsArray, IsBoolean, IsEnum, IsOptional, IsString } from 'class-validator';
 import { SystemConnectionsStatusService } from '@/common/services/system-connections-status.service';
 import { DownloaderServiceAdapter } from '@/common/infrastructure/rmq/downloader-service.adapter';
 import {
   DownloaderRunByListInputDto,
+  DownloaderSettingsDto,
   DownloaderTriggerScheduleDto,
   DownloaderTriggerTaskRuntimeStatusDto,
 } from '@/common/types/types';
@@ -61,6 +62,11 @@ import {
 class SetDownloaderTransportInputDto {
   @IsEnum(DownloaderTransportModeEnum)
   mode: DownloaderTransportModeEnum;
+}
+
+class UpdateDownloaderSettingsInputDto {
+  @IsBoolean()
+  downloadsEnabled: boolean;
 }
 
 class UpdateDownloaderTriggersInputDto {
@@ -369,5 +375,26 @@ export class AdminExternalApiController {
     }
 
     return { message: result.data?.message || 'Cancellation requested' };
+  }
+
+  @Get(ADMIN_EXTERNAL_API_ROUTE.TRIGGERS_SETTINGS)
+  getDownloaderSettings(): Promise<DownloaderSettingsDto> {
+    this.logger.log('Execute: get downloader settings by admin', this.getDownloaderSettings.name);
+
+    return this.downloaderServiceAdapter.getBridgeSettings();
+  }
+
+  @Put(ADMIN_EXTERNAL_API_ROUTE.TRIGGERS_SETTINGS)
+  updateDownloaderSettings(
+    @Body() body: UpdateDownloaderSettingsInputDto,
+  ): Promise<DownloaderSettingsDto> {
+    this.logger.log(
+      `Execute: ${body.downloadsEnabled ? 'enable' : 'disable'} downloads by admin`,
+      this.updateDownloaderSettings.name,
+    );
+
+    return this.downloaderServiceAdapter.updateBridgeSettings({
+      downloadsEnabled: body.downloadsEnabled,
+    });
   }
 }

@@ -35,6 +35,7 @@ import {
   DEFAULT_DOWNLOADER_TRIGGER_SCHEDULE,
   DownloaderRunByListInputDto,
   DownloaderSerialSeasonsOutputDto,
+  DownloaderSettingsDto,
   DownloaderTriggerScheduleDto,
   DownloaderTriggerTaskRuntimeStatusDto,
   IDownloaderServiceAdapter,
@@ -232,6 +233,21 @@ export class DownloaderServiceAdapter implements IDownloaderServiceAdapter {
 
   getBridgeStatus(): Promise<DownloaderTriggerTaskRuntimeStatusDto> {
     return this.getBridgeSchedule().then(schedule => buildIdleStatus(schedule));
+  }
+
+  // Выключатель загрузок доступен только через HTTP-транспорт.
+  getBridgeSettings(): Promise<DownloaderSettingsDto> {
+    return Promise.reject(
+      new Error('Downloader settings are available only via HTTP transport adapter.'),
+    );
+  }
+
+  updateBridgeSettings(settings: DownloaderSettingsDto): Promise<DownloaderSettingsDto> {
+    return Promise.reject(
+      new Error(
+        `Downloader settings update (downloadsEnabled=${settings.downloadsEnabled}) is available only via HTTP transport adapter.`,
+      ),
+    );
   }
 
   // ─── Request/response commands ──────────────────────────────────
@@ -477,6 +493,19 @@ export class DownloaderServiceAdapterMock implements IDownloaderServiceAdapter {
 
   getBridgeStatus(): DownloaderTriggerTaskRuntimeStatusDto {
     return buildIdleStatus(this.getBridgeSchedule());
+  }
+
+  private mockSettings: DownloaderSettingsDto = { downloadsEnabled: false };
+
+  getBridgeSettings(): Promise<DownloaderSettingsDto> {
+    this.mockLog('Execute: get downloader settings (mock)', this.getBridgeSettings.name);
+    return Promise.resolve(this.mockSettings);
+  }
+
+  updateBridgeSettings(settings: DownloaderSettingsDto): Promise<DownloaderSettingsDto> {
+    this.mockLog('Execute: update downloader settings (mock)', this.updateBridgeSettings.name);
+    this.mockSettings = { downloadsEnabled: settings.downloadsEnabled };
+    return Promise.resolve(this.mockSettings);
   }
 
   // ─── Request/response commands ──────────────────────────────────

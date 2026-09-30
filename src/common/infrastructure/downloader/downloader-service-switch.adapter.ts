@@ -12,6 +12,7 @@ import {
   DEFAULT_DOWNLOADER_TRIGGER_SCHEDULE,
   DownloaderRunByListInputDto,
   DownloaderSerialSeasonsOutputDto,
+  DownloaderSettingsDto,
   DownloaderTriggerScheduleDto,
   DownloaderTriggerTaskRuntimeStatusDto,
   ImgExtEnum,
@@ -412,6 +413,22 @@ export class DownloaderServiceSwitchAdapter {
       () => this.restAdapter.getBridgeStatus(),
       a => a.getBridgeStatus(),
       defaultStatus,
+    );
+  }
+
+  getBridgeSettings(): Promise<DownloaderSettingsDto> {
+    return this.restFirstWithFallback(
+      this.getBridgeSettings.name,
+      () => this.restAdapter.getBridgeSettings(),
+      null,
+    );
+  }
+
+  updateBridgeSettings(settings: DownloaderSettingsDto): Promise<DownloaderSettingsDto> {
+    return this.restFirstWithFallback(
+      this.updateBridgeSettings.name,
+      () => this.restAdapter.updateBridgeSettings(settings),
+      null,
     );
   }
 }
