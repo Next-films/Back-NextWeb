@@ -34,6 +34,10 @@ export class ShortContentJobRepository {
     return this.repo.findOne({ where: { id } });
   }
 
+  async remove(entity: ShortContentJob): Promise<void> {
+    await this.repo.remove(entity);
+  }
+
   async save(entity: ShortContentJob): Promise<ShortContentJob> {
     return this.repo.save(entity);
   }

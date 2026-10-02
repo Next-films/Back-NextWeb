@@ -9,7 +9,8 @@ export class AdminShortContentJobOutputDto {
   shortContentJobId: string | null;
   errorMessage: string | null;
   requestPayload: Record<string, unknown>;
-  draftPayload: Record<string, unknown> | null;
+  /** short-content job: stage, totalClips and the clips cut so far. */
+  result: Record<string, unknown> | null;
   createdAt: Date;
   updatedAt: Date;
   approvedAt: Date | null;
@@ -24,7 +25,7 @@ export class AdminShortContentJobOutputDto {
       shortContentJobId: entity.shortContentJobId,
       errorMessage: entity.errorMessage,
       requestPayload: entity.requestPayload,
-      draftPayload: entity.draftPayload,
+      result: entity.draftPayload,
       createdAt: entity.createdAt,
       updatedAt: entity.updatedAt,
       approvedAt: entity.approvedAt,

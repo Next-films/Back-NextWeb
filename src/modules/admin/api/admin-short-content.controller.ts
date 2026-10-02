@@ -1,7 +1,7 @@
 import {
   Body,
-  BadRequestException,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
@@ -15,19 +15,19 @@ import { ApiBearerAuth, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger
 import { ADMIN_CINEMA_ROUTE } from '@/common/constants/route.constants';
 import { ADMIN_AUTH_JWT_SCHEMA_NAME } from '@/common/constants/auth-jwt-schema-name.constants';
 import { AdminAccessTokenGuard } from '@/admin-auth/application/guards/jwt/admin-access-token.guard';
-import { AdminCreateShortContentDraftInputDto } from '@/admin/api/dtos/input/admin-create-short-content-draft.input.dto';
+import { AdminCreateShortContentHighlightsInputDto } from '@/admin/api/dtos/input/admin-create-short-content-highlights.input.dto';
 import { ShortContentClientService } from '@/admin/application/services/short-content-client.service';
 import { LoggerService } from '@/common/utils/logger/logger.service';
-import {
-  ShortContentJob,
-  ShortContentJobStatus,
-  ShortContentType,
-} from '@/admin/domain/short-content-job.entity';
+import { ShortContentJob, ShortContentType } from '@/admin/domain/short-content-job.entity';
 import { ShortContentJobRepository } from '@/admin/infrastructure/short-content-job.repository';
 import { AdminShortContentJobOutputDto } from '@/admin/api/dtos/output/admin-short-content-job.output.dto';
 import { AdminGetShortContentJobsInputQueryDto } from '@/admin/api/dtos/input/admin-get-short-content-jobs.input-query.dto';
 import { ParseIntPatchPipe } from '@/common/pipes/validation-parse-int.pipe';
 
+/**
+ * Highlight clips of a film/cartoon/serial episode: the admin starts a cut by
+ * content id and later downloads the clips cut by the short-content service.
+ */
 @ApiTags('Admin cinema - short content')
 @ApiBearerAuth(ADMIN_AUTH_JWT_SCHEMA_NAME)
 @ApiUnauthorizedResponse({ description: 'Unauthorized' })
@@ -49,6 +49,8 @@ export class AdminShortContentController {
     this.logger.log('Execute: get short content jobs', this.getAll.name);
     const jobs = await this.shortContentJobRepository.findAll(query);
 
+    await Promise.all(jobs.map(job => this.refresh(job)));
+
     return AdminShortContentJobOutputDto.fromEntities(jobs);
   }
 
@@ -59,15 +61,17 @@ export class AdminShortContentController {
     this.logger.log(`Execute: get short content job by id: ${jobId}`, this.getById.name);
     const job = await this.getJobOrThrow(jobId);
 
+    await this.refresh(job);
+
     return AdminShortContentJobOutputDto.fromEntity(job);
   }
 
   @HttpCode(HttpStatus.CREATED)
-  @Post('draft')
-  async createDraft(
-    @Body() body: AdminCreateShortContentDraftInputDto,
+  @Post('highlights')
+  async createHighlights(
+    @Body() body: AdminCreateShortContentHighlightsInputDto,
   ): Promise<AdminShortContentJobOutputDto> {
-    this.logger.log('Execute: create short content draft', this.createDraft.name);
+    this.logger.log('Execute: start short content highlights', this.createHighlights.name);
     const job = await this.shortContentJobRepository.save(
       ShortContentJob.create(
         body.contentType as ShortContentType,
@@ -77,33 +81,45 @@ export class AdminShortContentController {
     );
 
     try {
-      const draft = (await this.shortContentClient.createDraft(body)) as Record<string, unknown>;
-      job.markDrafted(draft);
+      job.markStarted(await this.shortContentClient.createHighlights(body));
     } catch (error) {
       job.markFailed(error instanceof Error ? error.message : String(error));
     }
 
-    const saved = await this.shortContentJobRepository.save(job);
-
-    return AdminShortContentJobOutputDto.fromEntity(saved);
+    return AdminShortContentJobOutputDto.fromEntity(await this.shortContentJobRepository.save(job));
   }
 
-  @HttpCode(HttpStatus.OK)
-  @Post(':jobId/approve')
-  async approve(
-    @Param('jobId', ParseIntPatchPipe) jobId: number,
-  ): Promise<AdminShortContentJobOutputDto> {
-    this.logger.log(`Execute: approve short content job: ${jobId}`, this.approve.name);
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Delete(':jobId')
+  async remove(@Param('jobId', ParseIntPatchPipe) jobId: number): Promise<void> {
+    this.logger.log(`Execute: delete short content job: ${jobId}`, this.remove.name);
     const job = await this.getJobOrThrow(jobId);
 
-    if (job.status !== ShortContentJobStatus.DRAFTED) {
-      throw new BadRequestException('Short content job must be drafted before approve');
+    if (job.shortContentJobId) {
+      await this.shortContentClient.deleteHighlights(job.shortContentJobId);
     }
 
-    job.approve();
-    const saved = await this.shortContentJobRepository.save(job);
+    await this.shortContentJobRepository.remove(job);
+  }
 
-    return AdminShortContentJobOutputDto.fromEntity(saved);
+  /** Pulls the current state (stage, finished clips) of an unfinished job. */
+  private async refresh(job: ShortContentJob): Promise<void> {
+    if (job.isFinished || !job.shortContentJobId) {
+      return;
+    }
+
+    try {
+      job.syncFromEngine(await this.shortContentClient.getHighlights(job.shortContentJobId));
+      await this.shortContentJobRepository.save(job);
+    } catch (error) {
+      // The service may be restarting: keep the last known state and retry on the next poll.
+      this.logger.warn(
+        `Cannot refresh short content job ${job.id}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+        this.refresh.name,
+      );
+    }
   }
 
   private async getJobOrThrow(jobId: number): Promise<ShortContentJob> {
