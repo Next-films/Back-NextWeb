@@ -50,7 +50,7 @@ export class ShortContentClientService {
 
     const response = await fetch(new URL(path, this.ensureTrailingSlash(serviceUrl)), {
       method,
-      headers: this.buildHeaders(apiSettings.SHORT_CONTENT_SERVICE_TOKEN),
+      headers: this.buildHeaders(apiSettings.SHORT_CONTENT_SERVICE_TOKEN, body !== undefined),
       body: body === undefined ? undefined : JSON.stringify(body),
       signal: AbortSignal.timeout(30_000),
     });
@@ -70,11 +70,13 @@ export class ShortContentClientService {
     ) as T;
   }
 
-  private buildHeaders(token: string): Record<string, string> {
-    const headers: Record<string, string> = {
-      Accept: 'application/json',
-      'Content-Type': 'application/json',
-    };
+  private buildHeaders(token: string, hasBody: boolean): Record<string, string> {
+    const headers: Record<string, string> = { Accept: 'application/json' };
+
+    // Fastify rejects a JSON content type on a request without a body (400).
+    if (hasBody) {
+      headers['Content-Type'] = 'application/json';
+    }
 
     if (token?.trim()) {
       headers.Authorization = `Bearer ${token.trim()}`;

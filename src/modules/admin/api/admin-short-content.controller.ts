@@ -96,7 +96,18 @@ export class AdminShortContentController {
     const job = await this.getJobOrThrow(jobId);
 
     if (job.shortContentJobId) {
-      await this.shortContentClient.deleteHighlights(job.shortContentJobId);
+      try {
+        await this.shortContentClient.deleteHighlights(job.shortContentJobId);
+      } catch (error) {
+        // The record must still be removable when the service is down: its
+        // retention sweep deletes the leftover clips later.
+        this.logger.warn(
+          `Cannot delete clips of short content job ${job.id}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+          this.remove.name,
+        );
+      }
     }
 
     await this.shortContentJobRepository.remove(job);
