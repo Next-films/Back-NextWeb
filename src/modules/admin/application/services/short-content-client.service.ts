@@ -21,6 +21,11 @@ export class ShortContentClientService {
     return this.call('POST', '/api/shorts/highlights', input);
   }
 
+  /** Does the title have our own video, and which seasons/episodes can be cut. */
+  getSources(contentType: string, contentId: number): Promise<Record<string, unknown>> {
+    return this.call('GET', `/api/shorts/sources/${encodeURIComponent(contentType)}/${contentId}`);
+  }
+
   getHighlights(engineJobId: string): Promise<ShortContentEngineJob> {
     return this.call('GET', `/api/shorts/highlights/${encodeURIComponent(engineJobId)}`);
   }

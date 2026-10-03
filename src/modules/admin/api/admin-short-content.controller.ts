@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -52,6 +53,18 @@ export class AdminShortContentController {
     await Promise.all(jobs.map(job => this.refresh(job)));
 
     return AdminShortContentJobOutputDto.fromEntities(jobs);
+  }
+
+  @Get('sources/:contentType/:contentId')
+  async getSources(
+    @Param('contentType') contentType: string,
+    @Param('contentId', ParseIntPatchPipe) contentId: number,
+  ): Promise<Record<string, unknown>> {
+    if (!Object.values(ShortContentType).includes(contentType as ShortContentType)) {
+      throw new BadRequestException('contentType must be film, cartoon or serial');
+    }
+
+    return this.shortContentClient.getSources(contentType, contentId);
   }
 
   @Get(':jobId')

@@ -35,10 +35,16 @@ export class AdminCreateShortContentHighlightsInputDto {
   @IsInt()
   episodeId?: number;
 
-  /** Serial only: 1-based episode number across all seasons. */
+  /** Serial only: season number. */
   @IsOptional()
   @IsInt()
-  @Min(1)
+  @Min(0)
+  seasonNumber?: number;
+
+  /** Serial only: episode number inside the season; nothing given = first episode with a video. */
+  @IsOptional()
+  @IsInt()
+  @Min(0)
   episodeNumber?: number;
 
   @IsOptional()
