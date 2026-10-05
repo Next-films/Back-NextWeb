@@ -14,7 +14,10 @@ import { CartoonPublicQueryRepository } from '@/cartoons/infrastructure/cartoon-
 import { DownloaderServiceAdapter } from '@/common/infrastructure/rmq/downloader-service.adapter';
 
 export class GetPublicCartoonByIdQuery implements IQuery {
-  constructor(public cartoonId: number) {}
+  constructor(
+    public cartoonId: number,
+    public includeUnpublished = false,
+  ) {}
 }
 
 @QueryHandler(GetPublicCartoonByIdQuery)
@@ -73,10 +76,13 @@ export class GetPublicCartoonByIdQueryHandler
   async execute(
     query: GetPublicCartoonByIdQuery,
   ): Promise<AppNotificationResult<CartoonPublicOutputDto, ErrorFieldExceptionDto | null>> {
-    const { cartoonId } = query;
+    const { cartoonId, includeUnpublished } = query;
     this.logger.log(`Get cartoon by id command: ${cartoonId}`, this.execute.name);
     try {
-      const cartoon = await this.cartoonPublicQueryRepository.getCartoonById(cartoonId);
+      const cartoon = await this.cartoonPublicQueryRepository.getCartoonById(
+        cartoonId,
+        includeUnpublished,
+      );
       if (!cartoon)
         return this.appNotification.notFound({
           field: 'cartoonId',

@@ -71,14 +71,16 @@ export class CartoonPublicQueryRepository {
     return qb;
   }
 
-  async getCartoonById(id: number): Promise<Cartoon | null> {
+  async getCartoonById(id: number, includeUnpublished = false): Promise<Cartoon | null> {
     return this.cartoonRepository.findOne({
-      where: {
-        id,
-        isHidden: false,
-        handleStatus: MovieHandleStatus.PRODUCTION,
-        availabilityStatus: In(MovieAvailabilityPolicy.publicStatuses),
-      },
+      where: includeUnpublished
+        ? { id }
+        : {
+            id,
+            isHidden: false,
+            handleStatus: MovieHandleStatus.PRODUCTION,
+            availabilityStatus: In(MovieAvailabilityPolicy.publicStatuses),
+          },
       relations: { genres: true },
     });
   }

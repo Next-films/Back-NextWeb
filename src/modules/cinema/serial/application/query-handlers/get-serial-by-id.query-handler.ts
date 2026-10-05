@@ -14,7 +14,10 @@ import {
 import { DownloaderServiceAdapter } from '@/common/infrastructure/rmq/downloader-service.adapter';
 
 export class GetSerialByIdQuery implements IQuery {
-  constructor(public serialId: number) {}
+  constructor(
+    public serialId: number,
+    public includeUnpublished = false,
+  ) {}
 }
 
 type EpisodeLike = {
@@ -126,10 +129,10 @@ export class GetSerialByIdQueryHandler
   async execute(
     query: GetSerialByIdQuery,
   ): Promise<AppNotificationResult<SerialsOutputDto, ErrorFieldExceptionDto | null>> {
-    const { serialId } = query;
+    const { serialId, includeUnpublished } = query;
     this.logger.log(`Get serial by id command: ${serialId}`, this.execute.name);
     try {
-      const serial = await this.serialQueryRepository.getSerialById(serialId);
+      const serial = await this.serialQueryRepository.getSerialById(serialId, includeUnpublished);
       if (!serial)
         return this.appNotification.notFound({
           field: 'serialId',

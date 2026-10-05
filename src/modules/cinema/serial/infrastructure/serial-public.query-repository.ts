@@ -74,14 +74,16 @@ export class SerialPublicQueryRepository {
     return qb;
   }
 
-  async getSerialById(id: number): Promise<Serial | null> {
+  async getSerialById(id: number, includeUnpublished = false): Promise<Serial | null> {
     return this.serialRepository.findOne({
-      where: {
-        id,
-        isHidden: false,
-        handleStatus: MovieHandleStatus.PRODUCTION,
-        availabilityStatus: In(MovieAvailabilityPolicy.publicStatuses),
-      },
+      where: includeUnpublished
+        ? { id }
+        : {
+            id,
+            isHidden: false,
+            handleStatus: MovieHandleStatus.PRODUCTION,
+            availabilityStatus: In(MovieAvailabilityPolicy.publicStatuses),
+          },
       relations: {
         genres: true,
         episodes: { season: true },

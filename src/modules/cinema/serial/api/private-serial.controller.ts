@@ -10,6 +10,10 @@ import {
   UseFilters,
   UseGuards,
 } from '@nestjs/common';
+import { GetSerialByIdQuery } from '@/serials/application/query-handlers/get-serial-by-id.query-handler';
+import { SerialsOutputDto } from '@/serials/api/dtos/output/serials.output.dto';
+import { ParseIntPatchPipe } from '@/common/pipes/validation-parse-int.pipe';
+import { AppNotificationResultEnum } from '@/common/utils/app-notification.util';
 import { ApiBearerAuth, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import { LoggerService } from '@/common/utils/logger/logger.service';
@@ -58,6 +62,24 @@ export class SerialPrivateController {
     private readonly queryBus: QueryBus,
   ) {
     this.logger.setContext(SerialPrivateController.name);
+  }
+
+  @Get(`:serialId/${PRIVATE_SERIALS_ROUTE.SOURCE}`)
+  async getSerialSource(
+    @Param('serialId', ParseIntPatchPipe) serialId: number,
+  ): Promise<SerialsOutputDto | void> {
+    this.logger.log(`Execute: Get serial source: ${serialId}`, this.getSerialSource.name);
+
+    // Unlike the public endpoint, hidden / unpublished titles are returned as well.
+    const result = await this.queryBus.execute<
+      GetSerialByIdQuery,
+      AppNotificationResult<SerialsOutputDto, ErrorFieldExceptionDto | null>
+    >(new GetSerialByIdQuery(serialId, true));
+
+    this.logger.log(result.appResult, this.getSerialSource.name);
+    if (result.appResult === AppNotificationResultEnum.Success) return result.data!;
+
+    this.appNotification.handleHttpResult(result);
   }
 
   @Get(`:kpId/${PRIVATE_SERIALS_ROUTE.KP}`)

@@ -71,14 +71,16 @@ export class FilmPublicQueryRepository {
     return qb;
   }
 
-  async getFilmById(id: number): Promise<Film | null> {
+  async getFilmById(id: number, includeUnpublished = false): Promise<Film | null> {
     return this.filmRepository.findOne({
-      where: {
-        id,
-        isHidden: false,
-        handleStatus: MovieHandleStatus.PRODUCTION,
-        availabilityStatus: In(MovieAvailabilityPolicy.publicStatuses),
-      },
+      where: includeUnpublished
+        ? { id }
+        : {
+            id,
+            isHidden: false,
+            handleStatus: MovieHandleStatus.PRODUCTION,
+            availabilityStatus: In(MovieAvailabilityPolicy.publicStatuses),
+          },
       relations: { genres: true },
     });
   }

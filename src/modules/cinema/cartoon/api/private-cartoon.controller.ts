@@ -11,6 +11,10 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { PRIVATE_CARTOONS_ROUTE } from '@/common/constants/route.constants';
+import { CartoonPublicOutputDto } from '@/cartoons/api/dtos/output/cartoons-public.output.dto';
+import { GetPublicCartoonByIdQuery } from '@/cartoons/application/query-handlers/get-public-cartoon-by-id.query-handler';
+import { ParseIntPatchPipe } from '@/common/pipes/validation-parse-int.pipe';
+import { AppNotificationResultEnum } from '@/common/utils/app-notification.util';
 import { ApiBearerAuth, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger';
 import { LoggerService } from '@/common/utils/logger/logger.service';
 import {
@@ -55,6 +59,24 @@ export class CartoonPrivateController {
     private readonly commandBus: CommandBus,
   ) {
     this.logger.setContext(CartoonPrivateController.name);
+  }
+
+  @Get(`:cartoonId/${PRIVATE_CARTOONS_ROUTE.SOURCE}`)
+  async getCartoonSource(
+    @Param('cartoonId', ParseIntPatchPipe) cartoonId: number,
+  ): Promise<CartoonPublicOutputDto | void> {
+    this.logger.log(`Execute: Get cartoon source: ${cartoonId}`, this.getCartoonSource.name);
+
+    // Unlike the public endpoint, hidden / unpublished titles are returned as well.
+    const result = await this.queryBus.execute<
+      GetPublicCartoonByIdQuery,
+      AppNotificationResult<CartoonPublicOutputDto, ErrorFieldExceptionDto | null>
+    >(new GetPublicCartoonByIdQuery(cartoonId, true));
+
+    this.logger.log(result.appResult, this.getCartoonSource.name);
+    if (result.appResult === AppNotificationResultEnum.Success) return result.data!;
+
+    this.appNotification.handleHttpResult(result);
   }
 
   @Get(`:kpId/${PRIVATE_CARTOONS_ROUTE.KP}`)

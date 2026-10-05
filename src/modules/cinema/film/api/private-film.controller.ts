@@ -11,6 +11,10 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { PRIVATE_FILMS_ROUTE } from '@/common/constants/route.constants';
+import { FilmPublicOutputDto } from '@/films/api/dtos/output/films-public.output.dto';
+import { GetPublicFilmByIdQuery } from '@/films/application/query-handlers/get-public-film-by-id.query-handler';
+import { ParseIntPatchPipe } from '@/common/pipes/validation-parse-int.pipe';
+import { AppNotificationResultEnum } from '@/common/utils/app-notification.util';
 import { ApiBearerAuth, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger';
 import { LoggerService } from '@/common/utils/logger/logger.service';
 import {
@@ -55,6 +59,24 @@ export class FilmPrivateController {
     private readonly queryBus: QueryBus,
   ) {
     this.logger.setContext(FilmPrivateController.name);
+  }
+
+  @Get(`:filmId/${PRIVATE_FILMS_ROUTE.SOURCE}`)
+  async getFilmSource(
+    @Param('filmId', ParseIntPatchPipe) filmId: number,
+  ): Promise<FilmPublicOutputDto | void> {
+    this.logger.log(`Execute: Get film source: ${filmId}`, this.getFilmSource.name);
+
+    // Unlike the public endpoint, hidden / unpublished titles are returned as well.
+    const result = await this.queryBus.execute<
+      GetPublicFilmByIdQuery,
+      AppNotificationResult<FilmPublicOutputDto, ErrorFieldExceptionDto | null>
+    >(new GetPublicFilmByIdQuery(filmId, true));
+
+    this.logger.log(result.appResult, this.getFilmSource.name);
+    if (result.appResult === AppNotificationResultEnum.Success) return result.data!;
+
+    this.appNotification.handleHttpResult(result);
   }
 
   @Get(`:kpId/${PRIVATE_FILMS_ROUTE.KP}`)

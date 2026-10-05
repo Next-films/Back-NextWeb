@@ -131,6 +131,7 @@ export const FILMS_ROUTE = {
 
 export const PRIVATE_FILMS_ROUTE = {
   MAIN: `${CINEMA_PREFIX}/private/films`,
+  SOURCE: 'source',
   NEW_FILM: 'new-film',
   UPCOMING: 'new-film/upcoming',
   NEW_FILM_IS_HANDLE: 'new-film/is-handle',
@@ -150,6 +151,7 @@ export const SERIALS_ROUTE = {
 
 export const PRIVATE_SERIALS_ROUTE = {
   MAIN: `${CINEMA_PREFIX}/private/serials`,
+  SOURCE: 'source',
   NEW_SERIAL: 'new-serial',
   UPCOMING: 'new-serial/upcoming',
   NEW_SERIAL_IS_HANDLE: 'new-serial/is-handle',
@@ -174,6 +176,7 @@ export const MEDIA_ROUTE = {
 
 export const PRIVATE_CARTOONS_ROUTE = {
   MAIN: `${CINEMA_PREFIX}/private/cartoons`,
+  SOURCE: 'source',
   KP: `kp`,
   NEW_CARTOON: 'new-cartoon',
   UPCOMING: 'new-cartoon/upcoming',

@@ -14,7 +14,10 @@ import { FilmPublicQueryRepository } from '@/films/infrastructure/film-public.qu
 import { DownloaderServiceAdapter } from '@/common/infrastructure/rmq/downloader-service.adapter';
 
 export class GetPublicFilmByIdQuery implements IQuery {
-  constructor(public filmId: number) {}
+  constructor(
+    public filmId: number,
+    public includeUnpublished = false,
+  ) {}
 }
 
 @QueryHandler(GetPublicFilmByIdQuery)
@@ -73,10 +76,10 @@ export class GetPublicFilmByIdQueryHandler
   async execute(
     query: GetPublicFilmByIdQuery,
   ): Promise<AppNotificationResult<FilmPublicOutputDto, ErrorFieldExceptionDto | null>> {
-    const { filmId } = query;
+    const { filmId, includeUnpublished } = query;
     this.logger.log(`Get film by id command: ${filmId}`, this.execute.name);
     try {
-      const film = await this.filmPublicQueryRepository.getFilmById(filmId);
+      const film = await this.filmPublicQueryRepository.getFilmById(filmId, includeUnpublished);
       if (!film)
         return this.appNotification.notFound({
           field: 'filmId',
