@@ -243,7 +243,7 @@ export interface IDownloaderServiceAdapter {
     | DownloaderTriggerTaskRuntimeStatusDto
     | Promise<DownloaderTriggerTaskRuntimeStatusDto>;
 
-  /** Глобальный выключатель загрузок download-service. */
+  /** Выключатель автоматических загрузок download-service. */
   getBridgeSettings(): Promise<DownloaderSettingsDto>;
 
   updateBridgeSettings(settings: DownloaderSettingsDto): Promise<DownloaderSettingsDto>;

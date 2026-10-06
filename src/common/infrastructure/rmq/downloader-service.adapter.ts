@@ -235,7 +235,7 @@ export class DownloaderServiceAdapter implements IDownloaderServiceAdapter {
     return this.getBridgeSchedule().then(schedule => buildIdleStatus(schedule));
   }
 
-  // Выключатель загрузок доступен только через HTTP-транспорт.
+  // Выключатель автоматических загрузок доступен только через HTTP-транспорт.
   getBridgeSettings(): Promise<DownloaderSettingsDto> {
     return Promise.reject(
       new Error('Downloader settings are available only via HTTP transport adapter.'),

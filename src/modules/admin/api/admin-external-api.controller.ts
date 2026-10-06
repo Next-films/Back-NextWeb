@@ -389,7 +389,7 @@ export class AdminExternalApiController {
     @Body() body: UpdateDownloaderSettingsInputDto,
   ): Promise<DownloaderSettingsDto> {
     this.logger.log(
-      `Execute: ${body.downloadsEnabled ? 'enable' : 'disable'} downloads by admin`,
+      `Execute: ${body.downloadsEnabled ? 'enable' : 'disable'} automatic downloads by admin`,
       this.updateDownloaderSettings.name,
     );
 

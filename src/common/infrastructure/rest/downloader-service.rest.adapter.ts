@@ -297,7 +297,7 @@ export class DownloaderServiceRestAdapter implements IDownloaderServiceAdapter {
   ): Promise<Res<{ message: string }>> {
     return this.postResult(
       this.url(BRIDGE.MAIN, BRIDGE.SERIALS, BRIDGE.RECONCILE),
-      { kpId, seasonNumbers },
+      { kpId, seasonNumbers, manual: true },
       this.bridgeReconcileSerialByKpId.name,
     );
   }
