@@ -20,7 +20,11 @@ import { AdminAccessTokenGuard } from '@/admin-auth/application/guards/jwt/admin
 import { AdminCreateShortContentHighlightsInputDto } from '@/admin/api/dtos/input/admin-create-short-content-highlights.input.dto';
 import { ShortContentClientService } from '@/admin/application/services/short-content-client.service';
 import { LoggerService } from '@/common/utils/logger/logger.service';
-import { ShortContentJob, ShortContentType } from '@/admin/domain/short-content-job.entity';
+import {
+  ShortContentJob,
+  ShortContentJobStatus,
+  ShortContentType,
+} from '@/admin/domain/short-content-job.entity';
 import { ShortContentJobRepository } from '@/admin/infrastructure/short-content-job.repository';
 import { AdminShortContentJobOutputDto } from '@/admin/api/dtos/output/admin-short-content-job.output.dto';
 import { AdminGetShortContentJobsInputQueryDto } from '@/admin/api/dtos/input/admin-get-short-content-jobs.input-query.dto';
@@ -152,9 +156,20 @@ export class AdminShortContentController {
     await this.shortContentJobRepository.remove(job);
   }
 
-  /** Pulls the current state (stage, finished clips) of an unfinished job. */
+  /** Pulls active progress and legacy-music upgrades from the rendering service. */
   private async refresh(job: ShortContentJob): Promise<void> {
-    if (job.isFinished || !job.shortContentJobId) {
+    const clips = job.draftPayload?.clips;
+    const waitsForLegacyMusic =
+      job.status === ShortContentJobStatus.RENDERED &&
+      Array.isArray(clips) &&
+      clips.some(
+        clip =>
+          typeof clip === 'object' &&
+          clip !== null &&
+          (clip as Record<string, unknown>).revision === undefined,
+      );
+
+    if (!job.shortContentJobId || (job.isFinished && !waitsForLegacyMusic)) {
       return;
     }
 
