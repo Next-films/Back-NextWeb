@@ -21,6 +21,16 @@ export class AdminShortContentHighlightsOptionsInputDto {
   @IsOptional()
   @IsBoolean()
   keepOriginalAudio?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  music?: boolean;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(20)
+  musicVolumePercent?: number;
 }
 
 export class AdminCreateShortContentHighlightsInputDto {

@@ -8,6 +8,7 @@ import {
   HttpStatus,
   NotFoundException,
   Param,
+  Patch,
   Post,
   Query,
   UseGuards,
@@ -23,6 +24,7 @@ import { ShortContentJob, ShortContentType } from '@/admin/domain/short-content-
 import { ShortContentJobRepository } from '@/admin/infrastructure/short-content-job.repository';
 import { AdminShortContentJobOutputDto } from '@/admin/api/dtos/output/admin-short-content-job.output.dto';
 import { AdminGetShortContentJobsInputQueryDto } from '@/admin/api/dtos/input/admin-get-short-content-jobs.input-query.dto';
+import { AdminUpdateShortContentClipMusicInputDto } from '@/admin/api/dtos/input/admin-update-short-content-clip-music.input.dto';
 import { ParseIntPatchPipe } from '@/common/pipes/validation-parse-int.pipe';
 
 /**
@@ -67,6 +69,11 @@ export class AdminShortContentController {
     return this.shortContentClient.getSources(contentType, contentId);
   }
 
+  @Get('music-tracks')
+  getMusicTracks(): Promise<Record<string, unknown>[]> {
+    return this.shortContentClient.getMusicTracks();
+  }
+
   @Get(':jobId')
   async getById(
     @Param('jobId', ParseIntPatchPipe) jobId: number,
@@ -77,6 +84,25 @@ export class AdminShortContentController {
     await this.refresh(job);
 
     return AdminShortContentJobOutputDto.fromEntity(job);
+  }
+
+  @Patch(':jobId/clips/:clipIndex/music')
+  async updateClipMusic(
+    @Param('jobId', ParseIntPatchPipe) jobId: number,
+    @Param('clipIndex', ParseIntPatchPipe) clipIndex: number,
+    @Body() body: AdminUpdateShortContentClipMusicInputDto,
+  ): Promise<AdminShortContentJobOutputDto> {
+    const job = await this.getJobOrThrow(jobId);
+
+    if (!job.shortContentJobId) {
+      throw new BadRequestException('Short content job has not been started');
+    }
+
+    job.syncFromEngine(
+      await this.shortContentClient.updateClipMusic(job.shortContentJobId, clipIndex, body),
+    );
+
+    return AdminShortContentJobOutputDto.fromEntity(await this.shortContentJobRepository.save(job));
   }
 
   @HttpCode(HttpStatus.CREATED)

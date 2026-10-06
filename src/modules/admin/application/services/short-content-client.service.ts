@@ -2,6 +2,7 @@ import { Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ConfigurationType } from '@/settings/configuration';
 import { AdminCreateShortContentHighlightsInputDto } from '@/admin/api/dtos/input/admin-create-short-content-highlights.input.dto';
+import { AdminUpdateShortContentClipMusicInputDto } from '@/admin/api/dtos/input/admin-update-short-content-clip-music.input.dto';
 
 /** A highlights job of the short-content service (see its README). */
 export type ShortContentEngineJob = Record<string, unknown> & {
@@ -30,6 +31,24 @@ export class ShortContentClientService {
     return this.call('GET', `/api/shorts/highlights/${encodeURIComponent(engineJobId)}`);
   }
 
+  getMusicTracks(): Promise<Record<string, unknown>[]> {
+    return this.call('GET', '/api/shorts/music-tracks');
+  }
+
+  updateClipMusic(
+    engineJobId: string,
+    clipIndex: number,
+    input: AdminUpdateShortContentClipMusicInputDto,
+  ): Promise<ShortContentEngineJob> {
+    return this.call(
+      'PATCH',
+      `/api/shorts/highlights/${encodeURIComponent(engineJobId)}/clips/${clipIndex}/music`,
+      input,
+      [],
+      120_000,
+    );
+  }
+
   /** Removes the job and its clips from the service; an already missing job is fine. */
   async deleteHighlights(engineJobId: string): Promise<void> {
     await this.call(
@@ -41,10 +60,11 @@ export class ShortContentClientService {
   }
 
   private async call<T>(
-    method: 'GET' | 'POST' | 'DELETE',
+    method: 'GET' | 'POST' | 'PATCH' | 'DELETE',
     path: string,
     body?: unknown,
     okStatuses: number[] = [],
+    timeoutMs = 30_000,
   ): Promise<T> {
     const apiSettings = this.configService.get('apiSettings', { infer: true });
     const serviceUrl = apiSettings.SHORT_CONTENT_SERVICE_URL?.trim();
@@ -57,7 +77,7 @@ export class ShortContentClientService {
       method,
       headers: this.buildHeaders(apiSettings.SHORT_CONTENT_SERVICE_TOKEN, body !== undefined),
       body: body === undefined ? undefined : JSON.stringify(body),
-      signal: AbortSignal.timeout(30_000),
+      signal: AbortSignal.timeout(timeoutMs),
     });
 
     if (!response.ok && !okStatuses.includes(response.status)) {
