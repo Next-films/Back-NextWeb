@@ -1,6 +1,7 @@
 name: Deploy Back-NextWeb to DEV
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - dev
