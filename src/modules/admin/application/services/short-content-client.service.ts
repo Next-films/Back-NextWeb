@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { ConfigurationType } from '@/settings/configuration';
 import { AdminCreateShortContentHighlightsInputDto } from '@/admin/api/dtos/input/admin-create-short-content-highlights.input.dto';
 import { AdminUpdateShortContentClipMusicInputDto } from '@/admin/api/dtos/input/admin-update-short-content-clip-music.input.dto';
+import { AdminUploadShortContentMusicInputDto } from '@/admin/api/dtos/input/admin-upload-short-content-music.input.dto';
 
 /** A highlights job of the short-content service (see its README). */
 export type ShortContentEngineJob = Record<string, unknown> & {
@@ -33,6 +34,49 @@ export class ShortContentClientService {
 
   getMusicTracks(): Promise<Record<string, unknown>[]> {
     return this.call('GET', '/api/shorts/music-tracks');
+  }
+
+  async uploadMusicTrack(
+    file: Express.Multer.File,
+    input: AdminUploadShortContentMusicInputDto,
+  ): Promise<Record<string, unknown>> {
+    const apiSettings = this.configService.get('apiSettings', { infer: true });
+    const serviceUrl = apiSettings.SHORT_CONTENT_SERVICE_URL?.trim();
+
+    if (!serviceUrl) {
+      throw new ServiceUnavailableException('SHORT_CONTENT_SERVICE_URL is not configured');
+    }
+
+    const query = new URLSearchParams({
+      title: input.title,
+      moods: input.moods ?? '',
+      energy: String(input.energy),
+      genres: input.genres ?? '',
+      keywords: input.keywords ?? '',
+      fileName: file.originalname,
+      mimeType: file.mimetype,
+    });
+    const headers = this.buildHeaders(apiSettings.SHORT_CONTENT_SERVICE_TOKEN, false);
+    headers['Content-Type'] = 'application/octet-stream';
+    const response = await fetch(
+      new URL(`/api/shorts/music-tracks?${query}`, this.ensureTrailingSlash(serviceUrl)),
+      {
+        method: 'POST',
+        headers,
+        body: file.buffer,
+        signal: AbortSignal.timeout(120_000),
+      },
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+
+      throw new ServiceUnavailableException(
+        `short-content POST /api/shorts/music-tracks failed: ${response.status} ${response.statusText} ${errorText}`,
+      );
+    }
+
+    return (await response.json()) as Record<string, unknown>;
   }
 
   updateClipMusic(

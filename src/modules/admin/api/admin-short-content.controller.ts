@@ -11,9 +11,12 @@ import {
   Patch,
   Post,
   Query,
+  UploadedFile,
+  UseInterceptors,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiConsumes, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { ADMIN_CINEMA_ROUTE } from '@/common/constants/route.constants';
 import { ADMIN_AUTH_JWT_SCHEMA_NAME } from '@/common/constants/auth-jwt-schema-name.constants';
 import { AdminAccessTokenGuard } from '@/admin-auth/application/guards/jwt/admin-access-token.guard';
@@ -30,6 +33,27 @@ import { AdminShortContentJobOutputDto } from '@/admin/api/dtos/output/admin-sho
 import { AdminGetShortContentJobsInputQueryDto } from '@/admin/api/dtos/input/admin-get-short-content-jobs.input-query.dto';
 import { AdminUpdateShortContentClipMusicInputDto } from '@/admin/api/dtos/input/admin-update-short-content-clip-music.input.dto';
 import { ParseIntPatchPipe } from '@/common/pipes/validation-parse-int.pipe';
+import { AdminUploadShortContentMusicInputDto } from '@/admin/api/dtos/input/admin-upload-short-content-music.input.dto';
+import { fileValidationPipe } from '@/common/pipes/validation-file.pipe';
+
+const MUSIC_MAX_SIZE_MB = 50;
+const MUSIC_MIME_TYPES = [
+  'audio/aac',
+  'audio/flac',
+  'audio/m4a',
+  'audio/mp3',
+  'audio/mp4',
+  'audio/mpeg',
+  'audio/ogg',
+  'audio/vnd.wave',
+  'audio/wav',
+  'audio/x-aac',
+  'audio/x-flac',
+  'audio/x-m4a',
+  'audio/x-mpeg',
+  'audio/x-wav',
+  'application/ogg',
+];
 
 /**
  * Highlight clips of a film/cartoon/serial episode: the admin starts a cut by
@@ -76,6 +100,22 @@ export class AdminShortContentController {
   @Get('music-tracks')
   getMusicTracks(): Promise<Record<string, unknown>[]> {
     return this.shortContentClient.getMusicTracks();
+  }
+
+  @Post('music-tracks')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(
+    FileInterceptor('file', { limits: { fileSize: MUSIC_MAX_SIZE_MB * 1024 * 1024 } }),
+  )
+  uploadMusicTrack(
+    @Body() body: AdminUploadShortContentMusicInputDto,
+    @UploadedFile(fileValidationPipe(MUSIC_MIME_TYPES, MUSIC_MAX_SIZE_MB))
+    file: Express.Multer.File,
+  ): Promise<Record<string, unknown>> {
+    this.logger.log(`Upload short content music: ${body.title}`, this.uploadMusicTrack.name);
+
+    return this.shortContentClient.uploadMusicTrack(file, body);
   }
 
   @Get(':jobId')
