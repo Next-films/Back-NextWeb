@@ -4,6 +4,7 @@ export enum ExternalApiProviderEnum {
   TMDB = 'tmdb',
   VIBIX = 'vibix',
   VIDEOSEED = 'videoseed',
+  POSTMYPOST = 'postmypost',
 }
 
 export enum ExternalApiTargetEnum {

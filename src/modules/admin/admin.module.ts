@@ -90,6 +90,11 @@ import { AdminShortContentController } from '@/admin/api/admin-short-content.con
 import { ShortContentClientService } from '@/admin/application/services/short-content-client.service';
 import { ShortContentJob } from '@/admin/domain/short-content-job.entity';
 import { ShortContentJobRepository } from '@/admin/infrastructure/short-content-job.repository';
+import { AdminSocialPublishingController } from '@/admin/api/admin-social-publishing.controller';
+import { SocialPublishingRule } from '@/admin/domain/social-publishing-rule.entity';
+import { SocialPublication } from '@/admin/domain/social-publication.entity';
+import { PostMyPostPublishingService } from '@/admin/application/services/postmypost-publishing.service';
+import { SocialPublishingService } from '@/admin/application/services/social-publishing.service';
 
 export const AdminProvider = {
   provide: 'Admin',
@@ -158,7 +163,14 @@ const exportProviders = [
 @Module({
   imports: [
     MoviesModules,
-    TypeOrmModule.forFeature([Admin, AdminTelegram, AdminRole, ShortContentJob]),
+    TypeOrmModule.forFeature([
+      Admin,
+      AdminTelegram,
+      AdminRole,
+      ShortContentJob,
+      SocialPublishingRule,
+      SocialPublication,
+    ]),
     BcryptModule,
     JwtModule,
     ExternalApiAuthModule,
@@ -183,6 +195,7 @@ const exportProviders = [
     AdminCinemaSerialsController,
     AdminCinemaPremieresController,
     AdminShortContentController,
+    AdminSocialPublishingController,
     AdminController,
   ],
   providers: [
@@ -207,6 +220,8 @@ const exportProviders = [
     AdminMediaUrlSigningService,
     ShortContentClientService,
     ShortContentJobRepository,
+    PostMyPostPublishingService,
+    SocialPublishingService,
   ],
   exports: [...exportProviders],
 })
