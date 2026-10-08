@@ -26,7 +26,6 @@ export class ShortContentJobRepository {
     return this.repo.find({
       where,
       order: { createdAt: 'DESC', id: 'DESC' },
-      take: 100,
     });
   }
 
