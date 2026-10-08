@@ -18,6 +18,12 @@ import {
   AdminCreateSocialPublishingRuleInputDto,
   AdminUpdateSocialPublishingRuleInputDto,
 } from '@/admin/api/dtos/input/admin-social-publishing.input.dto';
+import {
+  assertValidTimeZone,
+  getFirstDailyRunAt,
+  getNextDailyRunAt,
+  normalizeDailyTimes,
+} from '@/admin/application/services/social-publishing-schedule';
 
 type StoredClip = {
   index: number;
@@ -57,6 +63,10 @@ export class SocialPublishingService {
 
   async createRule(input: AdminCreateSocialPublishingRuleInputDto): Promise<SocialPublishingRule> {
     const startAt = new Date(input.startAt);
+    const timezone = input.timezone ?? 'Europe/Moscow';
+    const dailyTimes = normalizeDailyTimes(input.dailyTimes);
+
+    this.validateTimeZone(timezone);
     const rule = this.ruleRepository.create({
       name: input.name,
       provider: input.provider,
@@ -64,9 +74,10 @@ export class SocialPublishingService {
       accountIds: [...new Set(input.accountIds)],
       contentTypes: input.contentTypes ?? ['film', 'cartoon', 'serial'],
       intervalMinutes: input.intervalMinutes,
+      dailyTimes,
       startAt,
-      nextRunAt: startAt,
-      timezone: input.timezone ?? 'Europe/Moscow',
+      nextRunAt: dailyTimes ? getFirstDailyRunAt(startAt, dailyTimes, timezone) : startAt,
+      timezone,
       titleTemplate: input.titleTemplate?.trim() || '{title} — момент {clipIndex}',
       captionTemplate: input.captionTemplate?.trim() || null,
       isEnabled: input.isEnabled ?? true,
@@ -88,13 +99,21 @@ export class SocialPublishingService {
     if (input.contentTypes !== undefined) rule.contentTypes = input.contentTypes;
     if (input.intervalMinutes !== undefined) rule.intervalMinutes = input.intervalMinutes;
     if (input.timezone !== undefined) rule.timezone = input.timezone;
+    if (input.dailyTimes !== undefined) rule.dailyTimes = normalizeDailyTimes(input.dailyTimes);
     if (input.titleTemplate !== undefined) rule.titleTemplate = input.titleTemplate.trim() || null;
     if (input.captionTemplate !== undefined)
       rule.captionTemplate = input.captionTemplate.trim() || null;
     if (input.isEnabled !== undefined) rule.isEnabled = input.isEnabled;
-    if (input.startAt !== undefined) {
-      rule.startAt = new Date(input.startAt);
-      rule.nextRunAt = new Date(input.startAt);
+    if (input.startAt !== undefined) rule.startAt = new Date(input.startAt);
+    if (
+      input.startAt !== undefined ||
+      input.timezone !== undefined ||
+      input.dailyTimes !== undefined
+    ) {
+      this.validateTimeZone(rule.timezone);
+      rule.nextRunAt = rule.dailyTimes
+        ? getFirstDailyRunAt(rule.startAt, rule.dailyTimes, rule.timezone)
+        : rule.startAt;
     }
 
     return this.ruleRepository.save(rule);
@@ -176,7 +195,7 @@ export class SocialPublishingService {
       if (!rule) return null;
 
       const scheduledAt = new Date(Math.max(rule.nextRunAt.getTime(), now.getTime() + 120_000));
-      rule.nextRunAt = this.advanceAfter(rule.nextRunAt, rule.intervalMinutes, scheduledAt);
+      rule.nextRunAt = this.advanceAfter(rule, scheduledAt);
       await manager.save(rule);
 
       const jobs = await manager.getRepository(ShortContentJob).find({
@@ -361,15 +380,27 @@ export class SocialPublishingService {
     );
   }
 
-  private advanceAfter(from: Date, intervalMinutes: number, after: Date): Date {
-    const step = intervalMinutes * 60_000;
-    let next = from.getTime() + step;
+  private advanceAfter(rule: SocialPublishingRule, after: Date): Date {
+    if (rule.dailyTimes?.length) {
+      return getNextDailyRunAt(after, rule.dailyTimes, rule.timezone);
+    }
+
+    const step = rule.intervalMinutes * 60_000;
+    let next = rule.nextRunAt.getTime() + step;
 
     if (next <= after.getTime()) {
       next += Math.ceil((after.getTime() - next + 1) / step) * step;
     }
 
     return new Date(next);
+  }
+
+  private validateTimeZone(timeZone: string): void {
+    try {
+      assertValidTimeZone(timeZone);
+    } catch {
+      throw new BadRequestException(`Unsupported timezone: ${timeZone}`);
+    }
   }
 
   private async getRuleOrThrow(id: number): Promise<SocialPublishingRule> {

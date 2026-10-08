@@ -1,6 +1,8 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 import {
+  ArrayMaxSize,
   ArrayNotEmpty,
+  ArrayUnique,
   IsArray,
   IsBoolean,
   IsDateString,
@@ -11,6 +13,7 @@ import {
   IsString,
   Max,
   MaxLength,
+  Matches,
   Min,
 } from 'class-validator';
 import { Type } from 'class-transformer';
@@ -55,6 +58,19 @@ export class AdminCreateSocialPublishingRuleInputDto {
   @Min(15)
   @Max(525_600)
   intervalMinutes: number;
+
+  @ApiPropertyOptional({
+    type: [String],
+    example: ['11:00', '12:00', '15:00'],
+    description: 'Fixed daily publication times in the rule timezone',
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayNotEmpty()
+  @ArrayMaxSize(48)
+  @ArrayUnique()
+  @Matches(/^([01]\d|2[0-3]):[0-5]\d$/, { each: true })
+  dailyTimes?: string[] | null;
 
   @ApiProperty({ example: '2026-10-10T12:00:00+03:00' })
   @IsDateString()

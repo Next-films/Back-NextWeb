@@ -39,6 +39,9 @@ export class SocialPublishingRule {
   @Column({ type: 'int' })
   intervalMinutes: number;
 
+  @Column({ type: 'jsonb', nullable: true })
+  dailyTimes: string[] | null;
+
   @Column({ type: 'timestamp with time zone' })
   startAt: Date;
 
