@@ -16,7 +16,7 @@ export class RemoveFanartExternalApiProvider1786465000000 implements MigrationIn
 
     await queryRunner.query(`
       CREATE TYPE "public"."external_api_config_provider_enum"
-      AS ENUM('kinopoisk', 'tor-api', 'tmdb')
+      AS ENUM('kinopoisk', 'tor-api', 'tmdb', 'vibix', 'videoseed', 'postmypost')
     `);
 
     await queryRunner.query(`
