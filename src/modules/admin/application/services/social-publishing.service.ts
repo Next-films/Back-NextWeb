@@ -3,7 +3,11 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { DataSource, LessThanOrEqual, Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { LoggerService } from '@/common/utils/logger/logger.service';
-import { ShortContentJob, ShortContentJobStatus } from '@/admin/domain/short-content-job.entity';
+import {
+  ShortContentJob,
+  ShortContentJobStatus,
+  ShortContentType,
+} from '@/admin/domain/short-content-job.entity';
 import {
   SocialPublication,
   SocialPublicationStatus,
@@ -24,12 +28,17 @@ import {
   getNextDailyRunAt,
   normalizeDailyTimes,
 } from '@/admin/application/services/social-publishing-schedule';
+import { Film } from '@/films/domain/film.entity';
+import { Cartoon } from '@/cartoons/domain/cartoon.entity';
+import { Serial } from '@/serials/domain/serial.entity';
 
 type StoredClip = {
   index: number;
   videoUrl?: string;
   downloadUrl?: string;
 };
+
+const DEFAULT_CAPTION_TEMPLATE = '{title}\n{description}';
 
 @Injectable()
 export class SocialPublishingService {
@@ -79,7 +88,7 @@ export class SocialPublishingService {
       nextRunAt: dailyTimes ? getFirstDailyRunAt(startAt, dailyTimes, timezone) : startAt,
       timezone,
       titleTemplate: input.titleTemplate?.trim() || '{title} — момент {clipIndex}',
-      captionTemplate: input.captionTemplate?.trim() || null,
+      captionTemplate: input.captionTemplate?.trim() || DEFAULT_CAPTION_TEMPLATE,
       isEnabled: input.isEnabled ?? true,
     });
 
@@ -279,8 +288,10 @@ export class SocialPublishingService {
     }
 
     try {
+      const content = await this.getContentMetadata(job);
       const values = {
-        title: job.contentTitle || `Контент ${job.contentId}`,
+        title: content.title,
+        description: content.description,
         clipIndex: String(publication.clipIndex),
         contentType: job.contentType,
         contentId: String(job.contentId),
@@ -291,7 +302,7 @@ export class SocialPublishingService {
         videoUrl,
         scheduledAt: publication.scheduledAt,
         title: this.interpolate(rule.titleTemplate, values),
-        caption: this.interpolate(rule.captionTemplate, values),
+        caption: this.interpolate(rule.captionTemplate || DEFAULT_CAPTION_TEMPLATE, values)?.trim(),
       });
 
       publication.status = SocialPublicationStatus.SCHEDULED;
@@ -303,6 +314,41 @@ export class SocialPublishingService {
     }
 
     await this.publicationRepository.save(publication);
+  }
+
+  private async getContentMetadata(
+    job: ShortContentJob,
+  ): Promise<{ title: string; description: string }> {
+    let content: { title: string; description: string | null } | null = null;
+
+    switch (job.contentType) {
+      case ShortContentType.FILM: {
+        content = await this.dataSource.getRepository(Film).findOne({
+          where: { id: job.contentId },
+          select: { title: true, description: true },
+        });
+        break;
+      }
+      case ShortContentType.CARTOON: {
+        content = await this.dataSource.getRepository(Cartoon).findOne({
+          where: { id: job.contentId },
+          select: { title: true, description: true },
+        });
+        break;
+      }
+      case ShortContentType.SERIAL: {
+        content = await this.dataSource.getRepository(Serial).findOne({
+          where: { id: job.contentId },
+          select: { title: true, description: true },
+        });
+        break;
+      }
+    }
+
+    return {
+      title: content?.title?.trim() || job.contentTitle?.trim() || `Контент ${job.contentId}`,
+      description: content?.description?.trim() || '',
+    };
   }
 
   private async refreshScheduledPublications(): Promise<void> {
