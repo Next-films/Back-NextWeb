@@ -72,10 +72,18 @@ export class SocialPublishingService {
 
   async createRule(input: AdminCreateSocialPublishingRuleInputDto): Promise<SocialPublishingRule> {
     const startAt = new Date(input.startAt);
+    const endAt = input.endAt ? new Date(input.endAt) : null;
     const timezone = input.timezone ?? 'Europe/Moscow';
     const dailyTimes = normalizeDailyTimes(input.dailyTimes);
 
     this.validateTimeZone(timezone);
+    this.validateEndAt(startAt, endAt);
+    const nextRunAt = dailyTimes ? getFirstDailyRunAt(startAt, dailyTimes, timezone) : startAt;
+
+    if (endAt && nextRunAt > endAt) {
+      throw new BadRequestException('Publishing end must not be earlier than first publication');
+    }
+
     const rule = this.ruleRepository.create({
       name: input.name,
       provider: input.provider,
@@ -85,7 +93,8 @@ export class SocialPublishingService {
       intervalMinutes: input.intervalMinutes,
       dailyTimes,
       startAt,
-      nextRunAt: dailyTimes ? getFirstDailyRunAt(startAt, dailyTimes, timezone) : startAt,
+      endAt,
+      nextRunAt,
       timezone,
       titleTemplate: input.titleTemplate?.trim() || '{title} — момент {clipIndex}',
       captionTemplate: input.captionTemplate?.trim() || DEFAULT_CAPTION_TEMPLATE,
@@ -109,6 +118,7 @@ export class SocialPublishingService {
     if (input.intervalMinutes !== undefined) rule.intervalMinutes = input.intervalMinutes;
     if (input.timezone !== undefined) rule.timezone = input.timezone;
     if (input.dailyTimes !== undefined) rule.dailyTimes = normalizeDailyTimes(input.dailyTimes);
+    if (input.endAt !== undefined) rule.endAt = input.endAt ? new Date(input.endAt) : null;
     if (input.titleTemplate !== undefined) rule.titleTemplate = input.titleTemplate.trim() || null;
     if (input.captionTemplate !== undefined)
       rule.captionTemplate = input.captionTemplate.trim() || null;
@@ -124,6 +134,8 @@ export class SocialPublishingService {
         ? getFirstDailyRunAt(rule.startAt, rule.dailyTimes, rule.timezone)
         : rule.startAt;
     }
+    this.validateEndAt(rule.startAt, rule.endAt);
+    if (rule.endAt && rule.nextRunAt > rule.endAt) rule.isEnabled = false;
 
     return this.ruleRepository.save(rule);
   }
@@ -158,6 +170,7 @@ export class SocialPublishingService {
 
     this.isTickRunning = true;
     try {
+      await this.disableExpiredRules(new Date());
       await this.recoverInterruptedSubmissions();
 
       for (let index = 0; index < 20; index += 1) {
@@ -196,6 +209,10 @@ export class SocialPublishingService {
         .createQueryBuilder('rule')
         .where('rule.isEnabled = true')
         .andWhere('rule.nextRunAt <= :schedulingHorizon', { schedulingHorizon })
+        .andWhere('(rule.endAt IS NULL OR rule.endAt >= :minimumScheduledAt)', {
+          minimumScheduledAt: new Date(now.getTime() + 120_000),
+        })
+        .andWhere('(rule.endAt IS NULL OR rule.nextRunAt <= rule.endAt)')
         .orderBy('rule.nextRunAt', 'ASC')
         .setLock('pessimistic_write')
         .setOnLocked('skip_locked')
@@ -205,6 +222,7 @@ export class SocialPublishingService {
 
       const scheduledAt = new Date(Math.max(rule.nextRunAt.getTime(), now.getTime() + 120_000));
       rule.nextRunAt = this.advanceAfter(rule, scheduledAt);
+      if (rule.endAt && rule.nextRunAt > rule.endAt) rule.isEnabled = false;
       await manager.save(rule);
 
       const jobs = await manager.getRepository(ShortContentJob).find({
@@ -358,7 +376,9 @@ export class SocialPublishingService {
         scheduledAt: LessThanOrEqual(new Date()),
       },
       order: { scheduledAt: 'ASC' },
-      take: 50,
+      // PostMyPost allows 30 regular API requests per rolling minute.
+      // Keep headroom for project/account requests from the admin UI.
+      take: 20,
     });
 
     for (const publication of publications) {
@@ -404,6 +424,17 @@ export class SocialPublishingService {
       .execute();
   }
 
+  private async disableExpiredRules(now: Date): Promise<void> {
+    await this.ruleRepository
+      .createQueryBuilder()
+      .update(SocialPublishingRule)
+      .set({ isEnabled: false })
+      .where('"isEnabled" = true')
+      .andWhere('"endAt" IS NOT NULL')
+      .andWhere('"endAt" < :now', { now })
+      .execute();
+  }
+
   private getClips(job: ShortContentJob): StoredClip[] {
     const clips = job.draftPayload?.clips;
 
@@ -446,6 +477,12 @@ export class SocialPublishingService {
       assertValidTimeZone(timeZone);
     } catch {
       throw new BadRequestException(`Unsupported timezone: ${timeZone}`);
+    }
+  }
+
+  private validateEndAt(startAt: Date, endAt: Date | null): void {
+    if (endAt && endAt < startAt) {
+      throw new BadRequestException('Publishing end must not be earlier than its start');
     }
   }
 

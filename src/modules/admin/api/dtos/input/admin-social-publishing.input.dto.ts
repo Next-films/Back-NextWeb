@@ -76,6 +76,15 @@ export class AdminCreateSocialPublishingRuleInputDto {
   @IsDateString()
   startAt: string;
 
+  @ApiPropertyOptional({
+    nullable: true,
+    example: '2026-12-31T23:59:00+03:00',
+    description: 'Do not create publications scheduled after this date',
+  })
+  @IsOptional()
+  @IsDateString()
+  endAt?: string | null;
+
   @ApiPropertyOptional({ default: 'Europe/Moscow' })
   @IsOptional()
   @Trim()

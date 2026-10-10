@@ -37,6 +37,70 @@ describe('PostMyPostPublishingService', () => {
     );
   });
 
+  it('loads every page of projects', async () => {
+    const firstPage = Array.from({ length: 50 }, (_, index) => ({
+      id: index + 1,
+      name: `Project ${index + 1}`,
+    }));
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: jest.fn().mockResolvedValue({
+          data: firstPage,
+          pages: { page: 1, total_pages: 2, next: 2 },
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: jest.fn().mockResolvedValue({
+          data: [{ id: 51, name: 'Project 51' }],
+          pages: { page: 2, total_pages: 2, next: null },
+        }),
+      });
+
+    const projects = await createService().listProjects();
+
+    expect(projects).toHaveLength(51);
+    expect(global.fetch).toHaveBeenNthCalledWith(
+      2,
+      'https://api.postmypost.io/v4.1/projects?per_page=50&page=2',
+      expect.any(Object),
+    );
+  });
+
+  it('retries a temporary GET failure', async () => {
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 503,
+        headers: new Headers({ 'retry-after': '0' }),
+        text: jest.fn().mockResolvedValue('temporarily unavailable'),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: jest.fn().mockResolvedValue({ data: [{ id: 12, name: 'Main project' }] }),
+      });
+
+    await expect(createService().listProjects()).resolves.toEqual([
+      { id: 12, name: 'Main project' },
+    ]);
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('reports rate limits without repeatedly hitting the API', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 429,
+      headers: new Headers({ 'retry-after': '42' }),
+      text: jest.fn().mockResolvedValue('too many requests'),
+    });
+
+    await expect(createService().listProjects()).rejects.toThrow('retry after 42 seconds');
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+
   it('uploads a public clip URL and schedules it as a short video', async () => {
     global.fetch = jest
       .fn()

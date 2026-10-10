@@ -45,6 +45,9 @@ export class SocialPublishingRule {
   @Column({ type: 'timestamp with time zone' })
   startAt: Date;
 
+  @Column({ type: 'timestamp with time zone', nullable: true })
+  endAt: Date | null;
+
   @Column({ type: 'timestamp with time zone' })
   nextRunAt: Date;
 

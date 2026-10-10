@@ -186,6 +186,9 @@ jobs:
 
           dc down --remove-orphans
 
+          echo "Applying database migrations..."
+          dc run --rm --no-deps backend yarn apply-migration
+
           # dc down only removes containers compose recognizes as part of this
           # project. If a stale/orphaned container still holds our name (e.g.
           # left over from a manual run or a project label mismatch), compose
@@ -198,22 +201,11 @@ jobs:
           dc up -d --remove-orphans --no-build
 
           if check_container_stable "$CONTAINER_NAME"; then
-            echo "Back-NextWeb container is stable without migrations."
+            echo "Back-NextWeb container is stable after migrations."
           else
-            echo "Back-NextWeb failed to stabilize without migrations. Running migrations and retrying once..."
+            echo "Back-NextWeb failed to stabilize after migrations."
             print_container_debug "$CONTAINER_NAME"
-
-            dc down --remove-orphans || true
-            dc run --rm --no-deps backend yarn apply-migration
-            dc up -d --remove-orphans --no-build
-
-            if check_container_stable "$CONTAINER_NAME"; then
-              echo "Back-NextWeb container is stable after migration retry."
-            else
-              echo "Back-NextWeb container is not stable after migration retry."
-              print_container_debug "$CONTAINER_NAME"
-              exit 1
-            fi
+            exit 1
           fi
 
           EOF

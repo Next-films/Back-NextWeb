@@ -131,11 +131,112 @@ describe('SocialPublishingService', () => {
       contentTypes: [ShortContentType.FILM],
       intervalMinutes: 60,
       startAt: '2026-10-10T09:00:00.000Z',
+      endAt: '2026-10-31T21:00:00.000Z',
       timezone: 'Europe/Moscow',
     });
 
     expect(ruleRepository.create).toHaveBeenCalledWith(
-      expect.objectContaining({ captionTemplate: '{title}\n{description}' }),
+      expect.objectContaining({
+        captionTemplate: '{title}\n{description}',
+        endAt: new Date('2026-10-31T21:00:00.000Z'),
+      }),
     );
+  });
+
+  it('rejects an end date earlier than the first publication', async () => {
+    const ruleRepository = {
+      create: jest.fn(),
+      save: jest.fn(),
+    };
+    const service = new SocialPublishingService(
+      {} as never,
+      { setContext: jest.fn() } as never,
+      {} as never,
+      ruleRepository as never,
+      {} as never,
+      {} as never,
+    );
+
+    await expect(
+      service.createRule({
+        name: 'Ограниченный автопостинг',
+        provider: SocialPublishingProvider.POSTMYPOST,
+        projectId: 5,
+        accountIds: [10],
+        contentTypes: [ShortContentType.FILM],
+        intervalMinutes: 60,
+        startAt: '2026-10-10T09:00:00.000Z',
+        endAt: '2026-10-10T08:00:00.000Z',
+        timezone: 'Europe/Moscow',
+      }),
+    ).rejects.toThrow('Publishing end must not be earlier than its start');
+    expect(ruleRepository.create).not.toHaveBeenCalled();
+  });
+
+  it('disables a rule after reserving its last allowed publication', async () => {
+    const rule = {
+      id: 7,
+      provider: SocialPublishingProvider.POSTMYPOST,
+      projectId: 11,
+      accountIds: [13],
+      contentTypes: [ShortContentType.FILM],
+      intervalMinutes: 60,
+      dailyTimes: null,
+      startAt: new Date('2026-10-10T09:00:00.000Z'),
+      nextRunAt: new Date('2026-10-10T10:00:00.000Z'),
+      endAt: new Date('2026-10-10T10:00:00.000Z'),
+      timezone: 'Europe/Moscow',
+      isEnabled: true,
+    } as SocialPublishingRule;
+    const job = {
+      id: 17,
+      contentType: ShortContentType.FILM,
+      contentId: 19,
+      status: ShortContentJobStatus.RENDERED,
+      draftPayload: {
+        clips: [{ index: 1, downloadUrl: 'https://media.example/clip.mp4' }],
+      },
+    };
+    const ruleQuery = {
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      setLock: jest.fn().mockReturnThis(),
+      setOnLocked: jest.fn().mockReturnThis(),
+      getOne: jest.fn().mockResolvedValue(rule),
+    };
+    const dueRuleRepository = { createQueryBuilder: jest.fn().mockReturnValue(ruleQuery) };
+    const shortContentRepository = { find: jest.fn().mockResolvedValue([job]) };
+    const publicationRepository = {
+      find: jest.fn().mockResolvedValue([]),
+      create: jest.fn().mockImplementation(value => value),
+    };
+    const manager = {
+      getRepository: jest.fn().mockImplementation(entity => {
+        if (entity === SocialPublishingRule) return dueRuleRepository;
+        if (entity === SocialPublication) return publicationRepository;
+        return shortContentRepository;
+      }),
+      save: jest.fn().mockImplementation(value => Promise.resolve(value)),
+    };
+    const dataSource = {
+      transaction: jest.fn().mockImplementation(callback => callback(manager)),
+    };
+    const service = new SocialPublishingService(
+      dataSource as never,
+      { setContext: jest.fn() } as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+    );
+
+    const publication = await (
+      service as unknown as { reserveDuePublication(now: Date): Promise<SocialPublication | null> }
+    ).reserveDuePublication(new Date('2026-10-10T09:58:00.000Z'));
+
+    expect(publication?.scheduledAt).toEqual(new Date('2026-10-10T10:00:00.000Z'));
+    expect(rule.nextRunAt).toEqual(new Date('2026-10-10T11:00:00.000Z'));
+    expect(rule.isEnabled).toBe(false);
   });
 });
