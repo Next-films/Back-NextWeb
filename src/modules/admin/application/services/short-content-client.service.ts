@@ -4,6 +4,7 @@ import { ConfigurationType } from '@/settings/configuration';
 import { AdminCreateShortContentHighlightsInputDto } from '@/admin/api/dtos/input/admin-create-short-content-highlights.input.dto';
 import { AdminUpdateShortContentClipMusicInputDto } from '@/admin/api/dtos/input/admin-update-short-content-clip-music.input.dto';
 import { AdminUploadShortContentMusicInputDto } from '@/admin/api/dtos/input/admin-upload-short-content-music.input.dto';
+import { AdminUpdateShortContentSettingsInputDto } from '@/admin/api/dtos/input/admin-update-short-content-settings.input.dto';
 
 /** A highlights job of the short-content service (see its README). */
 export type ShortContentEngineJob = Record<string, unknown> & {
@@ -34,6 +35,14 @@ export class ShortContentClientService {
 
   getMusicTracks(): Promise<Record<string, unknown>[]> {
     return this.call('GET', '/api/shorts/music-tracks');
+  }
+
+  getSettings(): Promise<Record<string, unknown>> {
+    return this.call('GET', '/api/shorts/settings');
+  }
+
+  updateSettings(input: AdminUpdateShortContentSettingsInputDto): Promise<Record<string, unknown>> {
+    return this.call('PATCH', '/api/shorts/settings', input);
   }
 
   async uploadMusicTrack(

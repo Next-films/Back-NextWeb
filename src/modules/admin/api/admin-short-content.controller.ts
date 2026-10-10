@@ -35,6 +35,7 @@ import { AdminUpdateShortContentClipMusicInputDto } from '@/admin/api/dtos/input
 import { ParseIntPatchPipe } from '@/common/pipes/validation-parse-int.pipe';
 import { AdminUploadShortContentMusicInputDto } from '@/admin/api/dtos/input/admin-upload-short-content-music.input.dto';
 import { fileValidationPipe } from '@/common/pipes/validation-file.pipe';
+import { AdminUpdateShortContentSettingsInputDto } from '@/admin/api/dtos/input/admin-update-short-content-settings.input.dto';
 
 const MUSIC_MAX_SIZE_MB = 50;
 const MUSIC_MIME_TYPES = [
@@ -100,6 +101,23 @@ export class AdminShortContentController {
   @Get('music-tracks')
   getMusicTracks(): Promise<Record<string, unknown>[]> {
     return this.shortContentClient.getMusicTracks();
+  }
+
+  @Get('settings')
+  getSettings(): Promise<Record<string, unknown>> {
+    return this.shortContentClient.getSettings();
+  }
+
+  @Patch('settings')
+  updateSettings(
+    @Body() body: AdminUpdateShortContentSettingsInputDto,
+  ): Promise<Record<string, unknown>> {
+    this.logger.log(
+      `Update short content music volume: ${body.musicVolumePercent}%`,
+      this.updateSettings.name,
+    );
+
+    return this.shortContentClient.updateSettings(body);
   }
 
   @Post('music-tracks')
