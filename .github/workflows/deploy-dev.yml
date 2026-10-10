@@ -24,7 +24,7 @@ jobs:
       EXPECTED_PORT_KEY: PORT
       EXPECTED_HOST_PORT: "4000"
       SSH_HOST: ${{ secrets.DEV_SSH_HOST }}
-      SSH_OPTS: -o StrictHostKeyChecking=yes
+      SSH_OPTS: -o StrictHostKeyChecking=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=20
       SSHPASS: ${{ secrets.DEV_SSH_PASSWORD }}
 
     steps:
