@@ -147,18 +147,22 @@ jobs:
             fi
           }
 
-          check_container_stable() {
+          check_backend_ready() {
             local name="$1"
-            local running_streak=0
-            for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18; do
+            local port="$2"
+            local ready_streak=0
+            for i in $(seq 1 36); do
               status="$(docker inspect --format '{{.State.Status}}' "$name" 2>/dev/null || echo missing)"
-              if [ "$status" = "running" ]; then
-                running_streak=$((running_streak + 1))
-                if [ "$running_streak" -ge 3 ]; then
+              restarts="$(docker inspect --format '{{.RestartCount}}' "$name" 2>/dev/null || echo unknown)"
+              if [ "$status" = "running" ] && docker exec "$name" nc -z -w 2 127.0.0.1 "$port"; then
+                ready_streak=$((ready_streak + 1))
+                echo "Backend readiness $ready_streak/6 (restarts: $restarts)"
+                if [ "$ready_streak" -ge 6 ]; then
                   return 0
                 fi
               else
-                running_streak=0
+                ready_streak=0
+                echo "Waiting for backend port $port (status: $status, restarts: $restarts)"
               fi
               sleep 5
             done
@@ -168,6 +172,8 @@ jobs:
           print_container_debug() {
             local name="$1"
             docker ps -a --filter "name=$name" --format 'table {{.Names}}\t{{.Status}}\t{{.Image}}' || true
+            docker port "$name" || true
+            docker inspect --format 'status={{.State.Status}} running={{.State.Running}} restartCount={{.RestartCount}} exitCode={{.State.ExitCode}} error={{.State.Error}}' "$name" || true
             echo "Recent logs:"
             docker logs --tail 300 "$name" || true
           }
@@ -200,10 +206,11 @@ jobs:
           fi
           dc up -d --remove-orphans --no-build
 
-          if check_container_stable "$CONTAINER_NAME"; then
-            echo "Back-NextWeb container is stable after migrations."
+          if check_backend_ready "$CONTAINER_NAME" "$EXPECTED_HOST_PORT"; then
+            echo "Back-NextWeb is accepting connections and stable after migrations."
+            print_container_debug "$CONTAINER_NAME"
           else
-            echo "Back-NextWeb failed to stabilize after migrations."
+            echo "Back-NextWeb failed its readiness check after migrations."
             print_container_debug "$CONTAINER_NAME"
             exit 1
           fi
