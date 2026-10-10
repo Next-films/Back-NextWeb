@@ -1,5 +1,9 @@
 import { SocialPublishingService } from '@/admin/application/services/social-publishing.service';
-import { ShortContentJobStatus, ShortContentType } from '@/admin/domain/short-content-job.entity';
+import {
+  ShortContentJob,
+  ShortContentJobStatus,
+  ShortContentType,
+} from '@/admin/domain/short-content-job.entity';
 import {
   SocialPublicationStatus,
   SocialPublication,
@@ -70,7 +74,10 @@ describe('SocialPublishingService', () => {
         scheduledAt: new Date('2026-10-10T09:00:00.000Z'),
         attempts: 0,
       } as SocialPublication;
-      const ruleRepository = { findOne: jest.fn().mockResolvedValue(rule) };
+      const ruleRepository = {
+        exists: jest.fn().mockResolvedValue(false),
+        findOne: jest.fn().mockResolvedValue(rule),
+      };
       const publicationRepository = {
         createQueryBuilder: jest.fn().mockReturnValue(queryBuilder),
         save: jest.fn().mockImplementation(value => Promise.resolve(value)),
@@ -109,15 +116,94 @@ describe('SocialPublishingService', () => {
     },
   );
 
+  it('pauses every active rule when a publication fails', async () => {
+    const claimQuery = {
+      update: jest.fn().mockReturnThis(),
+      set: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      execute: jest.fn().mockResolvedValue({ affected: 1 }),
+    };
+    const pauseQuery = {
+      update: jest.fn().mockReturnThis(),
+      set: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      execute: jest.fn().mockResolvedValue({ affected: 2 }),
+    };
+    const rule = {
+      id: 7,
+      provider: SocialPublishingProvider.POSTMYPOST,
+      projectId: 11,
+      accountIds: [13, 14],
+      titleTemplate: null,
+      captionTemplate: null,
+    } as SocialPublishingRule;
+    const job = {
+      id: 17,
+      contentType: ShortContentType.FILM,
+      contentId: 19,
+      draftPayload: {
+        clips: [{ index: 1, downloadUrl: 'https://media.example/clip.mp4' }],
+      },
+    } as unknown as ShortContentJob;
+    const publication = {
+      id: 23,
+      ruleId: rule.id,
+      shortContentJobId: 17,
+      clipIndex: 1,
+      provider: rule.provider,
+      status: SocialPublicationStatus.QUEUED,
+      scheduledAt: new Date('2026-10-10T09:00:00.000Z'),
+      attempts: 0,
+    } as SocialPublication;
+    const ruleRepository = {
+      exists: jest.fn().mockResolvedValue(false),
+      findOne: jest.fn().mockResolvedValue(rule),
+      createQueryBuilder: jest.fn().mockReturnValue(pauseQuery),
+    };
+    const publicationRepository = {
+      createQueryBuilder: jest.fn().mockReturnValue(claimQuery),
+      save: jest.fn().mockImplementation(value => Promise.resolve(value)),
+    };
+    const logger = { setContext: jest.fn(), warn: jest.fn() };
+    const service = new SocialPublishingService(
+      {
+        getRepository: jest.fn().mockReturnValue({
+          findOne: jest.fn().mockResolvedValue({ title: 'Фильм', description: 'Описание' }),
+        }),
+      } as never,
+      logger as never,
+      { scheduleVideo: jest.fn().mockRejectedValue(new Error('TikTok is disconnected')) } as never,
+      ruleRepository as never,
+      publicationRepository as never,
+      { findOne: jest.fn().mockResolvedValue(job) } as never,
+    );
+
+    await (service as unknown as { submit(value: SocialPublication): Promise<void> }).submit(
+      publication,
+    );
+
+    expect(publication.status).toBe(SocialPublicationStatus.FAILED);
+    expect(pauseQuery.set).toHaveBeenCalledWith(
+      expect.objectContaining({ isEnabled: false, pausedByFailure: true }),
+    );
+    expect(pauseQuery.where).toHaveBeenCalledWith('"isEnabled" = true OR "pausedByFailure" = true');
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.stringContaining('TikTok is disconnected'),
+      'pauseAllPublishing',
+    );
+  });
+
   it('stores the title and description template when a rule has no custom caption', async () => {
     const ruleRepository = {
+      exists: jest.fn().mockResolvedValue(false),
       create: jest.fn().mockImplementation(value => value),
       save: jest.fn().mockImplementation(value => Promise.resolve(value)),
     };
     const service = new SocialPublishingService(
       {} as never,
       { setContext: jest.fn() } as never,
-      {} as never,
+      { assertAccountsReady: jest.fn().mockResolvedValue(undefined) } as never,
       ruleRepository as never,
       {} as never,
       {} as never,
@@ -145,13 +231,14 @@ describe('SocialPublishingService', () => {
 
   it('rejects an end date earlier than the first publication', async () => {
     const ruleRepository = {
+      exists: jest.fn().mockResolvedValue(false),
       create: jest.fn(),
       save: jest.fn(),
     };
     const service = new SocialPublishingService(
       {} as never,
       { setContext: jest.fn() } as never,
-      {} as never,
+      { assertAccountsReady: jest.fn().mockResolvedValue(undefined) } as never,
       ruleRepository as never,
       {} as never,
       {} as never,

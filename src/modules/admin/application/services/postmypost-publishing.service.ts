@@ -21,6 +21,13 @@ type PostMyPostList<T> = {
 };
 
 type PostMyPostChannel = { id: number; code: string };
+type PostMyPostAccount = {
+  id: number;
+  name: string;
+  login?: string;
+  chanel_id?: number;
+  connection_status?: number;
+};
 
 const PAGE_SIZE = 50;
 const MAX_PAGES = 100;
@@ -43,13 +50,7 @@ export class PostMyPostPublishingService implements SocialPublishingProviderAdap
 
   async listAccounts(projectId: number): Promise<SocialProviderAccount[]> {
     const [accounts, channels] = await Promise.all([
-      this.listAll<{
-        id: number;
-        name: string;
-        login?: string;
-        chanel_id?: number;
-        connection_status?: number;
-      }>('/accounts', { project_id: projectId }),
+      this.listAll<PostMyPostAccount>('/accounts', { project_id: projectId }),
       this.listChannels(),
     ]);
     const channelById = new Map(channels.map(channel => [channel.id, channel.code]));
@@ -64,7 +65,41 @@ export class PostMyPostPublishingService implements SocialPublishingProviderAdap
     }));
   }
 
+  async assertAccountsReady(projectId: number, accountIds: number[]): Promise<void> {
+    const uniqueAccountIds = [...new Set(accountIds)];
+
+    if (uniqueAccountIds.length === 0) {
+      throw new ServiceUnavailableException('No PostMyPost accounts selected');
+    }
+
+    const accounts = await this.listAll<PostMyPostAccount>('/accounts', {
+      project_id: projectId,
+    });
+    const accountById = new Map(accounts.map(account => [account.id, account]));
+    const unavailable = uniqueAccountIds.flatMap(accountId => {
+      const account = accountById.get(accountId);
+
+      if (!account) return [`#${accountId}: account not found in the selected project`];
+      if (Number(account.connection_status) !== 1) {
+        return [
+          `${account.name || `#${accountId}`}: account is not connected (status ${
+            account.connection_status ?? 'unknown'
+          })`,
+        ];
+      }
+      return [];
+    });
+
+    if (unavailable.length > 0) {
+      throw new ServiceUnavailableException(
+        `PostMyPost account check failed: ${unavailable.join('; ')}`,
+      );
+    }
+  }
+
   async scheduleVideo(input: ScheduleSocialVideoInput): Promise<ScheduledSocialVideo> {
+    await this.assertAccountsReady(input.projectId, input.accountIds);
+
     const upload = await this.call<{ id: number }>('POST', '/upload/init', {
       project_id: input.projectId,
       url: input.videoUrl,

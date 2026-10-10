@@ -34,6 +34,7 @@ export interface SocialPublishingProviderAdapter {
   readonly provider: SocialPublishingProvider;
   listProjects(): Promise<SocialProviderProject[]>;
   listAccounts(projectId: number): Promise<SocialProviderAccount[]>;
+  assertAccountsReady(projectId: number, accountIds: number[]): Promise<void>;
   scheduleVideo(input: ScheduleSocialVideoInput): Promise<ScheduledSocialVideo>;
   getPublicationStatus(externalPublicationId: string): Promise<{
     status: SocialProviderPublicationStatus;

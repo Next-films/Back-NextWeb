@@ -63,6 +63,15 @@ export class SocialPublishingRule {
   @Column({ type: 'boolean', default: true })
   isEnabled: boolean;
 
+  @Column({ type: 'boolean', default: false })
+  pausedByFailure: boolean;
+
+  @Column({ type: 'timestamp with time zone', nullable: true })
+  pausedAt: Date | null;
+
+  @Column({ type: 'text', nullable: true })
+  pauseReason: string | null;
+
   @CreateDateColumn({ type: 'timestamp with time zone' })
   createdAt: Date;
 

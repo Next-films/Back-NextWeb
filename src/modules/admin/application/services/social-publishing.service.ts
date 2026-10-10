@@ -70,6 +70,24 @@ export class SocialPublishingService {
     });
   }
 
+  listPublicationMarks(): Promise<SocialPublication[]> {
+    return this.publicationRepository.find({
+      select: {
+        id: true,
+        ruleId: true,
+        shortContentJobId: true,
+        clipIndex: true,
+        status: true,
+        scheduledAt: true,
+        errorMessage: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+      order: { createdAt: 'DESC' },
+      take: 10_000,
+    });
+  }
+
   async createRule(input: AdminCreateSocialPublishingRuleInputDto): Promise<SocialPublishingRule> {
     const startAt = new Date(input.startAt);
     const endAt = input.endAt ? new Date(input.endAt) : null;
@@ -82,6 +100,11 @@ export class SocialPublishingService {
 
     if (endAt && nextRunAt > endAt) {
       throw new BadRequestException('Publishing end must not be earlier than first publication');
+    }
+
+    if (input.isEnabled ?? true) {
+      await this.assertPublishingCanStart();
+      await this.getProvider(input.provider).assertAccountsReady(input.projectId, input.accountIds);
     }
 
     const rule = this.ruleRepository.create({
@@ -99,6 +122,9 @@ export class SocialPublishingService {
       titleTemplate: input.titleTemplate?.trim() || '{title} — момент {clipIndex}',
       captionTemplate: input.captionTemplate?.trim() || DEFAULT_CAPTION_TEMPLATE,
       isEnabled: input.isEnabled ?? true,
+      pausedByFailure: false,
+      pausedAt: null,
+      pauseReason: null,
     });
 
     return this.ruleRepository.save(rule);
@@ -109,6 +135,8 @@ export class SocialPublishingService {
     input: AdminUpdateSocialPublishingRuleInputDto,
   ): Promise<SocialPublishingRule> {
     const rule = await this.getRuleOrThrow(id);
+
+    if (input.isEnabled === true) await this.assertPublishingCanStart();
 
     if (input.name !== undefined) rule.name = input.name;
     if (input.provider !== undefined) rule.provider = input.provider;
@@ -122,7 +150,14 @@ export class SocialPublishingService {
     if (input.titleTemplate !== undefined) rule.titleTemplate = input.titleTemplate.trim() || null;
     if (input.captionTemplate !== undefined)
       rule.captionTemplate = input.captionTemplate.trim() || null;
-    if (input.isEnabled !== undefined) rule.isEnabled = input.isEnabled;
+    if (input.isEnabled !== undefined) {
+      rule.isEnabled = input.isEnabled;
+      if (!input.isEnabled) {
+        rule.pausedByFailure = false;
+        rule.pausedAt = null;
+        rule.pauseReason = null;
+      }
+    }
     if (input.startAt !== undefined) rule.startAt = new Date(input.startAt);
     if (
       input.startAt !== undefined ||
@@ -137,7 +172,46 @@ export class SocialPublishingService {
     this.validateEndAt(rule.startAt, rule.endAt);
     if (rule.endAt && rule.nextRunAt > rule.endAt) rule.isEnabled = false;
 
+    if (rule.isEnabled) {
+      await this.getProvider(rule.provider).assertAccountsReady(rule.projectId, rule.accountIds);
+    }
+
     return this.ruleRepository.save(rule);
+  }
+
+  async resumeAfterFailure(): Promise<{ resumedRules: number }> {
+    const now = new Date();
+    const pausedRules = await this.ruleRepository.find({
+      where: { pausedByFailure: true },
+      order: { id: 'ASC' },
+    });
+
+    for (const rule of pausedRules) {
+      if (rule.endAt && rule.endAt < now) continue;
+      await this.getProvider(rule.provider).assertAccountsReady(rule.projectId, rule.accountIds);
+    }
+
+    const resumed = await this.ruleRepository
+      .createQueryBuilder()
+      .update(SocialPublishingRule)
+      .set({
+        isEnabled: true,
+        pausedByFailure: false,
+        pausedAt: null,
+        pauseReason: null,
+      })
+      .where('"pausedByFailure" = true')
+      .andWhere('( "endAt" IS NULL OR "endAt" >= :now )', { now })
+      .execute();
+
+    await this.ruleRepository
+      .createQueryBuilder()
+      .update(SocialPublishingRule)
+      .set({ pausedByFailure: false, pausedAt: null, pauseReason: null })
+      .where('"pausedByFailure" = true')
+      .execute();
+
+    return { resumedRules: resumed.affected ?? 0 };
   }
 
   async removeRule(id: number): Promise<void> {
@@ -145,6 +219,8 @@ export class SocialPublishingService {
   }
 
   async retryPublication(id: number): Promise<SocialPublication> {
+    await this.assertPublishingCanStart();
+
     const publication = await this.publicationRepository.findOne({ where: { id } });
 
     if (!publication) throw new NotFoundException('Social publication not found');
@@ -171,29 +247,45 @@ export class SocialPublishingService {
     this.isTickRunning = true;
     try {
       await this.disableExpiredRules(new Date());
-      await this.recoverInterruptedSubmissions();
-
-      for (let index = 0; index < 20; index += 1) {
-        const publication = await this.reserveDuePublication(new Date());
-
-        if (!publication) break;
+      const interrupted = await this.recoverInterruptedSubmissions();
+      if (interrupted > 0) {
+        await this.pauseAllPublishing(
+          `${interrupted} publication submission(s) were interrupted; check PostMyPost before resuming`,
+        );
       }
 
-      const queued = await this.publicationRepository.find({
-        where: { status: SocialPublicationStatus.QUEUED },
-        order: { createdAt: 'ASC' },
-        take: 10,
-      });
-      for (const publication of queued) {
-        await this.submit(publication);
+      if (!(await this.isGloballyPaused())) {
+        for (let index = 0; index < 20; index += 1) {
+          const publication = await this.reserveDuePublication(new Date());
+
+          if (!publication) break;
+        }
+
+        const queued = await this.publicationRepository.find({
+          where: { status: SocialPublicationStatus.QUEUED },
+          order: { createdAt: 'ASC' },
+          take: 10,
+        });
+        for (const publication of queued) {
+          if (await this.isGloballyPaused()) break;
+          await this.submit(publication);
+        }
       }
 
       await this.refreshScheduledPublications();
     } catch (error) {
-      this.logger.error(
-        `Social publishing tick failed: ${error instanceof Error ? error.message : String(error)}`,
-        this.tick.name,
-      );
+      const reason = this.getErrorMessage(error);
+      this.logger.error(`Social publishing tick failed: ${reason}`, this.tick.name);
+      try {
+        await this.pauseAllPublishing(`Social publishing worker failed: ${reason}`);
+      } catch (pauseError) {
+        this.logger.error(
+          `Cannot pause social publishing after worker failure: ${this.getErrorMessage(
+            pauseError,
+          )}`,
+          this.tick.name,
+        );
+      }
     } finally {
       this.isTickRunning = false;
     }
@@ -265,6 +357,8 @@ export class SocialPublishingService {
   }
 
   private async submit(publication: SocialPublication): Promise<void> {
+    if (await this.isGloballyPaused()) return;
+
     const claim = await this.publicationRepository
       .createQueryBuilder()
       .update(SocialPublication)
@@ -289,9 +383,7 @@ export class SocialPublishingService {
     ]);
 
     if (!rule || !job) {
-      publication.status = SocialPublicationStatus.FAILED;
-      publication.errorMessage = 'Publishing rule or short content job no longer exists';
-      await this.publicationRepository.save(publication);
+      await this.failAndPause(publication, 'Publishing rule or short content job no longer exists');
       return;
     }
 
@@ -299,9 +391,7 @@ export class SocialPublishingService {
     const videoUrl = clip?.downloadUrl || clip?.videoUrl;
 
     if (!videoUrl) {
-      publication.status = SocialPublicationStatus.FAILED;
-      publication.errorMessage = 'Clip URL is missing';
-      await this.publicationRepository.save(publication);
+      await this.failAndPause(publication, 'Clip URL is missing');
       return;
     }
 
@@ -328,10 +418,13 @@ export class SocialPublishingService {
       publication.providerPayload = result.raw;
     } catch (error) {
       publication.status = SocialPublicationStatus.FAILED;
-      publication.errorMessage = error instanceof Error ? error.message : String(error);
+      publication.errorMessage = this.getErrorMessage(error);
     }
 
     await this.publicationRepository.save(publication);
+    if (publication.status === SocialPublicationStatus.FAILED) {
+      await this.pauseAllPublishing(publication.errorMessage || 'Social publication failed');
+    }
   }
 
   private async getContentMetadata(
@@ -398,21 +491,28 @@ export class SocialPublishingService {
         publication.errorMessage =
           result.status === 'failed' ? 'Provider reported publication error' : null;
         await this.publicationRepository.save(publication);
+        if (result.status === 'failed') {
+          await this.pauseAllPublishing(
+            `PostMyPost reported an error for publication ${publication.externalPublicationId}`,
+          );
+        }
       } catch (error) {
+        const reason = this.getErrorMessage(error);
         this.logger.warn(
-          `Cannot refresh social publication ${publication.id}: ${
-            error instanceof Error ? error.message : String(error)
-          }`,
+          `Cannot refresh social publication ${publication.id}: ${reason}`,
           this.refreshScheduledPublications.name,
+        );
+        await this.pauseAllPublishing(
+          `Cannot verify PostMyPost publication ${publication.externalPublicationId}: ${reason}`,
         );
       }
     }
   }
 
-  private async recoverInterruptedSubmissions(): Promise<void> {
+  private async recoverInterruptedSubmissions(): Promise<number> {
     const interruptedBefore = new Date(Date.now() - 10 * 60_000);
 
-    await this.publicationRepository
+    const result = await this.publicationRepository
       .createQueryBuilder()
       .update(SocialPublication)
       .set({
@@ -422,6 +522,54 @@ export class SocialPublishingService {
       .where('status = :status', { status: SocialPublicationStatus.SUBMITTING })
       .andWhere('"updatedAt" < :interruptedBefore', { interruptedBefore })
       .execute();
+
+    return result.affected ?? 0;
+  }
+
+  private isGloballyPaused(): Promise<boolean> {
+    return this.ruleRepository.exists({ where: { pausedByFailure: true } });
+  }
+
+  private async assertPublishingCanStart(): Promise<void> {
+    if (await this.isGloballyPaused()) {
+      throw new BadRequestException(
+        'Social publishing is paused after an error. Resume all rules before publishing again.',
+      );
+    }
+  }
+
+  private async pauseAllPublishing(reason: string): Promise<void> {
+    const pauseReason = reason.trim().slice(0, 2_000) || 'Unknown social publishing error';
+    const pausedAt = new Date();
+    const result = await this.ruleRepository
+      .createQueryBuilder()
+      .update(SocialPublishingRule)
+      .set({
+        isEnabled: false,
+        pausedByFailure: true,
+        pausedAt,
+        pauseReason,
+      })
+      .where('"isEnabled" = true OR "pausedByFailure" = true')
+      .execute();
+
+    if ((result.affected ?? 0) > 0) {
+      this.logger.warn(
+        `All social publishing rules paused: ${pauseReason}`,
+        this.pauseAllPublishing.name,
+      );
+    }
+  }
+
+  private async failAndPause(publication: SocialPublication, reason: string): Promise<void> {
+    publication.status = SocialPublicationStatus.FAILED;
+    publication.errorMessage = reason;
+    await this.publicationRepository.save(publication);
+    await this.pauseAllPublishing(reason);
+  }
+
+  private getErrorMessage(error: unknown): string {
+    return error instanceof Error ? error.message : String(error);
   }
 
   private async disableExpiredRules(now: Date): Promise<void> {

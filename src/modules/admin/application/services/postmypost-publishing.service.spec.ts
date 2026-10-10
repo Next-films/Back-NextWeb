@@ -106,6 +106,15 @@ describe('PostMyPostPublishingService', () => {
       .fn()
       .mockResolvedValueOnce({
         ok: true,
+        json: jest.fn().mockResolvedValue({
+          data: [
+            { id: 10, name: 'YouTube', connection_status: 1 },
+            { id: 11, name: 'TikTok', connection_status: 1 },
+          ],
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
         json: jest.fn().mockResolvedValue({ id: 41 }),
       })
       .mockResolvedValueOnce({
@@ -132,13 +141,16 @@ describe('PostMyPostPublishingService', () => {
     });
 
     const fetchMock = global.fetch as jest.Mock;
-    expect(fetchMock.mock.calls[0][0]).toBe('https://api.postmypost.io/v4.1/upload/init');
-    expect(JSON.parse(String(fetchMock.mock.calls[0][1].body))).toEqual({
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      'https://api.postmypost.io/v4.1/accounts?project_id=5&per_page=50',
+    );
+    expect(fetchMock.mock.calls[1][0]).toBe('https://api.postmypost.io/v4.1/upload/init');
+    expect(JSON.parse(String(fetchMock.mock.calls[1][1].body))).toEqual({
       project_id: 5,
       url: 'https://media.example/clip.mp4',
     });
-    expect(fetchMock.mock.calls[1][0]).toBe('https://api.postmypost.io/v4.1/upload/status?id=41');
-    expect(JSON.parse(String(fetchMock.mock.calls[2][1].body))).toEqual(
+    expect(fetchMock.mock.calls[2][0]).toBe('https://api.postmypost.io/v4.1/upload/status?id=41');
+    expect(JSON.parse(String(fetchMock.mock.calls[3][1].body))).toEqual(
       expect.objectContaining({
         project_id: 5,
         post_at: '2026-10-10T09:00:00.000Z',
@@ -154,5 +166,28 @@ describe('PostMyPostPublishingService', () => {
         ],
       }),
     );
+  });
+
+  it('does not upload when any selected account is disconnected', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: jest.fn().mockResolvedValue({
+        data: [
+          { id: 10, name: 'YouTube', connection_status: 1 },
+          { id: 11, name: 'TikTok', connection_status: 2 },
+        ],
+      }),
+    });
+
+    await expect(
+      createService().scheduleVideo({
+        projectId: 5,
+        accountIds: [10, 11],
+        videoUrl: 'https://media.example/clip.mp4',
+        scheduledAt: new Date('2026-10-10T09:00:00.000Z'),
+      }),
+    ).rejects.toThrow('TikTok: account is not connected');
+
+    expect(global.fetch).toHaveBeenCalledTimes(1);
   });
 });

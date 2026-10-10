@@ -73,6 +73,16 @@ export class AdminSocialPublishingController {
     return this.socialPublishingService.listPublications();
   }
 
+  @Get('publication-marks')
+  listPublicationMarks() {
+    return this.socialPublishingService.listPublicationMarks();
+  }
+
+  @Post('resume')
+  resumeAfterFailure() {
+    return this.socialPublishingService.resumeAfterFailure();
+  }
+
   @Post('publications/:id/retry')
   retryPublication(@Param('id', ParseIntPatchPipe) id: number) {
     return this.socialPublishingService.retryPublication(id);
