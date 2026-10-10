@@ -186,7 +186,7 @@ jobs:
           dc down --remove-orphans
 
           echo "Applying database migrations..."
-          dc run --rm --no-deps backend yarn apply-migration
+          dc run --rm --no-deps -T backend yarn apply-migration </dev/null
 
           # dc down only removes containers compose recognizes as part of this
           # project. If a stale/orphaned container still holds our name (e.g.
