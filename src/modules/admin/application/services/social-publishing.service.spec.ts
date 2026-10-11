@@ -99,6 +99,7 @@ describe('SocialPublishingService', () => {
         ruleRepository as never,
         publicationRepository as never,
         shortContentJobRepository as never,
+        {} as never,
       );
 
       await (service as unknown as { submit(value: SocialPublication): Promise<void> }).submit(
@@ -197,6 +198,7 @@ describe('SocialPublishingService', () => {
       } as never,
       publicationRepository as never,
       { findOne: jest.fn().mockResolvedValue(job) } as never,
+      {} as never,
     );
 
     const privateService = service as unknown as {
@@ -252,6 +254,7 @@ describe('SocialPublishingService', () => {
         {} as never,
         publicationRepository as never,
         {} as never,
+        {} as never,
       );
       const executeRetry = jest
         .spyOn(
@@ -300,6 +303,7 @@ describe('SocialPublishingService', () => {
         {} as never,
         {} as never,
         publicationRepository as never,
+        {} as never,
         {} as never,
       );
       const executeNow = jest
@@ -357,6 +361,7 @@ describe('SocialPublishingService', () => {
       } as never,
       publicationRepository as never,
       {} as never,
+      {} as never,
     );
 
     await (
@@ -395,6 +400,7 @@ describe('SocialPublishingService', () => {
       {} as never,
       publicationRepository as never,
       {} as never,
+      {} as never,
     );
 
     const reconciled = await (
@@ -423,6 +429,7 @@ describe('SocialPublishingService', () => {
         ]),
       } as never,
       { exists: jest.fn().mockResolvedValue(false) } as never,
+      {} as never,
       {} as never,
     );
     const resume = jest.spyOn(service, 'resumeAfterFailure').mockResolvedValue({ resumedRules: 1 });
@@ -501,6 +508,7 @@ describe('SocialPublishingService', () => {
       ruleRepository as never,
       publicationRepository as never,
       { findOne: jest.fn().mockResolvedValue(job) } as never,
+      {} as never,
     );
 
     await (service as unknown as { submit(value: SocialPublication): Promise<void> }).submit(
@@ -529,6 +537,7 @@ describe('SocialPublishingService', () => {
       { setContext: jest.fn() } as never,
       { assertAccountsReady: jest.fn().mockResolvedValue(undefined) } as never,
       ruleRepository as never,
+      {} as never,
       {} as never,
       {} as never,
     );
@@ -564,6 +573,7 @@ describe('SocialPublishingService', () => {
       { setContext: jest.fn() } as never,
       { assertAccountsReady: jest.fn().mockResolvedValue(undefined) } as never,
       ruleRepository as never,
+      {} as never,
       {} as never,
       {} as never,
     );
@@ -614,6 +624,7 @@ describe('SocialPublishingService', () => {
         ruleRepository as never,
         {} as never,
         {} as never,
+        {} as never,
       );
 
       const updated = await service.updateRule(rule.id, { intervalMinutes: 3 * 60 });
@@ -624,6 +635,120 @@ describe('SocialPublishingService', () => {
     } finally {
       jest.useRealTimers();
     }
+  });
+
+  it('deletes a published clip while preserving the other clips and publication history', async () => {
+    const publication = {
+      id: 23,
+      ruleId: 7,
+      shortContentJobId: 17,
+      clipIndex: 1,
+      status: SocialPublicationStatus.PUBLISHED,
+    } as SocialPublication;
+    const job = {
+      id: 17,
+      contentType: ShortContentType.FILM,
+      shortContentJobId: 'engine-job-17',
+      draftPayload: {
+        clips: [
+          { index: 1, downloadUrl: 'https://media.example/clip-1.mp4' },
+          { index: 2, downloadUrl: 'https://media.example/clip-2.mp4' },
+        ],
+      },
+      updatedAt: new Date('2026-10-11T08:00:00.000Z'),
+    } as unknown as ShortContentJob;
+    const publicationRepository = {
+      find: jest.fn().mockResolvedValueOnce([publication]).mockResolvedValueOnce([publication]),
+      update: jest.fn().mockResolvedValue({ affected: 1 }),
+    };
+    const shortContentJobRepository = {
+      findOne: jest.fn().mockResolvedValue(job),
+      save: jest.fn().mockImplementation(value => Promise.resolve(value)),
+      remove: jest.fn(),
+    };
+    const shortContentClient = { deleteHighlightClip: jest.fn().mockResolvedValue(undefined) };
+    const service = new SocialPublishingService(
+      {} as never,
+      { setContext: jest.fn(), warn: jest.fn() } as never,
+      {} as never,
+      {
+        find: jest.fn().mockResolvedValue([
+          {
+            id: 7,
+            isEnabled: true,
+            pausedByFailure: false,
+            contentTypes: [ShortContentType.FILM],
+          },
+        ]),
+      } as never,
+      publicationRepository as never,
+      shortContentJobRepository as never,
+      shortContentClient as never,
+    );
+
+    await (
+      service as unknown as { cleanupPublishedClips(): Promise<void> }
+    ).cleanupPublishedClips();
+
+    expect(shortContentClient.deleteHighlightClip).toHaveBeenCalledWith('engine-job-17', 1);
+    expect(job.draftPayload?.clips).toEqual([
+      { index: 2, downloadUrl: 'https://media.example/clip-2.mp4' },
+    ]);
+    expect(shortContentJobRepository.save).toHaveBeenCalledWith(job);
+    expect(shortContentJobRepository.remove).not.toHaveBeenCalled();
+    expect(publicationRepository.update).toHaveBeenCalledWith(
+      { shortContentJobId: 17, clipIndex: 1 },
+      { clipDeletedAt: expect.any(Date) },
+    );
+  });
+
+  it('keeps a clip until every active applicable rule has published it', async () => {
+    const publication = {
+      id: 23,
+      ruleId: 7,
+      shortContentJobId: 17,
+      clipIndex: 1,
+      status: SocialPublicationStatus.PUBLISHED,
+    } as SocialPublication;
+    const job = {
+      id: 17,
+      contentType: ShortContentType.FILM,
+      shortContentJobId: 'engine-job-17',
+      draftPayload: { clips: [{ index: 1, downloadUrl: 'https://media.example/clip-1.mp4' }] },
+    } as unknown as ShortContentJob;
+    const shortContentClient = { deleteHighlightClip: jest.fn() };
+    const service = new SocialPublishingService(
+      {} as never,
+      { setContext: jest.fn(), warn: jest.fn() } as never,
+      {} as never,
+      {
+        find: jest.fn().mockResolvedValue([
+          {
+            id: 7,
+            isEnabled: true,
+            pausedByFailure: false,
+            contentTypes: [ShortContentType.FILM],
+          },
+          {
+            id: 8,
+            isEnabled: true,
+            pausedByFailure: false,
+            contentTypes: [ShortContentType.FILM],
+          },
+        ]),
+      } as never,
+      {
+        find: jest.fn().mockResolvedValueOnce([publication]).mockResolvedValueOnce([publication]),
+      } as never,
+      { findOne: jest.fn().mockResolvedValue(job) } as never,
+      shortContentClient as never,
+    );
+
+    await (
+      service as unknown as { cleanupPublishedClips(): Promise<void> }
+    ).cleanupPublishedClips();
+
+    expect(shortContentClient.deleteHighlightClip).not.toHaveBeenCalled();
   });
 
   it('disables a rule after reserving its last allowed publication', async () => {
@@ -678,6 +803,7 @@ describe('SocialPublishingService', () => {
     const service = new SocialPublishingService(
       dataSource as never,
       { setContext: jest.fn() } as never,
+      {} as never,
       {} as never,
       {} as never,
       {} as never,

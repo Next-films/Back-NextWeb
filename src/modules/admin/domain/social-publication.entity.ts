@@ -77,6 +77,10 @@ export class SocialPublication {
   @Column({ type: 'int', default: 0 })
   attempts: number;
 
+  /** When the locally rendered clip was removed after every required publication succeeded. */
+  @Column({ type: 'timestamp with time zone', nullable: true })
+  clipDeletedAt: Date | null;
+
   @CreateDateColumn({ type: 'timestamp with time zone' })
   createdAt: Date;
 

@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { DataSource, LessThanOrEqual, Repository } from 'typeorm';
+import { DataSource, IsNull, LessThanOrEqual, Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { LoggerService } from '@/common/utils/logger/logger.service';
 import {
@@ -17,6 +17,7 @@ import {
   SocialPublishingRule,
 } from '@/admin/domain/social-publishing-rule.entity';
 import { PostMyPostPublishingService } from '@/admin/application/services/postmypost-publishing.service';
+import { ShortContentClientService } from '@/admin/application/services/short-content-client.service';
 import {
   SocialProviderAccountsNotReadyError,
   SocialPublishingProviderAdapter,
@@ -62,6 +63,7 @@ export class SocialPublishingService {
     private readonly publicationRepository: Repository<SocialPublication>,
     @InjectRepository(ShortContentJob)
     private readonly shortContentJobRepository: Repository<ShortContentJob>,
+    private readonly shortContentClient: ShortContentClientService,
   ) {
     this.logger.setContext(SocialPublishingService.name);
   }
@@ -412,6 +414,7 @@ export class SocialPublishingService {
       if (reconciledInterrupted > 0) {
         await this.resumeAfterReconciledInterruptions();
       }
+      await this.cleanupPublishedClips();
     } catch (error) {
       const reason = this.getErrorMessage(error);
       this.logger.error(`Social publishing tick failed: ${reason}`, this.tick.name);
@@ -856,6 +859,88 @@ export class SocialPublishingService {
         this.resumeAfterReconciledInterruptions.name,
       );
     }
+  }
+
+  private async cleanupPublishedClips(): Promise<void> {
+    const [published, rules] = await Promise.all([
+      this.publicationRepository.find({
+        where: { status: SocialPublicationStatus.PUBLISHED, clipDeletedAt: IsNull() },
+        order: { updatedAt: 'ASC' },
+        take: 20,
+      }),
+      this.ruleRepository.find(),
+    ]);
+
+    for (const publication of published) {
+      const job = await this.shortContentJobRepository.findOne({
+        where: { id: publication.shortContentJobId },
+      });
+      if (!job) {
+        await this.markClipDeleted(publication.shortContentJobId, publication.clipIndex);
+        continue;
+      }
+
+      if (!job.shortContentJobId) {
+        await this.markClipDeleted(job.id, publication.clipIndex);
+        continue;
+      }
+
+      const clips = this.getClips(job);
+      if (!clips.some(clip => clip.index === publication.clipIndex)) {
+        await this.markClipDeleted(job.id, publication.clipIndex);
+        continue;
+      }
+
+      const applicableRules = rules.filter(
+        rule =>
+          (rule.isEnabled || rule.pausedByFailure) && rule.contentTypes.includes(job.contentType),
+      );
+      const publicationsForClip = await this.publicationRepository.find({
+        where: {
+          shortContentJobId: job.id,
+          clipIndex: publication.clipIndex,
+        },
+        select: { ruleId: true, status: true },
+      });
+      const publishedRuleIds = new Set(
+        publicationsForClip
+          .filter(item => item.status === SocialPublicationStatus.PUBLISHED)
+          .map(item => item.ruleId),
+      );
+
+      if (applicableRules.some(rule => !publishedRuleIds.has(rule.id))) continue;
+
+      try {
+        await this.shortContentClient.deleteHighlightClip(
+          job.shortContentJobId,
+          publication.clipIndex,
+        );
+
+        const remainingClips = clips.filter(clip => clip.index !== publication.clipIndex);
+        if (remainingClips.length === 0) {
+          await this.shortContentJobRepository.remove(job);
+        } else {
+          job.draftPayload = { ...(job.draftPayload ?? {}), clips: remainingClips };
+          job.updatedAt = new Date();
+          await this.shortContentJobRepository.save(job);
+        }
+        await this.markClipDeleted(job.id, publication.clipIndex);
+      } catch (error) {
+        this.logger.warn(
+          `Cannot delete published clip ${job.id}:${publication.clipIndex}: ${this.getErrorMessage(
+            error,
+          )}`,
+          this.cleanupPublishedClips.name,
+        );
+      }
+    }
+  }
+
+  private async markClipDeleted(shortContentJobId: number, clipIndex: number): Promise<void> {
+    await this.publicationRepository.update(
+      { shortContentJobId, clipIndex },
+      { clipDeletedAt: new Date() },
+    );
   }
 
   private isGloballyPaused(): Promise<boolean> {

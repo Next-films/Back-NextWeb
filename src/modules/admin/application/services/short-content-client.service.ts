@@ -112,6 +112,18 @@ export class ShortContentClientService {
     );
   }
 
+  /** Removes one rendered clip; an already missing clip is considered cleaned up. */
+  async deleteHighlightClip(engineJobId: string, clipIndex: number): Promise<void> {
+    await this.call(
+      'DELETE',
+      `/api/shorts/highlights/${encodeURIComponent(engineJobId)}/clips/${encodeURIComponent(
+        String(clipIndex),
+      )}`,
+      undefined,
+      [404],
+    );
+  }
+
   private async call<T>(
     method: 'GET' | 'POST' | 'PATCH' | 'DELETE',
     path: string,
