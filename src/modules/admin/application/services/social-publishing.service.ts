@@ -138,6 +138,11 @@ export class SocialPublishingService {
     input: AdminUpdateSocialPublishingRuleInputDto,
   ): Promise<SocialPublishingRule> {
     const rule = await this.getRuleOrThrow(id);
+    const scheduleChanged =
+      input.startAt !== undefined ||
+      input.intervalMinutes !== undefined ||
+      input.timezone !== undefined ||
+      input.dailyTimes !== undefined;
 
     if (input.isEnabled === true) await this.assertPublishingCanStart();
 
@@ -162,15 +167,11 @@ export class SocialPublishingService {
       }
     }
     if (input.startAt !== undefined) rule.startAt = new Date(input.startAt);
-    if (
-      input.startAt !== undefined ||
-      input.timezone !== undefined ||
-      input.dailyTimes !== undefined
-    ) {
+    if (scheduleChanged) {
       this.validateTimeZone(rule.timezone);
-      rule.nextRunAt = rule.dailyTimes
-        ? getFirstDailyRunAt(rule.startAt, rule.dailyTimes, rule.timezone)
-        : rule.startAt;
+      rule.nextRunAt = this.getNextRunAfterScheduleChange(rule, new Date());
+    } else if (input.isEnabled === true && rule.nextRunAt < new Date()) {
+      rule.nextRunAt = this.getNextRunAfterScheduleChange(rule, new Date());
     }
     this.validateEndAt(rule.startAt, rule.endAt);
     if (rule.endAt && rule.nextRunAt > rule.endAt) rule.isEnabled = false;
@@ -723,6 +724,20 @@ export class SocialPublishingService {
     }
 
     return new Date(next);
+  }
+
+  private getNextRunAfterScheduleChange(rule: SocialPublishingRule, now: Date): Date {
+    const notBefore = rule.startAt > now ? rule.startAt : now;
+
+    if (rule.dailyTimes?.length) {
+      return getFirstDailyRunAt(notBefore, rule.dailyTimes, rule.timezone);
+    }
+
+    if (rule.startAt >= notBefore) return rule.startAt;
+
+    const step = rule.intervalMinutes * 60_000;
+    const elapsed = notBefore.getTime() - rule.startAt.getTime();
+    return new Date(rule.startAt.getTime() + Math.ceil(elapsed / step) * step);
   }
 
   private validateTimeZone(timeZone: string): void {

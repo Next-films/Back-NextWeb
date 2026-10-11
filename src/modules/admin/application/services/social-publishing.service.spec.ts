@@ -371,6 +371,48 @@ describe('SocialPublishingService', () => {
     expect(ruleRepository.create).not.toHaveBeenCalled();
   });
 
+  it('recalculates the next publication when the interval is edited', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-10-11T08:30:00.000Z'));
+
+    try {
+      const rule = {
+        id: 7,
+        name: 'Основной автопостинг',
+        provider: SocialPublishingProvider.POSTMYPOST,
+        projectId: 11,
+        accountIds: [13],
+        contentTypes: [ShortContentType.FILM],
+        intervalMinutes: 6 * 60,
+        dailyTimes: null,
+        startAt: new Date('2026-10-10T00:00:00.000Z'),
+        nextRunAt: new Date('2026-10-11T12:00:00.000Z'),
+        endAt: null,
+        timezone: 'Europe/Moscow',
+        isEnabled: true,
+      } as SocialPublishingRule;
+      const ruleRepository = {
+        findOne: jest.fn().mockResolvedValue(rule),
+        save: jest.fn().mockImplementation(value => Promise.resolve(value)),
+      };
+      const service = new SocialPublishingService(
+        {} as never,
+        { setContext: jest.fn() } as never,
+        { assertAccountsReady: jest.fn().mockResolvedValue(undefined) } as never,
+        ruleRepository as never,
+        {} as never,
+        {} as never,
+      );
+
+      const updated = await service.updateRule(rule.id, { intervalMinutes: 3 * 60 });
+
+      expect(updated.intervalMinutes).toBe(3 * 60);
+      expect(updated.nextRunAt).toEqual(new Date('2026-10-11T09:00:00.000Z'));
+      expect(ruleRepository.save).toHaveBeenCalledWith(rule);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   it('disables a rule after reserving its last allowed publication', async () => {
     const rule = {
       id: 7,
