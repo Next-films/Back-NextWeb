@@ -44,6 +44,9 @@ type StoredClip = {
 const DEFAULT_CAPTION_TEMPLATE = '{title}\n{description}';
 const IMMEDIATE_PUBLICATION_DELAY_MS = 2 * 60_000;
 const STUCK_PUBLICATION_GRACE_MS = 5 * 60_000;
+const INTERRUPTED_SUBMISSION_ERROR =
+  'Submission was interrupted; check the provider before retrying';
+const INTERRUPTED_SUBMISSION_PAUSE_FRAGMENT = 'publication submission(s) were interrupted';
 
 @Injectable()
 export class SocialPublishingService {
@@ -377,6 +380,7 @@ export class SocialPublishingService {
     this.isTickRunning = true;
     try {
       await this.disableExpiredRules(new Date());
+      const reconciledInterrupted = await this.reconcileInterruptedPublications();
       const interrupted = await this.recoverInterruptedSubmissions();
       if (interrupted > 0) {
         await this.pauseAllPublishing(
@@ -405,6 +409,9 @@ export class SocialPublishingService {
       }
 
       await this.refreshScheduledPublications();
+      if (reconciledInterrupted > 0) {
+        await this.resumeAfterReconciledInterruptions();
+      }
     } catch (error) {
       const reason = this.getErrorMessage(error);
       this.logger.error(`Social publishing tick failed: ${reason}`, this.tick.name);
@@ -771,13 +778,84 @@ export class SocialPublishingService {
       .update(SocialPublication)
       .set({
         status: SocialPublicationStatus.FAILED,
-        errorMessage: 'Submission was interrupted; check the provider before retrying',
+        errorMessage: INTERRUPTED_SUBMISSION_ERROR,
       })
       .where('status = :status', { status: SocialPublicationStatus.SUBMITTING })
+      .andWhere('"externalPublicationId" IS NULL')
       .andWhere('"updatedAt" < :interruptedBefore', { interruptedBefore })
       .execute();
 
     return result.affected ?? 0;
+  }
+
+  private async reconcileInterruptedPublications(): Promise<number> {
+    const publications = await this.publicationRepository.find({
+      where: {
+        status: SocialPublicationStatus.FAILED,
+        errorMessage: INTERRUPTED_SUBMISSION_ERROR,
+      },
+      order: { updatedAt: 'ASC' },
+      take: 20,
+    });
+    let reconciled = 0;
+
+    for (const publication of publications) {
+      if (!publication.externalPublicationId) continue;
+
+      try {
+        const result = await this.getProvider(publication.provider).getPublicationStatus(
+          publication.externalPublicationId,
+        );
+        publication.providerPayload = result.raw;
+
+        if (result.status === 'published') {
+          publication.status = SocialPublicationStatus.PUBLISHED;
+          publication.errorMessage = null;
+          reconciled += 1;
+        } else if (result.status === 'publishing' || result.status === 'scheduled') {
+          publication.status = SocialPublicationStatus.SUBMITTING;
+          publication.errorMessage = null;
+          reconciled += 1;
+        } else {
+          publication.errorMessage = `PostMyPost reported an error for publication ${publication.externalPublicationId}`;
+        }
+
+        await this.publicationRepository.save(publication);
+      } catch (error) {
+        this.logger.warn(
+          `Cannot reconcile interrupted publication ${publication.id}: ${this.getErrorMessage(
+            error,
+          )}`,
+          this.reconcileInterruptedPublications.name,
+        );
+      }
+    }
+
+    return reconciled;
+  }
+
+  private async resumeAfterReconciledInterruptions(): Promise<void> {
+    const hasFailedPublications = await this.publicationRepository.exists({
+      where: { status: SocialPublicationStatus.FAILED },
+    });
+    if (hasFailedPublications) return;
+
+    const pausedRules = await this.ruleRepository.find({ where: { pausedByFailure: true } });
+    if (
+      pausedRules.length === 0 ||
+      pausedRules.some(rule => !rule.pauseReason?.includes(INTERRUPTED_SUBMISSION_PAUSE_FRAGMENT))
+    ) {
+      return;
+    }
+
+    try {
+      await this.resumeAfterFailure();
+    } catch (error) {
+      this.logger.warn(
+        `Cannot resume publishing after reconciliation: ${this.getErrorMessage(error)}`,
+        this.resumeAfterReconciledInterruptions.name,
+      );
+    }
   }
 
   private isGloballyPaused(): Promise<boolean> {

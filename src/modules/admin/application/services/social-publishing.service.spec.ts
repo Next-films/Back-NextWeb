@@ -370,6 +370,70 @@ describe('SocialPublishingService', () => {
     expect(publicationRepository.save).toHaveBeenCalledWith(publication);
   });
 
+  it('reconciles an interrupted publication that PostMyPost already published', async () => {
+    const publication = {
+      id: 23,
+      provider: SocialPublishingProvider.POSTMYPOST,
+      status: SocialPublicationStatus.FAILED,
+      externalPublicationId: '99',
+      errorMessage: 'Submission was interrupted; check the provider before retrying',
+    } as SocialPublication;
+    const publicationRepository = {
+      find: jest.fn().mockResolvedValue([publication]),
+      save: jest.fn().mockImplementation(value => Promise.resolve(value)),
+    };
+    const provider = {
+      getPublicationStatus: jest.fn().mockResolvedValue({
+        status: 'published',
+        raw: { id: 99, publication_status: 1 },
+      }),
+    };
+    const service = new SocialPublishingService(
+      {} as never,
+      { setContext: jest.fn(), warn: jest.fn() } as never,
+      provider as never,
+      {} as never,
+      publicationRepository as never,
+      {} as never,
+    );
+
+    const reconciled = await (
+      service as unknown as { reconcileInterruptedPublications(): Promise<number> }
+    ).reconcileInterruptedPublications();
+
+    expect(reconciled).toBe(1);
+    expect(provider.getPublicationStatus).toHaveBeenCalledWith('99');
+    expect(publication.status).toBe(SocialPublicationStatus.PUBLISHED);
+    expect(publication.errorMessage).toBeNull();
+    expect(publicationRepository.save).toHaveBeenCalledWith(publication);
+  });
+
+  it('resumes rules after the last interrupted publication is reconciled', async () => {
+    const service = new SocialPublishingService(
+      {} as never,
+      { setContext: jest.fn(), warn: jest.fn() } as never,
+      {} as never,
+      {
+        find: jest.fn().mockResolvedValue([
+          {
+            pausedByFailure: true,
+            pauseReason:
+              '1 publication submission(s) were interrupted; check PostMyPost before resuming',
+          },
+        ]),
+      } as never,
+      { exists: jest.fn().mockResolvedValue(false) } as never,
+      {} as never,
+    );
+    const resume = jest.spyOn(service, 'resumeAfterFailure').mockResolvedValue({ resumedRules: 1 });
+
+    await (
+      service as unknown as { resumeAfterReconciledInterruptions(): Promise<void> }
+    ).resumeAfterReconciledInterruptions();
+
+    expect(resume).toHaveBeenCalledTimes(1);
+  });
+
   it('pauses every active rule when a publication fails', async () => {
     const claimQuery = {
       update: jest.fn().mockReturnThis(),
