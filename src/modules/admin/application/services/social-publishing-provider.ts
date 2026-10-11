@@ -44,7 +44,13 @@ export type ScheduledSocialVideo = {
   raw: Record<string, unknown>;
 };
 
-export type SocialProviderPublicationStatus = 'scheduled' | 'published' | 'failed';
+export type SocialProviderPublicationStatus = 'scheduled' | 'publishing' | 'published' | 'failed';
+
+export type PublishSocialVideoNowResult = {
+  status: SocialProviderPublicationStatus;
+  scheduledAt?: Date;
+  raw: Record<string, unknown>;
+};
 
 export class SocialProviderAccountsNotReadyError extends Error {
   constructor(message: string) {
@@ -61,6 +67,7 @@ export interface SocialPublishingProviderAdapter {
   startVideoUpload(input: StartSocialVideoUploadInput): Promise<StartedSocialVideoUpload>;
   getVideoUploadStatus(externalUploadId: string): Promise<SocialVideoUploadStatus>;
   scheduleUploadedVideo(input: ScheduleUploadedSocialVideoInput): Promise<ScheduledSocialVideo>;
+  publishNow(externalPublicationId: string): Promise<PublishSocialVideoNowResult>;
   getPublicationStatus(externalPublicationId: string): Promise<{
     status: SocialProviderPublicationStatus;
     raw: Record<string, unknown>;

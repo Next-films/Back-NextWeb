@@ -88,6 +88,11 @@ export class AdminSocialPublishingController {
     return this.socialPublishingService.retryPublication(id);
   }
 
+  @Post('publications/:id/publish-now')
+  publishPublicationNow(@Param('id', ParseIntPatchPipe) id: number) {
+    return this.socialPublishingService.publishPublicationNow(id);
+  }
+
   @Post('run')
   @HttpCode(HttpStatus.ACCEPTED)
   runNow(): { success: true } {

@@ -6,6 +6,7 @@ import { SocialPublishingProvider } from '@/admin/domain/social-publishing-rule.
 import {
   ScheduleUploadedSocialVideoInput,
   ScheduledSocialVideo,
+  PublishSocialVideoNowResult,
   SocialProviderAccount,
   SocialProviderAccountsNotReadyError,
   SocialProviderProject,
@@ -31,6 +32,34 @@ type PostMyPostAccount = {
   login?: string;
   chanel_id?: number;
   connection_status?: number;
+};
+type PostMyPostPublicationDetail = {
+  account_id?: number;
+  publication_type?: number;
+  content?: string;
+  comment?: string;
+  link?: string;
+  title?: string;
+  tiktok_comment?: boolean;
+  tiktok_duet?: boolean;
+  tiktok_stitch?: boolean;
+  tiktok_privacy_status?: number;
+  youtube_privacy_status?: number;
+  x_reply_settings?: number;
+  instagram_share_to_feed?: boolean;
+  instagram_trial_reels_graduation_strategy?: number;
+  nsfw?: boolean;
+  file_ids?: number[];
+  files?: Array<{ id?: number }>;
+};
+type PostMyPostPublication = {
+  id?: number | string;
+  post_at?: string;
+  delete_at?: string | null;
+  rubric_id?: number | null;
+  account_ids?: number[];
+  details?: PostMyPostPublicationDetail[];
+  publication_status?: number;
 };
 
 const PAGE_SIZE = 50;
@@ -168,19 +197,59 @@ export class PostMyPostPublishingService implements SocialPublishingProviderAdap
   }
 
   async getPublicationStatus(externalPublicationId: string): Promise<{
-    status: 'scheduled' | 'published' | 'failed';
+    status: 'scheduled' | 'publishing' | 'published' | 'failed';
     raw: Record<string, unknown>;
   }> {
-    const publication = await this.call<Record<string, unknown>>(
+    const publication = await this.call<PostMyPostPublication>(
       'GET',
       `/publications/${encodeURIComponent(externalPublicationId)}`,
     );
     const status = Number(publication.publication_status);
 
     return {
-      status: status === 1 ? 'published' : status === 3 ? 'failed' : 'scheduled',
+      status:
+        status === 1
+          ? 'published'
+          : status === 2
+          ? 'publishing'
+          : status === 3
+          ? 'failed'
+          : 'scheduled',
       raw: publication,
     };
+  }
+
+  async publishNow(externalPublicationId: string): Promise<PublishSocialVideoNowResult> {
+    const path = `/publications/${encodeURIComponent(externalPublicationId)}`;
+    const publication = await this.call<PostMyPostPublication>('GET', path);
+    const status = Number(publication.publication_status);
+
+    if (status === 1) return { status: 'published', raw: publication };
+    if (status === 2) return { status: 'publishing', raw: publication };
+    if (status === 3) return { status: 'failed', raw: publication };
+    if (status !== 5) {
+      throw new ServiceUnavailableException(
+        `PostMyPost publication ${externalPublicationId} cannot be published now (status ${status})`,
+      );
+    }
+
+    if (!publication.account_ids?.length || !publication.details?.length) {
+      throw new ServiceUnavailableException(
+        `PostMyPost publication ${externalPublicationId} has incomplete data`,
+      );
+    }
+
+    const scheduledAt = new Date(Date.now() + 10_000);
+    const updated = await this.call<PostMyPostPublication>('PUT', path, {
+      post_at: scheduledAt.toISOString(),
+      delete_at: publication.delete_at || undefined,
+      rubric_id: publication.rubric_id || undefined,
+      account_ids: publication.account_ids,
+      publication_status: 5,
+      details: publication.details.map(detail => this.toEditablePublicationDetail(detail)),
+    });
+
+    return { status: 'scheduled', scheduledAt, raw: updated };
   }
 
   private async listChannels(): Promise<PostMyPostChannel[]> {
@@ -230,7 +299,39 @@ export class PostMyPostPublishingService implements SocialPublishingProviderAdap
     return result;
   }
 
-  private async call<T>(method: 'GET' | 'POST', path: string, body?: unknown): Promise<T> {
+  private toEditablePublicationDetail(
+    detail: PostMyPostPublicationDetail,
+  ): Record<string, unknown> {
+    if (!Number.isInteger(detail.publication_type)) {
+      throw new ServiceUnavailableException('PostMyPost publication detail type is missing');
+    }
+
+    const fileIds = [
+      ...(detail.file_ids ?? []),
+      ...(detail.files ?? []).flatMap(file => (Number.isInteger(file.id) ? [Number(file.id)] : [])),
+    ];
+
+    return {
+      account_id: detail.account_id,
+      publication_type: detail.publication_type,
+      content: detail.content,
+      comment: detail.comment,
+      link: detail.link,
+      title: detail.title,
+      tiktok_comment: detail.tiktok_comment,
+      tiktok_duet: detail.tiktok_duet,
+      tiktok_stitch: detail.tiktok_stitch,
+      tiktok_privacy_status: detail.tiktok_privacy_status,
+      youtube_privacy_status: detail.youtube_privacy_status,
+      x_reply_settings: detail.x_reply_settings,
+      instagram_share_to_feed: detail.instagram_share_to_feed,
+      instagram_trial_reels_graduation_strategy: detail.instagram_trial_reels_graduation_strategy,
+      nsfw: detail.nsfw,
+      file_ids: [...new Set(fileIds)],
+    };
+  }
+
+  private async call<T>(method: 'GET' | 'POST' | 'PUT', path: string, body?: unknown): Promise<T> {
     const config = await this.externalApiConfigService.getActiveConfig(
       ExternalApiProviderEnum.POSTMYPOST,
       ExternalApiTargetEnum.BACK,

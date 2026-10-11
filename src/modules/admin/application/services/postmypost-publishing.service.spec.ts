@@ -5,6 +5,7 @@ describe('PostMyPostPublishingService', () => {
 
   afterEach(() => {
     global.fetch = originalFetch;
+    jest.useRealTimers();
     jest.restoreAllMocks();
   });
 
@@ -198,6 +199,58 @@ describe('PostMyPostPublishingService', () => {
     );
 
     expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('moves an existing pending publication to the current time', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-10-11T12:00:00.000Z'));
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: jest.fn().mockResolvedValue({
+          id: 99,
+          post_at: '2026-10-11T13:00:00.000Z',
+          account_ids: [10, 11],
+          publication_status: 5,
+          details: [
+            {
+              publication_type: 4,
+              title: 'Title',
+              content: 'Caption',
+              files: [{ id: 73, original: 'https://media.example/clip.mp4' }],
+              youtube_privacy_status: 1,
+            },
+          ],
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: jest.fn().mockResolvedValue({ id: 99, publication_status: 5 }),
+      });
+
+    await expect(createService().publishNow('99')).resolves.toEqual({
+      status: 'scheduled',
+      scheduledAt: new Date('2026-10-11T12:00:10.000Z'),
+      raw: { id: 99, publication_status: 5 },
+    });
+
+    const fetchMock = global.fetch as jest.Mock;
+    expect(fetchMock.mock.calls[0][0]).toBe('https://api.postmypost.io/v4.1/publications/99');
+    expect(fetchMock.mock.calls[1][1].method).toBe('PUT');
+    expect(JSON.parse(String(fetchMock.mock.calls[1][1].body))).toEqual({
+      post_at: '2026-10-11T12:00:10.000Z',
+      account_ids: [10, 11],
+      publication_status: 5,
+      details: [
+        {
+          publication_type: 4,
+          title: 'Title',
+          content: 'Caption',
+          youtube_privacy_status: 1,
+          file_ids: [73],
+        },
+      ],
+    });
   });
 
   it('keeps a PostMyPost upload in processing without timing it out', async () => {

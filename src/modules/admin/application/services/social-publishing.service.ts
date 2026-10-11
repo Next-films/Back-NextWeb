@@ -42,6 +42,7 @@ type StoredClip = {
 };
 
 const DEFAULT_CAPTION_TEMPLATE = '{title}\n{description}';
+const IMMEDIATE_PUBLICATION_DELAY_MS = 10_000;
 
 @Injectable()
 export class SocialPublishingService {
@@ -238,7 +239,66 @@ export class SocialPublishingService {
         : SocialPublicationStatus.QUEUED;
     publication.errorMessage = null;
     publication.externalPublicationId = null;
-    return this.publicationRepository.save(publication);
+    publication.scheduledAt = new Date();
+    await this.publicationRepository.save(publication);
+
+    if (publication.status === SocialPublicationStatus.QUEUED) {
+      await this.submit(publication);
+    }
+
+    return publication;
+  }
+
+  async publishPublicationNow(id: number): Promise<SocialPublication> {
+    await this.assertPublishingCanStart();
+
+    const publication = await this.publicationRepository.findOne({ where: { id } });
+    if (!publication) throw new NotFoundException('Social publication not found');
+    if (publication.status === SocialPublicationStatus.FAILED) {
+      return this.retryPublication(id);
+    }
+    if (publication.status !== SocialPublicationStatus.SCHEDULED) {
+      throw new BadRequestException('Only scheduled or failed publications can be published now');
+    }
+    if (!publication.externalPublicationId) {
+      throw new BadRequestException('PostMyPost publication id is missing');
+    }
+
+    const rule = await this.ruleRepository.findOne({ where: { id: publication.ruleId } });
+    if (!rule) {
+      await this.failAndPause(publication, 'Publishing rule no longer exists');
+      return publication;
+    }
+
+    try {
+      await this.getProvider(rule.provider).assertAccountsReady(rule.projectId, rule.accountIds);
+      const result = await this.getProvider(publication.provider).publishNow(
+        publication.externalPublicationId,
+      );
+      publication.providerPayload = result.raw;
+      publication.errorMessage = null;
+
+      if (result.status === 'published') {
+        publication.status = SocialPublicationStatus.PUBLISHED;
+      } else if (result.status === 'failed') {
+        await this.failAndPause(
+          publication,
+          `PostMyPost reported an error for publication ${publication.externalPublicationId}`,
+        );
+        return publication;
+      } else {
+        publication.status = SocialPublicationStatus.SCHEDULED;
+        publication.scheduledAt = result.scheduledAt ?? new Date();
+      }
+
+      return this.publicationRepository.save(publication);
+    } catch (error) {
+      if (error instanceof SocialProviderAccountsNotReadyError) {
+        await this.failAndPause(publication, this.getErrorMessage(error));
+        return publication;
+      }
+      throw error;
+    }
   }
 
   getProvider(provider: SocialPublishingProvider): SocialPublishingProviderAdapter {
@@ -412,7 +472,7 @@ export class SocialPublishingService {
           contentId: String(job.contentId),
         };
         publication.scheduledAt = new Date(
-          Math.max(publication.scheduledAt.getTime(), Date.now() + 120_000),
+          Math.max(publication.scheduledAt.getTime(), Date.now() + IMMEDIATE_PUBLICATION_DELAY_MS),
         );
         const result = await provider.scheduleUploadedVideo({
           projectId: rule.projectId,
