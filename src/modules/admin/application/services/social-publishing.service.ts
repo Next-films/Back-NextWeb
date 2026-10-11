@@ -42,7 +42,8 @@ type StoredClip = {
 };
 
 const DEFAULT_CAPTION_TEMPLATE = '{title}\n{description}';
-const IMMEDIATE_PUBLICATION_DELAY_MS = 10_000;
+const IMMEDIATE_PUBLICATION_DELAY_MS = 2 * 60_000;
+const STUCK_PUBLICATION_GRACE_MS = 5 * 60_000;
 
 @Injectable()
 export class SocialPublishingService {
@@ -224,11 +225,6 @@ export class SocialPublishingService {
   }
 
   async retryPublication(id: number): Promise<SocialPublication> {
-    if (await this.isGloballyPaused()) {
-      await this.resumeAfterFailure();
-    }
-    await this.assertPublishingCanStart();
-
     const publication = await this.publicationRepository.findOne({ where: { id } });
 
     if (!publication) throw new NotFoundException('Social publication not found');
@@ -236,25 +232,33 @@ export class SocialPublishingService {
       throw new BadRequestException('Only failed social publications can be retried');
     }
 
-    publication.status =
-      publication.externalUploadId && !publication.externalFileId
-        ? SocialPublicationStatus.PROCESSING
-        : SocialPublicationStatus.QUEUED;
+    const claim = await this.publicationRepository
+      .createQueryBuilder()
+      .update(SocialPublication)
+      .set({
+        status: SocialPublicationStatus.SUBMITTING,
+        errorMessage: null,
+        externalPublicationId: null,
+        scheduledAt: new Date(),
+      })
+      .where('id = :id', { id })
+      .andWhere('status = :status', { status: SocialPublicationStatus.FAILED })
+      .execute();
+
+    if (claim.affected !== 1) {
+      throw new BadRequestException('Social publication retry is already running');
+    }
+
+    publication.status = SocialPublicationStatus.SUBMITTING;
     publication.errorMessage = null;
     publication.externalPublicationId = null;
     publication.scheduledAt = new Date();
-    await this.publicationRepository.save(publication);
-
-    if (publication.status === SocialPublicationStatus.QUEUED) {
-      await this.submit(publication);
-    }
+    void this.executePublicationRetry(id);
 
     return publication;
   }
 
   async publishPublicationNow(id: number): Promise<SocialPublication> {
-    await this.assertPublishingCanStart();
-
     const publication = await this.publicationRepository.findOne({ where: { id } });
     if (!publication) throw new NotFoundException('Social publication not found');
     if (publication.status === SocialPublicationStatus.FAILED) {
@@ -267,13 +271,74 @@ export class SocialPublishingService {
       throw new BadRequestException('PostMyPost publication id is missing');
     }
 
-    const rule = await this.ruleRepository.findOne({ where: { id: publication.ruleId } });
-    if (!rule) {
-      await this.failAndPause(publication, 'Publishing rule no longer exists');
-      return publication;
+    const scheduledAt = new Date(Date.now() + IMMEDIATE_PUBLICATION_DELAY_MS);
+    const claim = await this.publicationRepository
+      .createQueryBuilder()
+      .update(SocialPublication)
+      .set({
+        status: SocialPublicationStatus.SUBMITTING,
+        errorMessage: null,
+        scheduledAt,
+      })
+      .where('id = :id', { id })
+      .andWhere('status = :status', { status: SocialPublicationStatus.SCHEDULED })
+      .execute();
+
+    if (claim.affected !== 1) {
+      throw new BadRequestException('Immediate publication is already running');
     }
 
+    publication.status = SocialPublicationStatus.SUBMITTING;
+    publication.errorMessage = null;
+    publication.scheduledAt = scheduledAt;
+    void this.executePublicationNow(id);
+
+    return publication;
+  }
+
+  private async executePublicationRetry(id: number): Promise<void> {
     try {
+      if (await this.isGloballyPaused()) await this.resumeAfterFailure();
+      await this.assertPublishingCanStart();
+
+      const publication = await this.publicationRepository.findOne({ where: { id } });
+      if (!publication || publication.status !== SocialPublicationStatus.SUBMITTING) return;
+
+      publication.status =
+        publication.externalUploadId && !publication.externalFileId
+          ? SocialPublicationStatus.PROCESSING
+          : SocialPublicationStatus.QUEUED;
+      publication.errorMessage = null;
+      publication.externalPublicationId = null;
+      publication.scheduledAt = new Date();
+      await this.publicationRepository.save(publication);
+
+      if (publication.status === SocialPublicationStatus.QUEUED) {
+        await this.submit(publication);
+      }
+    } catch (error) {
+      await this.failPendingPublication(id, this.getErrorMessage(error));
+    }
+  }
+
+  private async executePublicationNow(id: number): Promise<void> {
+    try {
+      if (await this.isGloballyPaused()) await this.resumeAfterFailure();
+      await this.assertPublishingCanStart();
+
+      const publication = await this.publicationRepository.findOne({ where: { id } });
+      if (!publication || publication.status !== SocialPublicationStatus.SUBMITTING) return;
+      if (!publication.externalPublicationId) {
+        await this.failAndPause(publication, 'PostMyPost publication id is missing');
+        return;
+      }
+
+      const rule = await this.ruleRepository.findOne({ where: { id: publication.ruleId } });
+      if (!rule) {
+        await this.failAndPause(publication, 'Publishing rule no longer exists');
+        return;
+      }
+
       await this.getProvider(rule.provider).assertAccountsReady(rule.projectId, rule.accountIds);
       const result = await this.getProvider(publication.provider).publishNow(
         publication.externalPublicationId,
@@ -288,19 +353,15 @@ export class SocialPublishingService {
           publication,
           `PostMyPost reported an error for publication ${publication.externalPublicationId}`,
         );
-        return publication;
+        return;
       } else {
-        publication.status = SocialPublicationStatus.SCHEDULED;
+        publication.status = SocialPublicationStatus.SUBMITTING;
         publication.scheduledAt = result.scheduledAt ?? new Date();
       }
 
-      return this.publicationRepository.save(publication);
+      await this.publicationRepository.save(publication);
     } catch (error) {
-      if (error instanceof SocialProviderAccountsNotReadyError) {
-        await this.failAndPause(publication, this.getErrorMessage(error));
-        return publication;
-      }
-      throw error;
+      await this.failPendingPublication(id, this.getErrorMessage(error));
     }
   }
 
@@ -633,11 +694,18 @@ export class SocialPublishingService {
   }
 
   private async refreshScheduledPublications(): Promise<void> {
+    const now = new Date();
     const publications = await this.publicationRepository.find({
-      where: {
-        status: SocialPublicationStatus.SCHEDULED,
-        scheduledAt: LessThanOrEqual(new Date()),
-      },
+      where: [
+        {
+          status: SocialPublicationStatus.SCHEDULED,
+          scheduledAt: LessThanOrEqual(now),
+        },
+        {
+          status: SocialPublicationStatus.SUBMITTING,
+          scheduledAt: LessThanOrEqual(now),
+        },
+      ],
       order: { scheduledAt: 'ASC' },
       // PostMyPost allows 30 regular API requests per rolling minute.
       // Keep headroom for project/account requests from the admin UI.
@@ -648,24 +716,41 @@ export class SocialPublishingService {
       if (!publication.externalPublicationId) continue;
 
       try {
+        const wasImmediate = publication.status === SocialPublicationStatus.SUBMITTING;
         const result = await this.getProvider(publication.provider).getPublicationStatus(
           publication.externalPublicationId,
         );
         publication.providerPayload = result.raw;
-        publication.status =
-          result.status === 'published'
-            ? SocialPublicationStatus.PUBLISHED
-            : result.status === 'failed'
-            ? SocialPublicationStatus.FAILED
-            : SocialPublicationStatus.SCHEDULED;
-        publication.errorMessage =
-          result.status === 'failed' ? 'Provider reported publication error' : null;
-        await this.publicationRepository.save(publication);
+
         if (result.status === 'failed') {
-          await this.pauseAllPublishing(
+          await this.failAndPause(
+            publication,
             `PostMyPost reported an error for publication ${publication.externalPublicationId}`,
           );
+          continue;
         }
+
+        if (result.status === 'published') {
+          publication.status = SocialPublicationStatus.PUBLISHED;
+        } else if (result.status === 'publishing') {
+          publication.status = SocialPublicationStatus.SUBMITTING;
+        } else if (
+          wasImmediate &&
+          Date.now() > publication.scheduledAt.getTime() + STUCK_PUBLICATION_GRACE_MS
+        ) {
+          await this.failAndPause(
+            publication,
+            `PostMyPost did not start publication ${publication.externalPublicationId} within 5 minutes`,
+          );
+          continue;
+        } else {
+          publication.status = wasImmediate
+            ? SocialPublicationStatus.SUBMITTING
+            : SocialPublicationStatus.SCHEDULED;
+        }
+
+        publication.errorMessage = null;
+        await this.publicationRepository.save(publication);
       } catch (error) {
         const reason = this.getErrorMessage(error);
         this.logger.warn(
@@ -735,6 +820,12 @@ export class SocialPublishingService {
     publication.errorMessage = reason;
     await this.publicationRepository.save(publication);
     await this.pauseAllPublishing(reason);
+  }
+
+  private async failPendingPublication(id: number, reason: string): Promise<void> {
+    const publication = await this.publicationRepository.findOne({ where: { id } });
+    if (!publication || publication.status === SocialPublicationStatus.PUBLISHED) return;
+    await this.failAndPause(publication, reason);
   }
 
   private getErrorMessage(error: unknown): string {

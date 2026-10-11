@@ -201,7 +201,7 @@ describe('PostMyPostPublishingService', () => {
     expect(global.fetch).toHaveBeenCalledTimes(1);
   });
 
-  it('moves an existing pending publication to the current time', async () => {
+  it('moves an existing pending publication to the nearest reliable scheduler window', async () => {
     jest.useFakeTimers().setSystemTime(new Date('2026-10-11T12:00:00.000Z'));
     global.fetch = jest
       .fn()
@@ -230,7 +230,7 @@ describe('PostMyPostPublishingService', () => {
 
     await expect(createService().publishNow('99')).resolves.toEqual({
       status: 'scheduled',
-      scheduledAt: new Date('2026-10-11T12:00:10.000Z'),
+      scheduledAt: new Date('2026-10-11T12:02:00.000Z'),
       raw: { id: 99, publication_status: 5 },
     });
 
@@ -238,7 +238,7 @@ describe('PostMyPostPublishingService', () => {
     expect(fetchMock.mock.calls[0][0]).toBe('https://api.postmypost.io/v4.1/publications/99');
     expect(fetchMock.mock.calls[1][1].method).toBe('PUT');
     expect(JSON.parse(String(fetchMock.mock.calls[1][1].body))).toEqual({
-      post_at: '2026-10-11T12:00:10.000Z',
+      post_at: '2026-10-11T12:02:00.000Z',
       account_ids: [10, 11],
       publication_status: 5,
       details: [

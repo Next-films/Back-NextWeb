@@ -237,45 +237,97 @@ describe('SocialPublishingService', () => {
       const publicationRepository = {
         findOne: jest.fn().mockResolvedValue(publication),
         save: jest.fn().mockImplementation(value => Promise.resolve(value)),
-      };
-      const ruleRepository = {
-        exists: jest.fn().mockResolvedValueOnce(true).mockResolvedValue(false),
+        createQueryBuilder: jest.fn().mockReturnValue({
+          update: jest.fn().mockReturnThis(),
+          set: jest.fn().mockReturnThis(),
+          where: jest.fn().mockReturnThis(),
+          andWhere: jest.fn().mockReturnThis(),
+          execute: jest.fn().mockResolvedValue({ affected: 1 }),
+        }),
       };
       const service = new SocialPublishingService(
         {} as never,
         { setContext: jest.fn() } as never,
         {} as never,
-        ruleRepository as never,
+        {} as never,
         publicationRepository as never,
         {} as never,
       );
-      const resume = jest
-        .spyOn(service, 'resumeAfterFailure')
-        .mockResolvedValue({ resumedRules: 1 });
-      const submit = jest
-        .spyOn(service as unknown as { submit(value: SocialPublication): Promise<void> }, 'submit')
+      const executeRetry = jest
+        .spyOn(
+          service as unknown as { executePublicationRetry(id: number): Promise<void> },
+          'executePublicationRetry',
+        )
         .mockResolvedValue(undefined);
 
       const retried = await service.retryPublication(publication.id);
 
-      expect(retried.status).toBe(SocialPublicationStatus.QUEUED);
+      expect(retried.status).toBe(SocialPublicationStatus.SUBMITTING);
       expect(retried.scheduledAt).toEqual(new Date('2026-10-11T12:00:00.000Z'));
-      expect(retried.externalPublicationId).toBeNull();
-      expect(resume).toHaveBeenCalledTimes(1);
-      expect(submit).toHaveBeenCalledWith(publication);
+      expect(executeRetry).toHaveBeenCalledWith(publication.id);
     } finally {
       jest.useRealTimers();
     }
   });
 
-  it('moves a scheduled PostMyPost publication to the current time', async () => {
+  it('queues a scheduled PostMyPost publication for immediate delivery', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-10-11T12:00:00.000Z'));
+
+    try {
+      const publication = {
+        id: 23,
+        ruleId: 7,
+        provider: SocialPublishingProvider.POSTMYPOST,
+        status: SocialPublicationStatus.SCHEDULED,
+        scheduledAt: new Date('2026-10-11T09:00:00.000Z'),
+        externalPublicationId: '99',
+      } as SocialPublication;
+      const claimQuery = {
+        update: jest.fn().mockReturnThis(),
+        set: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        execute: jest.fn().mockResolvedValue({ affected: 1 }),
+      };
+      const publicationRepository = {
+        findOne: jest.fn().mockResolvedValue(publication),
+        save: jest.fn().mockImplementation(value => Promise.resolve(value)),
+        createQueryBuilder: jest.fn().mockReturnValue(claimQuery),
+      };
+      const service = new SocialPublishingService(
+        {} as never,
+        { setContext: jest.fn() } as never,
+        {} as never,
+        {} as never,
+        publicationRepository as never,
+        {} as never,
+      );
+      const executeNow = jest
+        .spyOn(
+          service as unknown as { executePublicationNow(id: number): Promise<void> },
+          'executePublicationNow',
+        )
+        .mockResolvedValue(undefined);
+
+      const updated = await service.publishPublicationNow(publication.id);
+
+      expect(updated.scheduledAt).toEqual(new Date('2026-10-11T12:02:00.000Z'));
+      expect(updated.status).toBe(SocialPublicationStatus.SUBMITTING);
+      expect(executeNow).toHaveBeenCalledWith(publication.id);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('moves a queued immediate publication into the provider scheduler', async () => {
     const publication = {
       id: 23,
       ruleId: 7,
       provider: SocialPublishingProvider.POSTMYPOST,
-      status: SocialPublicationStatus.SCHEDULED,
-      scheduledAt: new Date('2026-10-11T09:00:00.000Z'),
+      status: SocialPublicationStatus.SUBMITTING,
+      scheduledAt: new Date('2026-10-11T12:02:00.000Z'),
       externalPublicationId: '99',
+      errorMessage: null,
     } as SocialPublication;
     const rule = {
       id: 7,
@@ -283,12 +335,11 @@ describe('SocialPublishingService', () => {
       projectId: 5,
       accountIds: [10, 11],
     } as SocialPublishingRule;
-    const scheduledAt = new Date('2026-10-11T12:00:10.000Z');
     const provider = {
       assertAccountsReady: jest.fn().mockResolvedValue(undefined),
       publishNow: jest.fn().mockResolvedValue({
         status: 'scheduled',
-        scheduledAt,
+        scheduledAt: new Date('2026-10-11T12:02:00.000Z'),
         raw: { id: 99, publication_status: 5 },
       }),
     };
@@ -308,12 +359,15 @@ describe('SocialPublishingService', () => {
       {} as never,
     );
 
-    const updated = await service.publishPublicationNow(publication.id);
+    await (
+      service as unknown as { executePublicationNow(id: number): Promise<void> }
+    ).executePublicationNow(publication.id);
 
     expect(provider.assertAccountsReady).toHaveBeenCalledWith(5, [10, 11]);
     expect(provider.publishNow).toHaveBeenCalledWith('99');
-    expect(updated.scheduledAt).toEqual(scheduledAt);
-    expect(updated.status).toBe(SocialPublicationStatus.SCHEDULED);
+    expect(publication.status).toBe(SocialPublicationStatus.SUBMITTING);
+    expect(publication.providerPayload).toEqual({ id: 99, publication_status: 5 });
+    expect(publicationRepository.save).toHaveBeenCalledWith(publication);
   });
 
   it('pauses every active rule when a publication fails', async () => {

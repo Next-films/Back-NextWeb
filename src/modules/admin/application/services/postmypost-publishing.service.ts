@@ -67,6 +67,7 @@ const MAX_PAGES = 100;
 const CHANNEL_CACHE_TTL_MS = 5 * 60_000;
 const RETRYABLE_GET_STATUSES = new Set([500, 502, 503, 504]);
 const MAX_GET_ATTEMPTS = 3;
+const IMMEDIATE_PUBLICATION_LEAD_TIME_MS = 2 * 60_000;
 
 @Injectable()
 export class PostMyPostPublishingService implements SocialPublishingProviderAdapter {
@@ -239,7 +240,10 @@ export class PostMyPostPublishingService implements SocialPublishingProviderAdap
       );
     }
 
-    const scheduledAt = new Date(Date.now() + 10_000);
+    // PostMyPost exposes scheduled publishing only (status 5), not a separate
+    // "publish immediately" command. Give its scheduler enough time to pick up
+    // the changed publication instead of moving it only a few seconds ahead.
+    const scheduledAt = new Date(Date.now() + IMMEDIATE_PUBLICATION_LEAD_TIME_MS);
     const updated = await this.call<PostMyPostPublication>('PUT', path, {
       post_at: scheduledAt.toISOString(),
       delete_at: publication.delete_at || undefined,
