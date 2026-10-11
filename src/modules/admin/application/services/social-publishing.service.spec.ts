@@ -238,14 +238,20 @@ describe('SocialPublishingService', () => {
         findOne: jest.fn().mockResolvedValue(publication),
         save: jest.fn().mockImplementation(value => Promise.resolve(value)),
       };
+      const ruleRepository = {
+        exists: jest.fn().mockResolvedValueOnce(true).mockResolvedValue(false),
+      };
       const service = new SocialPublishingService(
         {} as never,
         { setContext: jest.fn() } as never,
         {} as never,
-        { exists: jest.fn().mockResolvedValue(false) } as never,
+        ruleRepository as never,
         publicationRepository as never,
         {} as never,
       );
+      const resume = jest
+        .spyOn(service, 'resumeAfterFailure')
+        .mockResolvedValue({ resumedRules: 1 });
       const submit = jest
         .spyOn(service as unknown as { submit(value: SocialPublication): Promise<void> }, 'submit')
         .mockResolvedValue(undefined);
@@ -255,6 +261,7 @@ describe('SocialPublishingService', () => {
       expect(retried.status).toBe(SocialPublicationStatus.QUEUED);
       expect(retried.scheduledAt).toEqual(new Date('2026-10-11T12:00:00.000Z'));
       expect(retried.externalPublicationId).toBeNull();
+      expect(resume).toHaveBeenCalledTimes(1);
       expect(submit).toHaveBeenCalledWith(publication);
     } finally {
       jest.useRealTimers();

@@ -224,6 +224,9 @@ export class SocialPublishingService {
   }
 
   async retryPublication(id: number): Promise<SocialPublication> {
+    if (await this.isGloballyPaused()) {
+      await this.resumeAfterFailure();
+    }
     await this.assertPublishingCanStart();
 
     const publication = await this.publicationRepository.findOne({ where: { id } });
