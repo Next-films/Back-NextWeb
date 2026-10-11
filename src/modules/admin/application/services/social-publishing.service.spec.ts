@@ -26,7 +26,7 @@ describe('SocialPublishingService', () => {
   it.each(contentCases)(
     'uses the current %s title and description as the default caption',
     async (contentType, entity) => {
-      const scheduleVideo = jest.fn().mockResolvedValue({
+      const scheduleUploadedVideo = jest.fn().mockResolvedValue({
         externalPublicationId: 'publication-42',
         raw: { id: 42 },
       });
@@ -72,6 +72,7 @@ describe('SocialPublishingService', () => {
         provider: rule.provider,
         status: SocialPublicationStatus.QUEUED,
         scheduledAt: new Date('2026-10-10T09:00:00.000Z'),
+        externalFileId: '73',
         attempts: 0,
       } as SocialPublication;
       const ruleRepository = {
@@ -91,7 +92,10 @@ describe('SocialPublishingService', () => {
       const service = new SocialPublishingService(
         dataSource as never,
         logger as never,
-        { scheduleVideo } as never,
+        {
+          assertAccountsReady: jest.fn().mockResolvedValue(undefined),
+          scheduleUploadedVideo,
+        } as never,
         ruleRepository as never,
         publicationRepository as never,
         shortContentJobRepository as never,
@@ -106,7 +110,7 @@ describe('SocialPublishingService', () => {
         where: { id: job.contentId },
         select: { title: true, description: true },
       });
-      expect(scheduleVideo).toHaveBeenCalledWith(
+      expect(scheduleUploadedVideo).toHaveBeenCalledWith(
         expect.objectContaining({
           title: 'Название из карточки — момент 1',
           caption: 'Название из карточки\nОписание из Кинопоиска',
@@ -115,6 +119,107 @@ describe('SocialPublishingService', () => {
       expect(publication.status).toBe(SocialPublicationStatus.SCHEDULED);
     },
   );
+
+  it('persists an upload and reuses the file after asynchronous processing', async () => {
+    const claimQuery = {
+      update: jest.fn().mockReturnThis(),
+      set: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      execute: jest.fn().mockResolvedValue({ affected: 1 }),
+    };
+    const rule = {
+      id: 7,
+      provider: SocialPublishingProvider.POSTMYPOST,
+      projectId: 11,
+      accountIds: [13],
+      titleTemplate: '{title}',
+      captionTemplate: null,
+    } as SocialPublishingRule;
+    const job = {
+      id: 17,
+      contentType: ShortContentType.FILM,
+      contentId: 19,
+      draftPayload: {
+        clips: [{ index: 1, downloadUrl: 'https://media.example/clip.mp4' }],
+      },
+    } as unknown as ShortContentJob;
+    const publication = {
+      id: 23,
+      ruleId: rule.id,
+      shortContentJobId: job.id,
+      clipIndex: 1,
+      provider: rule.provider,
+      status: SocialPublicationStatus.QUEUED,
+      scheduledAt: new Date('2026-10-10T09:00:00.000Z'),
+      externalUploadId: null,
+      externalFileId: null,
+      attempts: 0,
+    } as SocialPublication;
+    const publicationRepository = {
+      createQueryBuilder: jest.fn().mockReturnValue(claimQuery),
+      find: jest.fn().mockResolvedValue([publication]),
+      save: jest.fn().mockImplementation(value => Promise.resolve(value)),
+    };
+    const startVideoUpload = jest.fn().mockResolvedValue({
+      externalUploadId: 'upload-41',
+      raw: { id: 41 },
+    });
+    const getVideoUploadStatus = jest
+      .fn()
+      .mockResolvedValueOnce({ status: 'processing', raw: { id: 41, status: 3 } })
+      .mockResolvedValueOnce({
+        status: 'ready',
+        externalFileId: '73',
+        raw: { id: 41, status: 1, file_id: 73 },
+      });
+    const scheduleUploadedVideo = jest.fn().mockResolvedValue({
+      externalPublicationId: 'publication-99',
+      raw: { id: 99 },
+    });
+    const provider = {
+      assertAccountsReady: jest.fn().mockResolvedValue(undefined),
+      startVideoUpload,
+      getVideoUploadStatus,
+      scheduleUploadedVideo,
+    };
+    const service = new SocialPublishingService(
+      {
+        getRepository: jest.fn().mockReturnValue({
+          findOne: jest.fn().mockResolvedValue({ title: 'Фильм', description: 'Описание' }),
+        }),
+      } as never,
+      { setContext: jest.fn(), warn: jest.fn() } as never,
+      provider as never,
+      {
+        exists: jest.fn().mockResolvedValue(false),
+        findOne: jest.fn().mockResolvedValue(rule),
+      } as never,
+      publicationRepository as never,
+      { findOne: jest.fn().mockResolvedValue(job) } as never,
+    );
+
+    const privateService = service as unknown as {
+      submit(value: SocialPublication): Promise<void>;
+      refreshProcessingUploads(): Promise<void>;
+    };
+
+    await privateService.submit(publication);
+    expect(publication.status).toBe(SocialPublicationStatus.PROCESSING);
+    expect(publication.externalUploadId).toBe('upload-41');
+
+    await privateService.refreshProcessingUploads();
+    expect(publication.status).toBe(SocialPublicationStatus.PROCESSING);
+
+    await privateService.refreshProcessingUploads();
+    expect(publication.status).toBe(SocialPublicationStatus.QUEUED);
+    expect(publication.externalFileId).toBe('73');
+
+    await privateService.submit(publication);
+    expect(publication.status).toBe(SocialPublicationStatus.SCHEDULED);
+    expect(startVideoUpload).toHaveBeenCalledTimes(1);
+    expect(scheduleUploadedVideo).toHaveBeenCalledTimes(1);
+  });
 
   it('pauses every active rule when a publication fails', async () => {
     const claimQuery = {
@@ -154,6 +259,7 @@ describe('SocialPublishingService', () => {
       provider: rule.provider,
       status: SocialPublicationStatus.QUEUED,
       scheduledAt: new Date('2026-10-10T09:00:00.000Z'),
+      externalFileId: '73',
       attempts: 0,
     } as SocialPublication;
     const ruleRepository = {
@@ -173,7 +279,12 @@ describe('SocialPublishingService', () => {
         }),
       } as never,
       logger as never,
-      { scheduleVideo: jest.fn().mockRejectedValue(new Error('TikTok is disconnected')) } as never,
+      {
+        assertAccountsReady: jest.fn().mockResolvedValue(undefined),
+        scheduleUploadedVideo: jest
+          .fn()
+          .mockRejectedValue(new Error('PostMyPost publication rejected')),
+      } as never,
       ruleRepository as never,
       publicationRepository as never,
       { findOne: jest.fn().mockResolvedValue(job) } as never,
@@ -189,7 +300,7 @@ describe('SocialPublishingService', () => {
     );
     expect(pauseQuery.where).toHaveBeenCalledWith('"isEnabled" = true OR "pausedByFailure" = true');
     expect(logger.warn).toHaveBeenCalledWith(
-      expect.stringContaining('TikTok is disconnected'),
+      expect.stringContaining('PostMyPost publication rejected'),
       'pauseAllPublishing',
     );
   });

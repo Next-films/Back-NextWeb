@@ -14,10 +14,26 @@ export type SocialProviderAccount = {
   connectionStatus?: number;
 };
 
-export type ScheduleSocialVideoInput = {
+export type StartSocialVideoUploadInput = {
+  projectId: number;
+  videoUrl: string;
+};
+
+export type StartedSocialVideoUpload = {
+  externalUploadId: string;
+  raw: Record<string, unknown>;
+};
+
+export type SocialVideoUploadStatus = {
+  status: 'processing' | 'ready' | 'failed';
+  externalFileId?: string;
+  raw: Record<string, unknown>;
+};
+
+export type ScheduleUploadedSocialVideoInput = {
   projectId: number;
   accountIds: number[];
-  videoUrl: string;
+  externalFileId: string;
   scheduledAt: Date;
   title?: string;
   caption?: string;
@@ -30,12 +46,21 @@ export type ScheduledSocialVideo = {
 
 export type SocialProviderPublicationStatus = 'scheduled' | 'published' | 'failed';
 
+export class SocialProviderAccountsNotReadyError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = SocialProviderAccountsNotReadyError.name;
+  }
+}
+
 export interface SocialPublishingProviderAdapter {
   readonly provider: SocialPublishingProvider;
   listProjects(): Promise<SocialProviderProject[]>;
   listAccounts(projectId: number): Promise<SocialProviderAccount[]>;
   assertAccountsReady(projectId: number, accountIds: number[]): Promise<void>;
-  scheduleVideo(input: ScheduleSocialVideoInput): Promise<ScheduledSocialVideo>;
+  startVideoUpload(input: StartSocialVideoUploadInput): Promise<StartedSocialVideoUpload>;
+  getVideoUploadStatus(externalUploadId: string): Promise<SocialVideoUploadStatus>;
+  scheduleUploadedVideo(input: ScheduleUploadedSocialVideoInput): Promise<ScheduledSocialVideo>;
   getPublicationStatus(externalPublicationId: string): Promise<{
     status: SocialProviderPublicationStatus;
     raw: Record<string, unknown>;

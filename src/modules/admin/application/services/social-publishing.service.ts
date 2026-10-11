@@ -17,7 +17,10 @@ import {
   SocialPublishingRule,
 } from '@/admin/domain/social-publishing-rule.entity';
 import { PostMyPostPublishingService } from '@/admin/application/services/postmypost-publishing.service';
-import { SocialPublishingProviderAdapter } from '@/admin/application/services/social-publishing-provider';
+import {
+  SocialProviderAccountsNotReadyError,
+  SocialPublishingProviderAdapter,
+} from '@/admin/application/services/social-publishing-provider';
 import {
   AdminCreateSocialPublishingRuleInputDto,
   AdminUpdateSocialPublishingRuleInputDto,
@@ -228,10 +231,12 @@ export class SocialPublishingService {
       throw new BadRequestException('Only failed social publications can be retried');
     }
 
-    publication.status = SocialPublicationStatus.QUEUED;
+    publication.status =
+      publication.externalUploadId && !publication.externalFileId
+        ? SocialPublicationStatus.PROCESSING
+        : SocialPublicationStatus.QUEUED;
     publication.errorMessage = null;
     publication.externalPublicationId = null;
-    publication.providerPayload = null;
     return this.publicationRepository.save(publication);
   }
 
@@ -253,6 +258,8 @@ export class SocialPublishingService {
           `${interrupted} publication submission(s) were interrupted; check PostMyPost before resuming`,
         );
       }
+
+      await this.refreshProcessingUploads();
 
       if (!(await this.isGloballyPaused())) {
         for (let index = 0; index < 20; index += 1) {
@@ -344,6 +351,8 @@ export class SocialPublishingService {
               status: SocialPublicationStatus.QUEUED,
               scheduledAt,
               externalPublicationId: null,
+              externalUploadId: null,
+              externalFileId: null,
               providerPayload: null,
               errorMessage: null,
               attempts: 0,
@@ -387,35 +396,57 @@ export class SocialPublishingService {
       return;
     }
 
-    const clip = this.getClips(job).find(item => item.index === publication.clipIndex);
-    const videoUrl = clip?.downloadUrl || clip?.videoUrl;
-
-    if (!videoUrl) {
-      await this.failAndPause(publication, 'Clip URL is missing');
-      return;
-    }
+    if (!(await this.checkAccountsBeforePublishing(publication, rule))) return;
 
     try {
-      const content = await this.getContentMetadata(job);
-      const values = {
-        title: content.title,
-        description: content.description,
-        clipIndex: String(publication.clipIndex),
-        contentType: job.contentType,
-        contentId: String(job.contentId),
-      };
-      const result = await this.getProvider(rule.provider).scheduleVideo({
-        projectId: rule.projectId,
-        accountIds: rule.accountIds,
-        videoUrl,
-        scheduledAt: publication.scheduledAt,
-        title: this.interpolate(rule.titleTemplate, values),
-        caption: this.interpolate(rule.captionTemplate || DEFAULT_CAPTION_TEMPLATE, values)?.trim(),
-      });
+      const provider = this.getProvider(rule.provider);
 
-      publication.status = SocialPublicationStatus.SCHEDULED;
-      publication.externalPublicationId = result.externalPublicationId;
-      publication.providerPayload = result.raw;
+      if (publication.externalFileId) {
+        const content = await this.getContentMetadata(job);
+        const values = {
+          title: content.title,
+          description: content.description,
+          clipIndex: String(publication.clipIndex),
+          contentType: job.contentType,
+          contentId: String(job.contentId),
+        };
+        publication.scheduledAt = new Date(
+          Math.max(publication.scheduledAt.getTime(), Date.now() + 120_000),
+        );
+        const result = await provider.scheduleUploadedVideo({
+          projectId: rule.projectId,
+          accountIds: rule.accountIds,
+          externalFileId: publication.externalFileId,
+          scheduledAt: publication.scheduledAt,
+          title: this.interpolate(rule.titleTemplate, values),
+          caption: this.interpolate(
+            rule.captionTemplate || DEFAULT_CAPTION_TEMPLATE,
+            values,
+          )?.trim(),
+        });
+
+        publication.status = SocialPublicationStatus.SCHEDULED;
+        publication.externalPublicationId = result.externalPublicationId;
+        publication.providerPayload = result.raw;
+      } else if (publication.externalUploadId) {
+        publication.status = SocialPublicationStatus.PROCESSING;
+      } else {
+        const clip = this.getClips(job).find(item => item.index === publication.clipIndex);
+        const videoUrl = clip?.downloadUrl || clip?.videoUrl;
+
+        if (!videoUrl) {
+          await this.failAndPause(publication, 'Clip URL is missing');
+          return;
+        }
+
+        const upload = await provider.startVideoUpload({
+          projectId: rule.projectId,
+          videoUrl,
+        });
+        publication.status = SocialPublicationStatus.PROCESSING;
+        publication.externalUploadId = upload.externalUploadId;
+        publication.providerPayload = upload.raw;
+      }
     } catch (error) {
       publication.status = SocialPublicationStatus.FAILED;
       publication.errorMessage = this.getErrorMessage(error);
@@ -424,6 +455,32 @@ export class SocialPublishingService {
     await this.publicationRepository.save(publication);
     if (publication.status === SocialPublicationStatus.FAILED) {
       await this.pauseAllPublishing(publication.errorMessage || 'Social publication failed');
+    }
+  }
+
+  private async checkAccountsBeforePublishing(
+    publication: SocialPublication,
+    rule: SocialPublishingRule,
+  ): Promise<boolean> {
+    try {
+      await this.getProvider(rule.provider).assertAccountsReady(rule.projectId, rule.accountIds);
+      return true;
+    } catch (error) {
+      const reason = this.getErrorMessage(error);
+
+      if (error instanceof SocialProviderAccountsNotReadyError) {
+        await this.failAndPause(publication, reason);
+        return false;
+      }
+
+      publication.status = SocialPublicationStatus.QUEUED;
+      publication.errorMessage = `Temporary PostMyPost account check error: ${reason}`;
+      await this.publicationRepository.save(publication);
+      this.logger.warn(
+        `Deferred social publication ${publication.id}: ${reason}`,
+        this.checkAccountsBeforePublishing.name,
+      );
+      return false;
     }
   }
 
@@ -460,6 +517,55 @@ export class SocialPublishingService {
       title: content?.title?.trim() || job.contentTitle?.trim() || `Контент ${job.contentId}`,
       description: content?.description?.trim() || '',
     };
+  }
+
+  private async refreshProcessingUploads(): Promise<void> {
+    const publications = await this.publicationRepository.find({
+      where: { status: SocialPublicationStatus.PROCESSING },
+      order: { updatedAt: 'ASC' },
+      // PostMyPost limits /upload/* to 10 requests per rolling minute.
+      take: 8,
+    });
+
+    for (const publication of publications) {
+      if (!publication.externalUploadId) {
+        await this.failAndPause(publication, 'PostMyPost upload id is missing');
+        continue;
+      }
+
+      try {
+        const result = await this.getProvider(publication.provider).getVideoUploadStatus(
+          publication.externalUploadId,
+        );
+        publication.providerPayload = result.raw;
+
+        if (result.status === 'failed') {
+          publication.externalUploadId = null;
+          publication.externalFileId = null;
+          await this.failAndPause(publication, 'PostMyPost failed to process the video');
+          continue;
+        }
+
+        if (result.status === 'ready' && result.externalFileId) {
+          publication.externalFileId = result.externalFileId;
+          publication.status = SocialPublicationStatus.QUEUED;
+          publication.errorMessage = null;
+        } else {
+          publication.status = SocialPublicationStatus.PROCESSING;
+          publication.errorMessage = null;
+        }
+        await this.publicationRepository.save(publication);
+      } catch (error) {
+        const reason = this.getErrorMessage(error);
+        publication.status = SocialPublicationStatus.PROCESSING;
+        publication.errorMessage = `Temporary PostMyPost upload status error: ${reason}`;
+        await this.publicationRepository.save(publication);
+        this.logger.warn(
+          `Cannot refresh PostMyPost upload ${publication.externalUploadId}: ${reason}`,
+          this.refreshProcessingUploads.name,
+        );
+      }
+    }
   }
 
   private async refreshScheduledPublications(): Promise<void> {
@@ -502,9 +608,8 @@ export class SocialPublishingService {
           `Cannot refresh social publication ${publication.id}: ${reason}`,
           this.refreshScheduledPublications.name,
         );
-        await this.pauseAllPublishing(
-          `Cannot verify PostMyPost publication ${publication.externalPublicationId}: ${reason}`,
-        );
+        publication.errorMessage = `Temporary PostMyPost publication status error: ${reason}`;
+        await this.publicationRepository.save(publication);
       }
     }
   }

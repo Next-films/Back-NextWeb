@@ -16,6 +16,7 @@ import {
 export enum SocialPublicationStatus {
   QUEUED = 'queued',
   SUBMITTING = 'submitting',
+  PROCESSING = 'processing',
   SCHEDULED = 'scheduled',
   PUBLISHED = 'published',
   FAILED = 'failed',
@@ -60,6 +61,12 @@ export class SocialPublication {
 
   @Column({ type: 'varchar', nullable: true })
   externalPublicationId: string | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  externalUploadId: string | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  externalFileId: string | null;
 
   @Column({ type: 'jsonb', nullable: true })
   providerPayload: Record<string, unknown> | null;

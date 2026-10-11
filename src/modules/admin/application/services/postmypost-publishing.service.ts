@@ -4,11 +4,15 @@ import { ExternalApiConfigService } from '@/external-api-config/application/exte
 import { ExternalApiProviderEnum, ExternalApiTargetEnum } from '@/external-api-config/domain/types';
 import { SocialPublishingProvider } from '@/admin/domain/social-publishing-rule.entity';
 import {
-  ScheduleSocialVideoInput,
+  ScheduleUploadedSocialVideoInput,
   ScheduledSocialVideo,
   SocialProviderAccount,
+  SocialProviderAccountsNotReadyError,
   SocialProviderProject,
   SocialPublishingProviderAdapter,
+  SocialVideoUploadStatus,
+  StartedSocialVideoUpload,
+  StartSocialVideoUploadInput,
 } from '@/admin/application/services/social-publishing-provider';
 
 type PostMyPostList<T> = {
@@ -69,7 +73,7 @@ export class PostMyPostPublishingService implements SocialPublishingProviderAdap
     const uniqueAccountIds = [...new Set(accountIds)];
 
     if (uniqueAccountIds.length === 0) {
-      throw new ServiceUnavailableException('No PostMyPost accounts selected');
+      throw new SocialProviderAccountsNotReadyError('No PostMyPost accounts selected');
     }
 
     const accounts = await this.listAll<PostMyPostAccount>('/accounts', {
@@ -91,20 +95,49 @@ export class PostMyPostPublishingService implements SocialPublishingProviderAdap
     });
 
     if (unavailable.length > 0) {
-      throw new ServiceUnavailableException(
+      throw new SocialProviderAccountsNotReadyError(
         `PostMyPost account check failed: ${unavailable.join('; ')}`,
       );
     }
   }
 
-  async scheduleVideo(input: ScheduleSocialVideoInput): Promise<ScheduledSocialVideo> {
-    await this.assertAccountsReady(input.projectId, input.accountIds);
-
-    const upload = await this.call<{ id: number }>('POST', '/upload/init', {
+  async startVideoUpload(input: StartSocialVideoUploadInput): Promise<StartedSocialVideoUpload> {
+    const upload = await this.call<{ id: number | string }>('POST', '/upload/init', {
       project_id: input.projectId,
       url: input.videoUrl,
     });
-    const fileId = await this.waitForFile(upload.id);
+
+    if (typeof upload.id !== 'number' && typeof upload.id !== 'string') {
+      throw new ServiceUnavailableException('PostMyPost did not return upload id');
+    }
+
+    return { externalUploadId: String(upload.id), raw: upload };
+  }
+
+  async getVideoUploadStatus(externalUploadId: string): Promise<SocialVideoUploadStatus> {
+    const upload = await this.call<{ status: number; file_id?: number }>(
+      'GET',
+      `/upload/status?id=${encodeURIComponent(externalUploadId)}`,
+    );
+
+    if (Number(upload.status) === 1 && upload.file_id) {
+      return { status: 'ready', externalFileId: String(upload.file_id), raw: upload };
+    }
+    if (Number(upload.status) === 2) {
+      return { status: 'failed', raw: upload };
+    }
+    return { status: 'processing', raw: upload };
+  }
+
+  async scheduleUploadedVideo(
+    input: ScheduleUploadedSocialVideoInput,
+  ): Promise<ScheduledSocialVideo> {
+    const fileId = Number(input.externalFileId);
+
+    if (!Number.isInteger(fileId) || fileId <= 0) {
+      throw new ServiceUnavailableException('PostMyPost file id is invalid');
+    }
+
     const publication = await this.call<Record<string, unknown>>('POST', '/publications', {
       project_id: input.projectId,
       post_at: input.scheduledAt.toISOString(),
@@ -148,27 +181,6 @@ export class PostMyPostPublishingService implements SocialPublishingProviderAdap
       status: status === 1 ? 'published' : status === 3 ? 'failed' : 'scheduled',
       raw: publication,
     };
-  }
-
-  private async waitForFile(uploadId: number): Promise<number> {
-    for (let attempt = 0; attempt < 45; attempt += 1) {
-      const upload = await this.call<{ status: number; file_id?: number }>(
-        'GET',
-        `/upload/status?id=${uploadId}`,
-      );
-
-      if (upload.status === 1 && upload.file_id) {
-        return upload.file_id;
-      }
-      if (upload.status === 2) {
-        throw new ServiceUnavailableException('PostMyPost failed to process the video');
-      }
-
-      // /upload/* is limited to 10 requests per rolling minute.
-      await delay(7_000);
-    }
-
-    throw new ServiceUnavailableException('PostMyPost video processing timed out');
   }
 
   private async listChannels(): Promise<PostMyPostChannel[]> {

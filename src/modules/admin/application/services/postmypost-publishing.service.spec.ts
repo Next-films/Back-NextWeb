@@ -101,7 +101,7 @@ describe('PostMyPostPublishingService', () => {
     expect(global.fetch).toHaveBeenCalledTimes(1);
   });
 
-  it('uploads a public clip URL and schedules it as a short video', async () => {
+  it('uploads, checks and schedules a public clip without blocking on processing', async () => {
     global.fetch = jest
       .fn()
       .mockResolvedValueOnce({
@@ -126,11 +126,25 @@ describe('PostMyPostPublishingService', () => {
         json: jest.fn().mockResolvedValue({ id: 99, publication_status: 5 }),
       });
 
+    const service = createService();
+
+    await expect(service.assertAccountsReady(5, [10, 11])).resolves.toBeUndefined();
     await expect(
-      createService().scheduleVideo({
+      service.startVideoUpload({
+        projectId: 5,
+        videoUrl: 'https://media.example/clip.mp4',
+      }),
+    ).resolves.toEqual({ externalUploadId: '41', raw: { id: 41 } });
+    await expect(service.getVideoUploadStatus('41')).resolves.toEqual({
+      status: 'ready',
+      externalFileId: '73',
+      raw: { id: 41, status: 1, file_id: 73 },
+    });
+    await expect(
+      service.scheduleUploadedVideo({
         projectId: 5,
         accountIds: [10, 11],
-        videoUrl: 'https://media.example/clip.mp4',
+        externalFileId: '73',
         scheduledAt: new Date('2026-10-10T09:00:00.000Z'),
         title: 'Title',
         caption: 'Caption',
@@ -168,7 +182,7 @@ describe('PostMyPostPublishingService', () => {
     );
   });
 
-  it('does not upload when any selected account is disconnected', async () => {
+  it('reports when any selected account is disconnected', async () => {
     global.fetch = jest.fn().mockResolvedValue({
       ok: true,
       json: jest.fn().mockResolvedValue({
@@ -179,15 +193,23 @@ describe('PostMyPostPublishingService', () => {
       }),
     });
 
-    await expect(
-      createService().scheduleVideo({
-        projectId: 5,
-        accountIds: [10, 11],
-        videoUrl: 'https://media.example/clip.mp4',
-        scheduledAt: new Date('2026-10-10T09:00:00.000Z'),
-      }),
-    ).rejects.toThrow('TikTok: account is not connected');
+    await expect(createService().assertAccountsReady(5, [10, 11])).rejects.toThrow(
+      'TikTok: account is not connected',
+    );
 
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps a PostMyPost upload in processing without timing it out', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: jest.fn().mockResolvedValue({ id: 41, status: 3 }),
+    });
+
+    await expect(createService().getVideoUploadStatus('41')).resolves.toEqual({
+      status: 'processing',
+      raw: { id: 41, status: 3 },
+    });
     expect(global.fetch).toHaveBeenCalledTimes(1);
   });
 });
