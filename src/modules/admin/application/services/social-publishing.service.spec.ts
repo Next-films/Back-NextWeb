@@ -24,7 +24,7 @@ describe('SocialPublishingService', () => {
   ] as const;
 
   it.each(contentCases)(
-    'uses the current %s title and description as the default caption',
+    'uses the current %s title and clip hook in social metadata',
     async (contentType, entity) => {
       const scheduleUploadedVideo = jest.fn().mockResolvedValue({
         externalPublicationId: 'publication-42',
@@ -61,7 +61,13 @@ describe('SocialPublishingService', () => {
         contentTitle: 'Старое название из нарезки',
         status: ShortContentJobStatus.RENDERED,
         draftPayload: {
-          clips: [{ index: 1, downloadUrl: 'https://media.example/clip.mp4' }],
+          clips: [
+            {
+              index: 1,
+              downloadUrl: 'https://media.example/clip.mp4',
+              hook: 'Он наконец узнал правду?',
+            },
+          ],
         },
       };
       const publication = {
@@ -114,7 +120,7 @@ describe('SocialPublishingService', () => {
       expect(scheduleUploadedVideo).toHaveBeenCalledWith(
         expect.objectContaining({
           title: 'Название из карточки — момент 1',
-          caption: 'Название из карточки\nОписание из Кинопоиска',
+          caption: 'Он наконец узнал правду?\n\nНазвание из карточки\n#кино #shorts',
         }),
       );
       expect(publication.status).toBe(SocialPublicationStatus.SCHEDULED);
@@ -526,7 +532,7 @@ describe('SocialPublishingService', () => {
     );
   });
 
-  it('stores the title and description template when a rule has no custom caption', async () => {
+  it('stores hook-first social templates when a rule has no custom caption', async () => {
     const ruleRepository = {
       exists: jest.fn().mockResolvedValue(false),
       create: jest.fn().mockImplementation(value => value),
@@ -556,7 +562,8 @@ describe('SocialPublishingService', () => {
 
     expect(ruleRepository.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        captionTemplate: '{title}\n{description}',
+        titleTemplate: '{hook}',
+        captionTemplate: '{hook}\n\n{title}\n#кино #shorts',
         endAt: new Date('2026-10-31T21:00:00.000Z'),
       }),
     );

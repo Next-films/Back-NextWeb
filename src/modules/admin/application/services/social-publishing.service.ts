@@ -40,9 +40,11 @@ type StoredClip = {
   index: number;
   videoUrl?: string;
   downloadUrl?: string;
+  hook?: string;
 };
 
-const DEFAULT_CAPTION_TEMPLATE = '{title}\n{description}';
+const DEFAULT_TITLE_TEMPLATE = '{hook}';
+const DEFAULT_CAPTION_TEMPLATE = '{hook}\n\n{title}\n#кино #shorts';
 const IMMEDIATE_PUBLICATION_DELAY_MS = 2 * 60_000;
 const STUCK_PUBLICATION_GRACE_MS = 5 * 60_000;
 const INTERRUPTED_SUBMISSION_ERROR =
@@ -129,7 +131,7 @@ export class SocialPublishingService {
       endAt,
       nextRunAt,
       timezone,
-      titleTemplate: input.titleTemplate?.trim() || '{title} — момент {clipIndex}',
+      titleTemplate: input.titleTemplate?.trim() || DEFAULT_TITLE_TEMPLATE,
       captionTemplate: input.captionTemplate?.trim() || DEFAULT_CAPTION_TEMPLATE,
       isEnabled: input.isEnabled ?? true,
       pausedByFailure: false,
@@ -535,12 +537,15 @@ export class SocialPublishingService {
 
     try {
       const provider = this.getProvider(rule.provider);
+      const clip = this.getClips(job).find(item => item.index === publication.clipIndex);
 
       if (publication.externalFileId) {
         const content = await this.getContentMetadata(job);
+        const hook = clip?.hook?.trim() || `${content.title} — сцена ${publication.clipIndex}`;
         const values = {
           title: content.title,
           description: content.description,
+          hook,
           clipIndex: String(publication.clipIndex),
           contentType: job.contentType,
           contentId: String(job.contentId),
@@ -566,7 +571,6 @@ export class SocialPublishingService {
       } else if (publication.externalUploadId) {
         publication.status = SocialPublicationStatus.PROCESSING;
       } else {
-        const clip = this.getClips(job).find(item => item.index === publication.clipIndex);
         const videoUrl = clip?.downloadUrl || clip?.videoUrl;
 
         if (!videoUrl) {

@@ -20,6 +20,10 @@ export class AdminShortContentHighlightsOptionsInputDto {
 
   @IsOptional()
   @IsBoolean()
+  hook?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
   keepOriginalAudio?: boolean;
 
   @IsOptional()
