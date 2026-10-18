@@ -49,6 +49,7 @@ export type SocialProviderPublicationStatus = 'scheduled' | 'publishing' | 'publ
 export type PublishSocialVideoNowResult = {
   status: SocialProviderPublicationStatus;
   scheduledAt?: Date;
+  failureReason?: string;
   raw: Record<string, unknown>;
 };
 
@@ -70,6 +71,7 @@ export interface SocialPublishingProviderAdapter {
   publishNow(externalPublicationId: string): Promise<PublishSocialVideoNowResult>;
   getPublicationStatus(externalPublicationId: string): Promise<{
     status: SocialProviderPublicationStatus;
+    failureReason?: string;
     raw: Record<string, unknown>;
   }>;
 }

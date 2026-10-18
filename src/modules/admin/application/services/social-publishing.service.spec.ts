@@ -23,6 +23,35 @@ describe('SocialPublishingService', () => {
     [ShortContentType.SERIAL, Serial],
   ] as const;
 
+  it('shows the saved PostMyPost account error for an existing failed publication', async () => {
+    const publication = {
+      id: 23,
+      provider: SocialPublishingProvider.POSTMYPOST,
+      status: SocialPublicationStatus.FAILED,
+      externalPublicationId: '32852886',
+      errorMessage: 'PostMyPost reported an error for publication 32852886',
+      providerPayload: { publication_status: 3, error: 'YouTube rejected the video' },
+    } as unknown as SocialPublication;
+    const provider = {
+      getPublicationFailureReason: jest.fn().mockReturnValue('аккаунт #10: неверный формат видео'),
+    };
+    const service = new SocialPublishingService(
+      {} as never,
+      { setContext: jest.fn() } as never,
+      provider as never,
+      {} as never,
+      { find: jest.fn().mockResolvedValue([publication]) } as never,
+      {} as never,
+      {} as never,
+    );
+
+    await expect(service.listPublications()).resolves.toEqual([
+      expect.objectContaining({
+        errorMessage: 'PostMyPost: аккаунт #10: неверный формат видео (публикация #32852886)',
+      }),
+    ]);
+  });
+
   it.each(contentCases)(
     'uses the current %s title and clip hook in social metadata',
     async (contentType, entity) => {

@@ -74,11 +74,22 @@ export class SocialPublishingService {
     return this.ruleRepository.find({ order: { createdAt: 'DESC' } });
   }
 
-  listPublications(): Promise<SocialPublication[]> {
-    return this.publicationRepository.find({
+  async listPublications(): Promise<SocialPublication[]> {
+    const publications = await this.publicationRepository.find({
       relations: { rule: true },
       order: { createdAt: 'DESC' },
       take: 200,
+    });
+    return publications.map(publication => {
+      if (
+        publication.status === SocialPublicationStatus.FAILED &&
+        publication.providerPayload &&
+        publication.errorMessage?.startsWith('PostMyPost reported an error')
+      ) {
+        const reason = this.postMyPost.getPublicationFailureReason(publication.providerPayload);
+        if (reason) publication.errorMessage = this.providerFailureMessage(publication, reason);
+      }
+      return publication;
     });
   }
 
@@ -358,7 +369,7 @@ export class SocialPublishingService {
       } else if (result.status === 'failed') {
         await this.failAndPause(
           publication,
-          `PostMyPost reported an error for publication ${publication.externalPublicationId}`,
+          this.providerFailureMessage(publication, result.failureReason),
         );
         return;
       } else {
@@ -739,7 +750,7 @@ export class SocialPublishingService {
         if (result.status === 'failed') {
           await this.failAndPause(
             publication,
-            `PostMyPost reported an error for publication ${publication.externalPublicationId}`,
+            this.providerFailureMessage(publication, result.failureReason),
           );
           continue;
         }
@@ -824,7 +835,7 @@ export class SocialPublishingService {
           publication.errorMessage = null;
           reconciled += 1;
         } else {
-          publication.errorMessage = `PostMyPost reported an error for publication ${publication.externalPublicationId}`;
+          publication.errorMessage = this.providerFailureMessage(publication, result.failureReason);
         }
 
         await this.publicationRepository.save(publication);
@@ -945,6 +956,16 @@ export class SocialPublishingService {
       { shortContentJobId, clipIndex },
       { clipDeletedAt: new Date() },
     );
+  }
+
+  private providerFailureMessage(
+    publication: Pick<SocialPublication, 'externalPublicationId'>,
+    reason?: string,
+  ): string {
+    const id = publication.externalPublicationId;
+    return reason
+      ? `PostMyPost: ${reason}${id ? ` (публикация #${id})` : ''}`
+      : `PostMyPost сообщил об ошибке${id ? ` для публикации #${id}` : ''}, но не передал описание`;
   }
 
   private isGloballyPaused(): Promise<boolean> {

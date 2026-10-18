@@ -51,6 +51,7 @@ type PostMyPostPublicationDetail = {
   nsfw?: boolean;
   file_ids?: number[];
   files?: Array<{ id?: number }>;
+  [key: string]: unknown;
 };
 type PostMyPostPublication = {
   id?: number | string;
@@ -60,6 +61,7 @@ type PostMyPostPublication = {
   account_ids?: number[];
   details?: PostMyPostPublicationDetail[];
   publication_status?: number;
+  [key: string]: unknown;
 };
 
 const PAGE_SIZE = 50;
@@ -199,6 +201,7 @@ export class PostMyPostPublishingService implements SocialPublishingProviderAdap
 
   async getPublicationStatus(externalPublicationId: string): Promise<{
     status: 'scheduled' | 'publishing' | 'published' | 'failed';
+    failureReason?: string;
     raw: Record<string, unknown>;
   }> {
     const publication = await this.call<PostMyPostPublication>(
@@ -207,15 +210,20 @@ export class PostMyPostPublishingService implements SocialPublishingProviderAdap
     );
     const status = Number(publication.publication_status);
 
+    const normalizedStatus =
+      status === 1
+        ? 'published'
+        : status === 2
+        ? 'publishing'
+        : status === 3
+        ? 'failed'
+        : 'scheduled';
+
     return {
-      status:
-        status === 1
-          ? 'published'
-          : status === 2
-          ? 'publishing'
-          : status === 3
-          ? 'failed'
-          : 'scheduled',
+      status: normalizedStatus,
+      ...(normalizedStatus === 'failed'
+        ? { failureReason: this.getPublicationFailureReason(publication) }
+        : {}),
       raw: publication,
     };
   }
@@ -227,7 +235,13 @@ export class PostMyPostPublishingService implements SocialPublishingProviderAdap
 
     if (status === 1) return { status: 'published', raw: publication };
     if (status === 2) return { status: 'publishing', raw: publication };
-    if (status === 3) return { status: 'failed', raw: publication };
+    if (status === 3) {
+      return {
+        status: 'failed',
+        failureReason: this.getPublicationFailureReason(publication),
+        raw: publication,
+      };
+    }
     if (status !== 5) {
       throw new ServiceUnavailableException(
         `PostMyPost publication ${externalPublicationId} cannot be published now (status ${status})`,
@@ -254,6 +268,75 @@ export class PostMyPostPublishingService implements SocialPublishingProviderAdap
     });
 
     return { status: 'scheduled', scheduledAt, raw: updated };
+  }
+
+  getPublicationFailureReason(payload: Record<string, unknown>): string | undefined {
+    const reasons: string[] = [];
+    const seen = new Set<unknown>();
+    const errorKey = /(error|message|reason|failure|failed)/i;
+
+    const accountLabel = (
+      record: Record<string, unknown>,
+      inherited?: string,
+    ): string | undefined => {
+      const id = record.account_id ?? record.accountId ?? this.asRecord(record.account)?.id;
+      const name =
+        record.account_name ??
+        record.accountName ??
+        this.asRecord(record.account)?.name ??
+        this.asRecord(record.account)?.login;
+      if (typeof name === 'string' && name.trim()) return name.trim();
+      if (typeof id === 'number' || typeof id === 'string') return `аккаунт #${String(id)}`;
+      return inherited;
+    };
+
+    const scalarMessages = (value: unknown, depth = 0): string[] => {
+      if (depth > 4 || value == null) return [];
+      if (typeof value === 'string') return value.trim() ? [value.trim()] : [];
+      if (typeof value === 'number') return [String(value)];
+      if (Array.isArray(value)) return value.flatMap(item => scalarMessages(item, depth + 1));
+      const record = this.asRecord(value);
+      if (!record) return [];
+      const preferred = Object.entries(record)
+        .filter(([key]) => errorKey.test(key) || /^(code|text|description)$/i.test(key))
+        .flatMap(([, item]) => scalarMessages(item, depth + 1));
+      return preferred.length > 0
+        ? preferred
+        : Object.values(record).flatMap(item => scalarMessages(item, depth + 1));
+    };
+
+    const visit = (value: unknown, inheritedAccount?: string, depth = 0): void => {
+      if (depth > 6 || value == null || seen.has(value)) return;
+      if (typeof value !== 'object') return;
+      seen.add(value);
+      if (Array.isArray(value)) {
+        value.forEach(item => visit(item, inheritedAccount, depth + 1));
+        return;
+      }
+      const record = value as Record<string, unknown>;
+      const account = accountLabel(record, inheritedAccount);
+      for (const [key, item] of Object.entries(record)) {
+        if (errorKey.test(key)) {
+          for (const message of scalarMessages(item)) {
+            const normalized = message.replace(/\s+/g, ' ').slice(0, 500);
+            const withAccount = account ? `${account}: ${normalized}` : normalized;
+            if (normalized && !reasons.includes(withAccount)) reasons.push(withAccount);
+          }
+        } else if (item && typeof item === 'object') {
+          visit(item, account, depth + 1);
+        }
+        if (reasons.length >= 8) return;
+      }
+    };
+
+    visit(payload);
+    return reasons.length > 0 ? reasons.join('; ').slice(0, 1_500) : undefined;
+  }
+
+  private asRecord(value: unknown): Record<string, unknown> | null {
+    return value && typeof value === 'object' && !Array.isArray(value)
+      ? (value as Record<string, unknown>)
+      : null;
   }
 
   private async listChannels(): Promise<PostMyPostChannel[]> {

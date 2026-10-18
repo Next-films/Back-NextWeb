@@ -265,4 +265,42 @@ describe('PostMyPostPublishingService', () => {
     });
     expect(global.fetch).toHaveBeenCalledTimes(1);
   });
+
+  it('extracts account-specific publication errors from PostMyPost', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: jest.fn().mockResolvedValue({
+        id: 99,
+        publication_status: 3,
+        details: [
+          { account_id: 10, error: { message: 'YouTube rejected the video format' } },
+          { account_id: 11, error_message: 'TikTok token expired' },
+        ],
+      }),
+    });
+
+    await expect(createService().getPublicationStatus('99')).resolves.toEqual({
+      status: 'failed',
+      failureReason:
+        'аккаунт #10: YouTube rejected the video format; аккаунт #11: TikTok token expired',
+      raw: {
+        id: 99,
+        publication_status: 3,
+        details: [
+          { account_id: 10, error: { message: 'YouTube rejected the video format' } },
+          { account_id: 11, error_message: 'TikTok token expired' },
+        ],
+      },
+    });
+  });
+
+  it('does not confuse regular publication fields with an error', () => {
+    expect(
+      createService().getPublicationFailureReason({
+        id: 99,
+        publication_status: 3,
+        details: [{ account_id: 10, title: 'Title', content: 'Caption' }],
+      }),
+    ).toBeUndefined();
+  });
 });
