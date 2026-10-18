@@ -19,6 +19,7 @@ import { BannerModule } from '@/banner/banner.module';
 import { ViewerButtonModule } from '@/viewer-button/viewer-button.module';
 import { HomeSectionsModule } from '@/home-sections/home-sections.module';
 import { PlaybackSettingsModule } from '@/playback-settings/playback-settings.module';
+import { KodikModule } from '@/external-api/kodik/kodik.module';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { PlaybackSettingsModule } from '@/playback-settings/playback-settings.mo
     ViewerButtonModule,
     HomeSectionsModule,
     PlaybackSettingsModule,
+    KodikModule,
   ],
   controllers: [],
   providers: [AsyncLocalStorageService],

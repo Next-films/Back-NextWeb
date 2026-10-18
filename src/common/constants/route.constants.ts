@@ -94,6 +94,10 @@ export const VIBIX_CATALOG_ROUTE = {
   MAIN: `vibix/catalog`,
 };
 
+export const KODIK_CATALOG_ROUTE = {
+  MAIN: `kodik/catalog`,
+};
+
 export const VIDEOSEED_CATALOG_ROUTE = {
   MAIN: `videoseed/catalog`,
 };

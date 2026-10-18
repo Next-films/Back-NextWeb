@@ -3,6 +3,7 @@ export enum ExternalApiProviderEnum {
   TOR_API = 'tor-api',
   TMDB = 'tmdb',
   VIBIX = 'vibix',
+  KODIK = 'kodik',
   VIDEOSEED = 'videoseed',
   POSTMYPOST = 'postmypost',
 }
