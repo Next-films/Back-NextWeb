@@ -224,7 +224,8 @@ export class AdminShortContentController {
         clip =>
           typeof clip === 'object' &&
           clip !== null &&
-          (clip as Record<string, unknown>).revision === undefined,
+          ((clip as Record<string, unknown>).revision === undefined ||
+            (clip as Record<string, unknown>).processingVersion !== 2),
       );
 
     if (!job.shortContentJobId || (job.isFinished && !waitsForLegacyMusic)) {

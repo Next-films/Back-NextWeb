@@ -28,6 +28,10 @@ export class AdminShortContentHighlightsOptionsInputDto {
 
   @IsOptional()
   @IsBoolean()
+  removeOriginalMusic?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
   music?: boolean;
 
   @IsOptional()
