@@ -73,6 +73,12 @@ Public TLS uses an independent Let's Encrypt account and the `next-public` certi
 lineage. nginx reads `/etc/letsencrypt/live/next-public/{fullchain,privkey}.pem`.
 `certbot.timer` renews it locally; the saved deploy hook reloads nginx. The initial
 certificate transfer was only for bootstrap and is not used by active nginx anymore.
+An explicit `renewal-hooks/deploy/next-public-reload` also validates/reloads nginx for
+this certificate lineage. ACME staging IPv6 timed out while IPv4 returned 200, so
+only certbot uses `/usr/local/sbin/next-certbot-ipv4` through a systemd drop-in.
+No system-wide IPv6, DNS, provider clients or unrelated services are modified.
+The IPv4-only simulated renewal passed for all three public domains, including reload
+hooks, after contour isolation was enabled.
 Vibix `VIBIX_PUBLISHER_ID` must also be available at frontend RUNTIME (not just build).
 Compose supplies the current public publisher ID; an explicit local ENV overrides it.
 The deploy readiness script rejects a frontend with a missing publisher ID.
