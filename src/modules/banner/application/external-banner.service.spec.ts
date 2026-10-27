@@ -62,6 +62,26 @@ const create = (provider = PlaybackProvider.VIBIX) => {
 };
 
 describe('ExternalBannerService', () => {
+  it('does not return the verified Kinopoisk missing-backdrop image even though it responds HTTP 200', async () => {
+    const { service, vibix } = create();
+    const stub =
+      'https://avatars.mds.yandex.net/get-ott/12808873/2a0000019ac9a31de3b4565f65a725a0fdd3/1344x756';
+    vibix.getTopRecent.mockResolvedValue([
+      {
+        id: 10,
+        name: 'Placeholder',
+        mediaType: 'cartoons',
+        backgroundImg: stub,
+        previewUrl: stub,
+        content: { backgroundUrl: stub },
+        details: { kpId: '1', imdbId: null },
+      },
+    ] as never);
+    const banners = await service.getCandidates();
+    expect(banners.some(banner => banner.title === 'Placeholder')).toBe(false);
+    expect(JSON.stringify(banners)).not.toContain(stub);
+  });
+
   it('mixes configured providers, builds working site routes and never exposes player/API tokens', async () => {
     const { service } = create();
     const banners = await service.getCandidates();

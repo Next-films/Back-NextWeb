@@ -23,6 +23,12 @@ const safeImageUrl = (value: unknown): value is string => {
   if (typeof value !== 'string') return false;
   try {
     const url = new URL(value);
+    // Verified missing-image asset returned for the Zootopia 2 backdrop: HTTP 200, grey K logo.
+    if (
+      url.hostname === 'avatars.mds.yandex.net' &&
+      url.pathname.includes('/2a0000019ac9a31de3b4565f65a725a0fdd3/')
+    )
+      return false;
     return url.protocol === 'https:' && !url.username && !url.password;
   } catch {
     return false;
