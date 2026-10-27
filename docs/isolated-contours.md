@@ -73,3 +73,23 @@ Public TLS uses an independent Let's Encrypt account and the `next-public` certi
 lineage. nginx reads `/etc/letsencrypt/live/next-public/{fullchain,privkey}.pem`.
 `certbot.timer` renews it locally; the saved deploy hook reloads nginx. The initial
 certificate transfer was only for bootstrap and is not used by active nginx anymore.
+
+## Cutover completed 2026-10-27
+
+- Public DNS: apex, www and API A records point to `45.9.117.71`; no AAAA records.
+- Public containers run as non-root `node`; only loopback ports 3000/4000 are published.
+- Public frontend/backend workflows and the existing internal backend workflow completed.
+- Real Vibix catalogue, Videoseed fallback and Kodik anime/dramas were verified.
+- Kodik's API now returns `kodikplayer.com`; backend allowlist and frontend CSP include it.
+- Browser homepage screenshot verified compact cropping and populated external images.
+- On the internal host the old frontend is stopped with restart disabled. Old public
+  nginx vhosts are replaced by `retired-public.nginx.conf` returning 410, NOT a cross-host
+  proxy. Admin remains 200; internal backend, installer, shorts and monitoring remain up.
+- Old nginx configs and public certificate renewal configs are preserved in
+  `/home/deploy/backups/next-contours-20261027`. No media/database data was deleted.
+- Both isolation systemd units are enabled and active. Public-container and host probes
+  to the internal IPv4 were rejected; the site stayed 200. Bootstrap SSH session closed.
+
+Future communication requires explicit firewall changes, credentials and application
+configuration. Changing an admin setting on the internal host alone cannot connect
+or update the public runtime.
