@@ -16,7 +16,11 @@ docker image inspect "$image" >/dev/null
 docker tag "$image" "$tag"
 docker compose -f compose.yml up -d --no-deps "$service"
 for attempt in 1 2 3 4 5 6 7 8 9 10 11 12; do
-  if curl --fail --silent --max-time 8 "http://127.0.0.1:$port$path" >/dev/null; then
+  configured=true
+  if [ "$service" = public-front ]; then
+    docker exec "$container" node -e 'process.exit(process.env.VIBIX_PUBLISHER_ID?.trim()?0:1)' || configured=false
+  fi
+  if [ "$configured" = true ] && curl --fail --silent --max-time 8 "http://127.0.0.1:$port$path" >/dev/null; then
     echo "Public $service ready"
     exit 0
   fi

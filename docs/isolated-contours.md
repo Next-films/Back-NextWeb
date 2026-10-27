@@ -73,6 +73,9 @@ Public TLS uses an independent Let's Encrypt account and the `next-public` certi
 lineage. nginx reads `/etc/letsencrypt/live/next-public/{fullchain,privkey}.pem`.
 `certbot.timer` renews it locally; the saved deploy hook reloads nginx. The initial
 certificate transfer was only for bootstrap and is not used by active nginx anymore.
+Vibix `VIBIX_PUBLISHER_ID` must also be available at frontend RUNTIME (not just build).
+Compose supplies the current public publisher ID; an explicit local ENV overrides it.
+The deploy readiness script rejects a frontend with a missing publisher ID.
 
 ## Cutover completed 2026-10-27
 
