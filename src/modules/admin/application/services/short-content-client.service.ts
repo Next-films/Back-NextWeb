@@ -5,6 +5,7 @@ import { AdminCreateShortContentHighlightsInputDto } from '@/admin/api/dtos/inpu
 import { AdminUpdateShortContentClipMusicInputDto } from '@/admin/api/dtos/input/admin-update-short-content-clip-music.input.dto';
 import { AdminUploadShortContentMusicInputDto } from '@/admin/api/dtos/input/admin-upload-short-content-music.input.dto';
 import { AdminUpdateShortContentSettingsInputDto } from '@/admin/api/dtos/input/admin-update-short-content-settings.input.dto';
+import { AdminShortContentLogoInputDto } from '@/admin/api/dtos/input/admin-short-content-logo.input.dto';
 
 /** A highlights job of the short-content service (see its README). */
 export type ShortContentEngineJob = Record<string, unknown> & {
@@ -12,6 +13,11 @@ export type ShortContentEngineJob = Record<string, unknown> & {
   status: 'queued' | 'running' | 'done' | 'failed';
   title?: string;
   error?: string;
+};
+
+export type ShortContentReprocessing = Record<string, unknown> & {
+  status: 'idle' | 'running' | 'completed';
+  updatedJobs?: Record<string, string>;
 };
 
 @Injectable()
@@ -39,6 +45,30 @@ export class ShortContentClientService {
 
   getSettings(): Promise<Record<string, unknown>> {
     return this.call('GET', '/api/shorts/settings');
+  }
+
+  getReprocessing(): Promise<ShortContentReprocessing> {
+    return this.call('GET', '/api/shorts/reprocessing');
+  }
+
+  rebuildReadyClips(): Promise<ShortContentReprocessing> {
+    return this.call('POST', '/api/shorts/reprocessing', { mode: 'settings' });
+  }
+
+  updateLogoSettings(input: AdminShortContentLogoInputDto): Promise<Record<string, unknown>> {
+    return this.call('PATCH', '/api/shorts/settings/logo', input);
+  }
+
+  updateClipLogo(
+    engineJobId: string,
+    clipIndex: number,
+    input: AdminShortContentLogoInputDto,
+  ): Promise<ShortContentEngineJob> {
+    return this.call(
+      'PATCH',
+      `/api/shorts/highlights/${encodeURIComponent(engineJobId)}/clips/${clipIndex}/logo`,
+      input,
+    );
   }
 
   updateSettings(input: AdminUpdateShortContentSettingsInputDto): Promise<Record<string, unknown>> {

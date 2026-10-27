@@ -36,6 +36,7 @@ import { ParseIntPatchPipe } from '@/common/pipes/validation-parse-int.pipe';
 import { AdminUploadShortContentMusicInputDto } from '@/admin/api/dtos/input/admin-upload-short-content-music.input.dto';
 import { fileValidationPipe } from '@/common/pipes/validation-file.pipe';
 import { AdminUpdateShortContentSettingsInputDto } from '@/admin/api/dtos/input/admin-update-short-content-settings.input.dto';
+import { AdminShortContentLogoInputDto } from '@/admin/api/dtos/input/admin-short-content-logo.input.dto';
 
 const MUSIC_MAX_SIZE_MB = 50;
 const MUSIC_MIME_TYPES = [
@@ -81,7 +82,8 @@ export class AdminShortContentController {
     this.logger.log('Execute: get short content jobs', this.getAll.name);
     const jobs = await this.shortContentJobRepository.findAll(query);
 
-    await Promise.all(jobs.map(job => this.refresh(job)));
+    const updates = await this.getRebuildUpdates();
+    await Promise.all(jobs.map(job => this.refresh(job, updates)));
 
     return AdminShortContentJobOutputDto.fromEntities(jobs);
   }
@@ -108,6 +110,17 @@ export class AdminShortContentController {
     return this.shortContentClient.getSettings();
   }
 
+  @Get('reprocessing')
+  getReprocessing(): Promise<Record<string, unknown>> {
+    return this.shortContentClient.getReprocessing();
+  }
+
+  @Post('reprocessing')
+  @HttpCode(HttpStatus.ACCEPTED)
+  rebuildReadyClips(): Promise<Record<string, unknown>> {
+    return this.shortContentClient.rebuildReadyClips();
+  }
+
   @Patch('settings')
   updateSettings(
     @Body() body: AdminUpdateShortContentSettingsInputDto,
@@ -118,6 +131,30 @@ export class AdminShortContentController {
     );
 
     return this.shortContentClient.updateSettings(body);
+  }
+
+  @Patch('settings/logo')
+  updateLogoSettings(
+    @Body() body: AdminShortContentLogoInputDto,
+  ): Promise<Record<string, unknown>> {
+    return this.shortContentClient.updateLogoSettings(body);
+  }
+
+  @Patch(':jobId/clips/:clipIndex/logo')
+  @HttpCode(HttpStatus.ACCEPTED)
+  async updateClipLogo(
+    @Param('jobId', ParseIntPatchPipe) jobId: number,
+    @Param('clipIndex', ParseIntPatchPipe) clipIndex: number,
+    @Body() body: AdminShortContentLogoInputDto,
+  ): Promise<AdminShortContentJobOutputDto> {
+    if (clipIndex < 1) throw new BadRequestException('clipIndex must be positive');
+    const job = await this.getJobOrThrow(jobId);
+    if (!job.shortContentJobId)
+      throw new BadRequestException('Short content job has not been started');
+    job.syncFromEngine(
+      await this.shortContentClient.updateClipLogo(job.shortContentJobId, clipIndex, body),
+    );
+    return AdminShortContentJobOutputDto.fromEntity(await this.shortContentJobRepository.save(job));
   }
 
   @Post('music-tracks')
@@ -143,7 +180,7 @@ export class AdminShortContentController {
     this.logger.log(`Execute: get short content job by id: ${jobId}`, this.getById.name);
     const job = await this.getJobOrThrow(jobId);
 
-    await this.refresh(job);
+    await this.refresh(job, await this.getRebuildUpdates());
 
     return AdminShortContentJobOutputDto.fromEntity(job);
   }
@@ -215,8 +252,27 @@ export class AdminShortContentController {
   }
 
   /** Pulls active progress and legacy-music upgrades from the rendering service. */
-  private async refresh(job: ShortContentJob): Promise<void> {
+  private async getRebuildUpdates(): Promise<Record<string, string>> {
+    try {
+      return (await this.shortContentClient.getReprocessing()).updatedJobs ?? {};
+    } catch {
+      return {};
+    }
+  }
+
+  private async refresh(job: ShortContentJob, updates: Record<string, string> = {}): Promise<void> {
+    const engineUpdatedAt = job.shortContentJobId ? updates[job.shortContentJobId] : undefined;
+    const cachedUpdatedAt = job.draftPayload?.updatedAt;
+    const waitsForRebuild =
+      engineUpdatedAt !== undefined &&
+      (typeof cachedUpdatedAt !== 'string' || engineUpdatedAt > cachedUpdatedAt);
     const clips = job.draftPayload?.clips;
+    const waitsForLogo =
+      Array.isArray(clips) &&
+      clips.some(clip => {
+        const update = (clip as { logoUpdate?: { status?: string } } | null)?.logoUpdate;
+        return update?.status === 'queued' || update?.status === 'running';
+      });
     const waitsForLegacyMusic =
       job.status === ShortContentJobStatus.RENDERED &&
       Array.isArray(clips) &&
@@ -228,7 +284,10 @@ export class AdminShortContentController {
             (clip as Record<string, unknown>).processingVersion !== 2),
       );
 
-    if (!job.shortContentJobId || (job.isFinished && !waitsForLegacyMusic)) {
+    if (
+      !job.shortContentJobId ||
+      (job.isFinished && !waitsForLegacyMusic && !waitsForLogo && !waitsForRebuild)
+    ) {
       return;
     }
 

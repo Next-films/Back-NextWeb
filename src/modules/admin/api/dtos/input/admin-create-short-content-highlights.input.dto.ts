@@ -1,7 +1,13 @@
 import { Type } from 'class-transformer';
 import { IsBoolean, IsIn, IsInt, IsOptional, Max, Min, ValidateNested } from 'class-validator';
+import { AdminShortContentLogoInputDto } from './admin-short-content-logo.input.dto';
 
 export class AdminShortContentHighlightsOptionsInputDto {
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => AdminShortContentLogoInputDto)
+  logo?: AdminShortContentLogoInputDto;
+
   @IsOptional()
   @IsInt()
   @Min(15)
