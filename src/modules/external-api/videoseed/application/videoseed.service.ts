@@ -60,6 +60,10 @@ export class VideoseedService {
     return q ? this.request(kind, { q }) : Promise.resolve([]);
   }
 
+  getRecent(kind: VideoseedKind): Promise<VideoseedItem[]> {
+    return this.request(kind, {});
+  }
+
   private async request(
     kind: VideoseedKind,
     params: Record<string, string>,
@@ -114,9 +118,23 @@ export class VideoseedService {
       .split(':')
       .map(Number);
     const seasons = record.seasons && typeof record.seasons === 'object' ? record.seasons : null;
+    const mappedSeasons = seasons ? this.toSeasons(seasons) : [];
+    // Relative names such as thumb003.jpg are not usable URLs: never guess CDN paths.
+    const bannerUrls = [
+      ...new Set(
+        [
+          record.preview,
+          ...(Array.isArray(record.screenshots) ? record.screenshots : []),
+          ...mappedSeasons
+            .slice(0, 1)
+            .flatMap(season => season.episodes.slice(0, 3).map(episode => episode.previewUrl)),
+        ].filter((url): url is string => typeof url === 'string' && url.startsWith('https://')),
+      ),
+    ];
 
     return {
       id,
+      bannerUrls: bannerUrls.slice(0, 3),
       kind,
       iframeUrl,
       name: this.text(record.name),
@@ -133,7 +151,7 @@ export class VideoseedService {
       kpId: this.text(String(record.id_kp ?? '')) || null,
       imdbId: this.text(record.id_imdb) || null,
       seasonsCount: seasons ? Object.keys(seasons).length || null : null,
-      seasons: seasons ? this.toSeasons(seasons) : [],
+      seasons: mappedSeasons,
     };
   }
 

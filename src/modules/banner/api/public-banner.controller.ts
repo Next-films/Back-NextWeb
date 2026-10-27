@@ -5,6 +5,10 @@ import { LoggerService } from '@/common/utils/logger/logger.service';
 import { BannerRepository } from '@/banner/infrastructure/banner.repository';
 import { BannerOutputDto } from '@/banner/api/dtos/output/banner.output.dto';
 import { DownloaderServiceAdapter } from '@/common/infrastructure/rmq/downloader-service.adapter';
+import {
+  ExternalBanner,
+  ExternalBannerService,
+} from '@/banner/application/external-banner.service';
 
 @ApiTags('Public - banners')
 @Controller(BANNER_ROUTE.MAIN)
@@ -13,8 +17,14 @@ export class PublicBannerController {
     private readonly logger: LoggerService,
     private readonly bannerRepository: BannerRepository,
     private readonly downloaderServiceAdapter: DownloaderServiceAdapter,
+    private readonly externalBanners: ExternalBannerService,
   ) {
     this.logger.setContext(PublicBannerController.name);
+  }
+
+  @Get('external')
+  getExternalBanners(): Promise<ExternalBanner[]> {
+    return this.externalBanners.getCandidates();
   }
 
   private async signUrlWithCache(

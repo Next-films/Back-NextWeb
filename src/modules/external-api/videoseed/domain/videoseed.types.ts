@@ -9,6 +9,8 @@ export interface VideoseedRecord {
   id_imdb?: string | null;
   id_tmdb?: string | number | null;
   poster?: string | null;
+  preview?: string | null;
+  screenshots?: string[] | null;
   description?: string | null;
   genre?: string | null;
   country?: string | null;
@@ -44,6 +46,8 @@ export interface VideoseedResponse {
 
 /** Нормализованная запись Videoseed, общая для обогащения Vibix и поиска. */
 export interface VideoseedItem {
+  /** Candidate frames, not posters; dimensions must be checked before using as a banner. */
+  bannerUrls?: string[];
   id: string;
   kind: VideoseedKind;
   iframeUrl: string;

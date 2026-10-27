@@ -122,4 +122,42 @@ describe('VideoseedService', () => {
       },
     ]);
   });
+
+  it('keeps absolute preview frames for banners but never guesses relative screenshot paths', async () => {
+    const { service, get } = createService();
+    get.mockResolvedValue({
+      data: {
+        status: 'success',
+        data: [
+          {
+            ...record,
+            preview: 'thumb003.jpg',
+            screenshots: ['thumb001.jpg', 'https://images.example.com/frame.jpg'],
+            seasons: {
+              1: {
+                videos: {
+                  1: { iframe: record.iframe, preview: 'https://api.videoseed.tv/preview.jpg' },
+                },
+              },
+            },
+          },
+        ],
+      },
+    });
+    const item = await service.getById('1070024', 'serial');
+    expect(item?.bannerUrls).toEqual([
+      'https://images.example.com/frame.jpg',
+      'https://api.videoseed.tv/preview.jpg',
+    ]);
+    expect(item?.bannerUrls).not.toContain(record.poster);
+  });
+
+  it('caches default catalogue requests for standalone VideoSeed banners', async () => {
+    const { service, get } = createService();
+    get.mockResolvedValue({ data: { status: 'success', data: [record] } });
+    await service.getRecent('serial');
+    await service.getRecent('serial');
+    expect(get).toHaveBeenCalledTimes(1);
+    expect(get.mock.calls[0][1].params).toEqual({ item: 'serial', token: 'api-key' });
+  });
 });
