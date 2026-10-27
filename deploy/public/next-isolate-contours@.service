@@ -1,0 +1,13 @@
+[Unit]
+Description=Block application traffic between Next Films contours (%i)
+After=network-online.target docker.service
+Requires=docker.service
+PartOf=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/next-isolate-contours %i
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target docker.service

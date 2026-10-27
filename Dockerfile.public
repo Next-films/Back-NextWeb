@@ -1,0 +1,17 @@
+# Build on CI/a build host, not on the small public server.
+FROM node:20-alpine AS build
+WORKDIR /app
+COPY package.json yarn.lock ./
+RUN yarn install --frozen-lockfile
+COPY tsconfig*.json nest-cli.json ./
+COPY src ./src
+RUN yarn build
+
+FROM node:20-alpine
+WORKDIR /app
+ENV APP_ROLE=public NODE_ENV=production PORT=4000
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/dist ./dist
+USER node
+EXPOSE 4000
+CMD ["node", "dist/main.js"]

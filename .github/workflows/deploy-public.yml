@@ -1,0 +1,38 @@
+name: Deploy isolated public backend
+on:
+  workflow_dispatch:
+  push:
+    branches: [dev]
+concurrency:
+  group: deploy-public-backend
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      SSHPASS: ${{ secrets.PUBLIC_SSH_PASSWORD }}
+      SSH_HOST: ${{ secrets.PUBLIC_SSH_HOST }}
+      SSH_PORT: ${{ secrets.PUBLIC_SSH_PORT }}
+      SSH_USER: ${{ secrets.PUBLIC_SSH_USERNAME }}
+      SSH_KNOWN_HOSTS: ${{ secrets.PUBLIC_SSH_KNOWN_HOSTS }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test isolation
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: yarn install --frozen-lockfile
+      - run: yarn test --runTestsByPath src/public/public-runtime.spec.ts src/modules/banner/application/external-banner.service.spec.ts
+      - name: Build public-only image
+        run: docker build -f Dockerfile.public --label org.opencontainers.image.revision="$GITHUB_SHA" -t "next-public-backend:isolated-$GITHUB_SHA" .
+      - name: Deploy only to public host
+        run: |
+          test "$SSH_HOST" = '45.9.117.71'
+          test -n "$SSHPASS"
+          sudo apt-get update -qq
+          sudo apt-get install -y sshpass
+          mkdir -p ~/.ssh
+          test -n "$SSH_KNOWN_HOSTS"
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          docker save "next-public-backend:isolated-$GITHUB_SHA" | gzip -1 | sshpass -e ssh -o StrictHostKeyChecking=yes -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" 'gzip -d | docker load'
+          sshpass -e ssh -o StrictHostKeyChecking=yes -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" "/opt/next-public/deploy-image.sh backend '$GITHUB_SHA'"

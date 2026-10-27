@@ -1,5 +1,4 @@
 import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
 import { ConfigService } from '@nestjs/config';
 import { ConfigurationType } from '@/settings/configuration';
 import { LoggerService } from '@/common/utils/logger/logger.service';
@@ -26,6 +25,14 @@ const withTimeout = async <T>(
 };
 
 async function bootstrap(): Promise<void> {
+  if (process.env.APP_ROLE === 'public') {
+    const { bootstrapPublic } = await import('./public/bootstrap');
+    return bootstrapPublic();
+  }
+  if (process.env.APP_ROLE && !['internal', 'combined'].includes(process.env.APP_ROLE)) {
+    throw new Error('APP_ROLE must be public, internal or combined');
+  }
+  const { AppModule } = await import('./app.module');
   const app = await NestFactory.create(AppModule, { bufferLogs: false });
 
   const configService = app.get(ConfigService<ConfigurationType, true>);

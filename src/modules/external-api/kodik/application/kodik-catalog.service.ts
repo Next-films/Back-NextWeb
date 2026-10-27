@@ -195,7 +195,7 @@ export class KodikCatalogService {
     const normalized = this.normalizeHttpUrl(value);
     if (!normalized) throw new BadGatewayException('Kodik returned an invalid player URL');
     const hostname = new URL(normalized).hostname.toLowerCase();
-    const allowedHosts = ['kodik.info', 'kodik.cc', 'kodik.biz'];
+    const allowedHosts = ['kodik.info', 'kodik.cc', 'kodik.biz', 'kodikplayer.com'];
     if (!allowedHosts.some(host => hostname === host || hostname.endsWith(`.${host}`))) {
       throw new BadGatewayException('Kodik returned an invalid player host');
     }
