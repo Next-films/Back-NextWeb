@@ -35,25 +35,48 @@ export class YoutubeProcessingService {
 
   async remove(videoId: string) {
     await this.eligible(videoId);
-    return this.worker.youtubeRequest('DELETE', videoId);
+    const result = await this.worker.youtubeRequest('DELETE', videoId);
+    await this.videos.update(
+      { videoId },
+      {
+        downloadStatus: 'skipped',
+        downloadError: 'Файлы удалены вручную; автоскачивание для ролика пропущено.',
+      },
+    );
+    return result;
   }
 
   async download(videoId: string, input: unknown) {
     const { video, source } = await this.eligible(videoId);
-    const body = input as { contentConfirmed?: unknown } | null;
+    const body = input as { contentConfirmed?: unknown; downloadOnly?: unknown } | null;
     if (body?.contentConfirmed !== true)
       throw new BadRequestException('Confirm this Short is a movie clip you may process');
-    return this.worker.youtubeRequest('POST', videoId, {
+    const result = await this.worker.youtubeRequest('POST', videoId, {
       channelId: video.channelId,
       isShort: true,
       contentConfirmed: true,
+      downloadOnly: body.downloadOnly === true,
       keywords: [
         'КиноДок',
         'MovieDocRU',
         source.channelName ?? '',
         source.source.split('/').at(-1) ?? '',
-      ].filter(Boolean),
+      ]
+        .filter(Boolean)
+        .map(word => word.slice(0, 100)),
     });
+    if (body.downloadOnly !== true)
+      await this.videos.update(
+        { videoId },
+        {
+          downloadStatus: 'queued',
+          downloadAttempts: 0,
+          downloadError: null,
+          downloadRetryAt: null,
+          downloadUpdatedAt: new Date(),
+        },
+      );
+    return result;
   }
 
   async render(videoId: string, input: unknown) {

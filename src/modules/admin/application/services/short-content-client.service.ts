@@ -25,6 +25,10 @@ export type ShortContentReprocessing = Record<string, unknown> & {
 export class ShortContentClientService {
   constructor(private readonly configService: ConfigService<ConfigurationType, true>) {}
 
+  youtubeQueue(): Promise<Record<string, unknown>> {
+    return this.call('GET', '/api/shorts/youtube-queue');
+  }
+
   youtubeRequest(
     method: 'GET' | 'POST' | 'DELETE',
     videoId: string,

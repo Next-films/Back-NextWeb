@@ -19,6 +19,7 @@ import { ADMIN_AUTH_JWT_SCHEMA_NAME } from '@/common/constants/auth-jwt-schema-n
 import { ADMIN_CINEMA_ROUTE } from '@/common/constants/route.constants';
 import { YoutubeMonitorService } from '../application/services/youtube-monitor.service';
 import { YoutubeProcessingService } from '../application/services/youtube-processing.service';
+import { YoutubeAutomationService } from '../application/services/youtube-automation.service';
 import { Readable } from 'node:stream';
 import type { Response } from 'express';
 import {
@@ -34,7 +35,18 @@ export class AdminYoutubeMonitorController {
   constructor(
     private readonly monitor: YoutubeMonitorService,
     private readonly processing: YoutubeProcessingService,
+    private readonly automation: YoutubeAutomationService,
   ) {}
+
+  @Get('automation')
+  automationStatus() {
+    return this.automation.overview();
+  }
+
+  @Put('automation')
+  configureAutomation(@Body() body: unknown) {
+    return this.automation.configure(body);
+  }
 
   @Get('videos/:videoId/processing')
   processingStatus(@Param('videoId') videoId: string) {

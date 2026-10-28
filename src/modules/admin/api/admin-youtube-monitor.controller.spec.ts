@@ -5,6 +5,7 @@ import { AdminAccessTokenGuard } from '@/admin-auth/application/guards/jwt/admin
 import { AdminYoutubeMonitorController } from './admin-youtube-monitor.controller';
 import { YoutubeMonitorService } from '../application/services/youtube-monitor.service';
 import { YoutubeProcessingService } from '../application/services/youtube-processing.service';
+import { YoutubeAutomationService } from '../application/services/youtube-automation.service';
 
 describe('Authenticated admin YouTube routes', () => {
   let app: INestApplication;
@@ -17,6 +18,13 @@ describe('Authenticated admin YouTube routes', () => {
     const module = await Test.createTestingModule({
       controllers: [AdminYoutubeMonitorController],
       providers: [
+        {
+          provide: YoutubeAutomationService,
+          useValue: {
+            overview: jest.fn().mockResolvedValue({ enabled: false }),
+            configure: jest.fn().mockResolvedValue({ enabled: true }),
+          },
+        },
         { provide: YoutubeMonitorService, useValue: monitor },
         {
           provide: YoutubeProcessingService,
@@ -46,6 +54,11 @@ describe('Authenticated admin YouTube routes', () => {
 
   it('blocks unauthenticated reads, edits and sync starts', async () => {
     await request(app.getHttpServer()).get('/api/admin/cinema/youtube').expect(403);
+    await request(app.getHttpServer()).get('/api/admin/cinema/youtube/automation').expect(403);
+    await request(app.getHttpServer())
+      .put('/api/admin/cinema/youtube/automation')
+      .send({ enabled: true })
+      .expect(403);
     await request(app.getHttpServer())
       .put('/api/admin/cinema/youtube/accounts')
       .send({ accounts: [] })
@@ -65,6 +78,15 @@ describe('Authenticated admin YouTube routes', () => {
 
   it('returns quickly for manual sync and validates the list and pagination before service calls', async () => {
     const auth = { Authorization: 'Bearer test-admin' };
+    await request(app.getHttpServer())
+      .get('/api/admin/cinema/youtube/automation')
+      .set(auth)
+      .expect(200);
+    await request(app.getHttpServer())
+      .put('/api/admin/cinema/youtube/automation')
+      .set(auth)
+      .send({ enabled: true, includeArchive: true, channelsConfirmed: true })
+      .expect(200);
     await request(app.getHttpServer())
       .get('/api/admin/cinema/youtube?page=2&pageSize=12')
       .set(auth)

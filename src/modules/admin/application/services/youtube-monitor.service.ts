@@ -54,7 +54,7 @@ export class YoutubeMonitorService implements OnModuleDestroy {
       : [[], 0];
     return {
       accounts: channels.map(channel => channel.source),
-      channels,
+      channels: channels.map(channel => ({ ...channel, archiveState: undefined })),
       videos: items,
       total,
       page,

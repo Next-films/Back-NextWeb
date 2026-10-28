@@ -1,6 +1,8 @@
 /* eslint-disable @typescript-eslint/require-await -- Async client stubs mirror youtubei.js without performing network requests. */
 import { ConfigService } from '@nestjs/config';
 import { ProxyAgent } from 'undici';
+import { loadYoutube } from './youtube-esm.cjs';
+jest.mock('./youtube-esm.cjs', () => ({ loadYoutube: jest.fn() }));
 import { validateYoutubeProxyUrl, YoutubeReaderService } from './youtube-reader.service';
 import {
   isYoutubeVideoId,
@@ -66,6 +68,59 @@ describe('YouTube channel references and public counters', () => {
 
 describe('Anonymous YouTube reader', () => {
   afterEach(() => jest.restoreAllMocks());
+
+  it('reads complete archive pages beyond fifty items and resumes opaque tokens without requesting videos', async () => {
+    const reader = new YoutubeReaderService();
+    const header = { endpoint: { payload: { token: 'header-not-shorts' } } };
+    const continuation = { endpoint: { payload: { token: 'archive-page-two' } } };
+    const first = {
+      page: { header_memo: { getType: () => [header] } },
+      memo: { getType: () => [header, continuation] },
+      has_continuation: true,
+      videos: Array.from({ length: 60 }, (_, index) => ({
+        id: `video${String(index).padStart(6, '0')}`,
+      })),
+      getContinuation: jest.fn(),
+    };
+    const second = {
+      page: {},
+      memo: { getType: () => [] },
+      has_continuation: false,
+      videos: [{ id: videoId }],
+    };
+    const client = {
+      getChannel: jest.fn().mockResolvedValue({
+        metadata: { external_id: channelId },
+        has_shorts: true,
+        getShorts: async () => first,
+      }),
+      actions: { execute: jest.fn().mockResolvedValue(second) },
+    };
+    (loadYoutube as jest.Mock).mockResolvedValue({
+      Mixins: {
+        Feed: class {
+          constructor(_actions: unknown, data: object) {
+            return data;
+          }
+        },
+      },
+      YTNodes: {},
+    });
+    jest.spyOn(reader, 'getClient').mockResolvedValue(client as any);
+    const page = await reader.readShortsArchivePage(channelId, null);
+    expect(page.videos).toHaveLength(60);
+    expect(page.videos.every(item => item.isShort)).toBe(true);
+    expect(page.nextToken).toBe('archive-page-two');
+    expect(first.getContinuation).not.toHaveBeenCalled();
+    const next = await reader.readShortsArchivePage(channelId, page.nextToken);
+    expect(next.videos[0].videoId).toBe(videoId);
+    expect(next.nextToken).toBeNull();
+    expect(client.getChannel).toHaveBeenCalledTimes(1);
+    expect(client.actions.execute).toHaveBeenCalledWith('/browse', {
+      continuation: 'archive-page-two',
+      parse: true,
+    });
+  });
 
   it('uses an isolated authenticated dispatcher without leaking proxy credentials to YouTube', async () => {
     const config = new ConfigService({

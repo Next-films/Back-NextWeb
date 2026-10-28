@@ -188,10 +188,53 @@ export class YoutubeReaderService implements OnModuleDestroy {
     };
   }
 
-  private async readFeed(first: Feed, isShort: boolean): Promise<YoutubeListedVideo[]> {
+  async readShortsArchivePage(
+    channelId: string,
+    token: string | null,
+  ): Promise<{ videos: YoutubeListedVideo[]; nextToken: string | null }> {
+    if (
+      !isYoutubeChannelId(channelId) ||
+      (token !== null && (typeof token !== 'string' || token.length > 20000))
+    )
+      throw new Error('Invalid archive cursor');
+    const client = await this.getClient();
+    const { Mixins, YTNodes } = await loadYoutube();
+    let feed: InstanceType<typeof Mixins.Feed>;
+    if (token) {
+      const data = await client.actions.execute('/browse', { continuation: token, parse: true });
+      feed = new Mixins.Feed(client.actions, data, true);
+    } else {
+      const channel = await client.getChannel(channelId);
+      if (channel.metadata.external_id && channel.metadata.external_id !== channelId)
+        throw new Error('Unexpected channel');
+      if (!channel.has_shorts) return { videos: [], nextToken: null };
+      feed = await channel.getShorts();
+    }
+    const headers = new Set<unknown>(
+      feed.page.header_memo?.getType(YTNodes.ContinuationItem, YTNodes.ContinuationItemView) ?? [],
+    );
+    const continuation = feed.memo
+      .getType(YTNodes.ContinuationItem, YTNodes.ContinuationItemView)
+      .find(item => !headers.has(item));
+    const payload = continuation?.endpoint.payload;
+    const next: unknown = payload?.continuation ?? payload?.token;
+    if (feed.has_continuation && (typeof next !== 'string' || !next || next.length > 20000))
+      throw new Error('Cannot safely resume the Shorts archive');
+    return {
+      videos: await this.readFeed(feed as unknown as Feed, true, 1, 500),
+      nextToken: typeof next === 'string' ? next : null,
+    };
+  }
+
+  private async readFeed(
+    first: Feed,
+    isShort: boolean,
+    pageLimit = 3,
+    videoLimit = MAX_VIDEOS,
+  ): Promise<YoutubeListedVideo[]> {
     let feed = first;
     const videos = new Map<string, YoutubeListedVideo>();
-    for (let page = 0; page < 3; page++) {
+    for (let page = 0; page < pageLimit; page++) {
       for (const value of feed.videos) {
         const node = value as Record<string, any>;
         if (node.content_type && !['VIDEO', 'SHORT'].includes(node.content_type)) continue;
@@ -207,9 +250,9 @@ export class YoutubeReaderService implements OnModuleDestroy {
           thumbnailUrl: youtubeThumbnail(thumbnail),
           isShort,
         });
-        if (videos.size >= MAX_VIDEOS) break;
+        if (videos.size >= videoLimit) break;
       }
-      if (videos.size >= MAX_VIDEOS || !feed.has_continuation) break;
+      if (videos.size >= videoLimit || !feed.has_continuation || page + 1 >= pageLimit) break;
       feed = await feed.getContinuation();
     }
     return [...videos.values()];

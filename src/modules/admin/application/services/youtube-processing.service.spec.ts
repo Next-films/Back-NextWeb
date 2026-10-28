@@ -7,7 +7,7 @@ function fixture() {
     isShort: true,
     lastSyncedAt: new Date(),
   };
-  const videos = { findOneBy: jest.fn().mockResolvedValue(video) };
+  const videos = { findOneBy: jest.fn().mockResolvedValue(video), update: jest.fn() };
   const sources = {
     findOneBy: jest
       .fn()

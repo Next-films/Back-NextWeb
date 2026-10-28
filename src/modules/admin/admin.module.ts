@@ -98,6 +98,8 @@ import { SocialPublishingService } from '@/admin/application/services/social-pub
 import { AdminYoutubeMonitorController } from './api/admin-youtube-monitor.controller';
 import { YoutubeMonitorService } from './application/services/youtube-monitor.service';
 import { YoutubeProcessingService } from './application/services/youtube-processing.service';
+import { YoutubeAutomationService } from './application/services/youtube-automation.service';
+import { YoutubeAutomation } from './domain/youtube-automation.entity';
 import { YoutubeReaderService } from './application/services/youtube-reader.service';
 import { YoutubeSource } from './domain/youtube-source.entity';
 import { YoutubeVideo } from './domain/youtube-video.entity';
@@ -178,6 +180,7 @@ const exportProviders = [
       SocialPublication,
       YoutubeSource,
       YoutubeVideo,
+      YoutubeAutomation,
     ]),
     BcryptModule,
     JwtModule,
@@ -233,6 +236,7 @@ const exportProviders = [
     SocialPublishingService,
     YoutubeMonitorService,
     YoutubeProcessingService,
+    YoutubeAutomationService,
     YoutubeReaderService,
   ],
   exports: [...exportProviders],
