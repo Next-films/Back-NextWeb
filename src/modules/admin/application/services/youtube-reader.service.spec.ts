@@ -1,5 +1,7 @@
 /* eslint-disable @typescript-eslint/require-await -- Async client stubs mirror youtubei.js without performing network requests. */
-import { YoutubeReaderService } from './youtube-reader.service';
+import { ConfigService } from '@nestjs/config';
+import { ProxyAgent } from 'undici';
+import { validateYoutubeProxyUrl, YoutubeReaderService } from './youtube-reader.service';
 import {
   isYoutubeVideoId,
   normalizeYoutubeSource,
@@ -64,6 +66,64 @@ describe('YouTube channel references and public counters', () => {
 
 describe('Anonymous YouTube reader', () => {
   afterEach(() => jest.restoreAllMocks());
+
+  it('uses an isolated authenticated dispatcher without leaking proxy credentials to YouTube', async () => {
+    const config = new ConfigService({
+      apiSettings: { YOUTUBE_PROXY_URL: 'http://test-user:test-password@127.0.0.1:8118' },
+    });
+    const reader = new YoutubeReaderService(config as any);
+    const fetcher = jest.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{}'));
+    try {
+      await reader.metadataFetch('https://www.youtube.com/youtubei/v1/browse');
+      const options = fetcher.mock.calls[0][1] as RequestInit & { dispatcher: ProxyAgent };
+      expect(options.dispatcher).toBeInstanceOf(ProxyAgent);
+      expect(new Headers(options.headers).has('proxy-authorization')).toBe(false);
+      await expect(reader.metadataFetch('https://45.9.117.71/')).rejects.toThrow('Unsupported');
+      fetcher.mockRejectedValueOnce(new Error('proxy unavailable'));
+      await expect(reader.metadataFetch('https://www.youtube.com/')).rejects.toThrow(
+        'proxy unavailable',
+      );
+      // No direct retry when the configured proxy is unavailable.
+      expect(fetcher).toHaveBeenCalledTimes(2);
+      const direct = new YoutubeReaderService();
+      fetcher.mockResolvedValueOnce(new Response('{}'));
+      await direct.metadataFetch('https://www.youtube.com/');
+      expect(fetcher.mock.calls[2][1]).not.toHaveProperty('dispatcher');
+    } finally {
+      await reader.onModuleDestroy();
+    }
+  });
+
+  it.each([
+    'not-a-url',
+    'socks5://localhost:1080',
+    'file:///etc/passwd',
+    'http://localhost:8118/path',
+    'http://localhost:8118/?secret=x',
+    'http://localhost:8118/#fragment',
+    'http://45.9.117.71:8118',
+    'http://[2a01:e5c0:4c8d::2]:8118',
+    'http://next-films.ru:8118',
+    'https://server.next-films.ru',
+  ])('rejects invalid proxy configuration without disclosing credentials: %s', value => {
+    expect(() => validateYoutubeProxyUrl(value)).toThrow('Invalid YOUTUBE_PROXY_URL');
+  });
+
+  it('accepts HTTP(S) proxies and never includes supplied secrets in errors', () => {
+    expect(validateYoutubeProxyUrl(' http://user:pass@127.0.0.1:8118 ')).toBe(
+      'http://user:pass@127.0.0.1:8118/',
+    );
+    expect(validateYoutubeProxyUrl('https://proxy.example:8443')).toBe(
+      'https://proxy.example:8443/',
+    );
+    try {
+      validateYoutubeProxyUrl('http://user:private-secret@45.9.117.71:8118');
+      throw new Error('should reject');
+    } catch (error) {
+      expect((error as Error).message).not.toContain('private-secret');
+      expect((error as Error).message).toContain('Invalid YOUTUBE_PROXY_URL');
+    }
+  });
 
   it('only fetches allowed YouTube hosts, disallows redirects, bounds request time and backs off on throttling', async () => {
     const reader = new YoutubeReaderService();

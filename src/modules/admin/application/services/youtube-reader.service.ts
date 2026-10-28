@@ -1,5 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, OnModuleDestroy, Optional } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { ProxyAgent } from 'undici';
 import type { Innertube } from 'youtubei.js';
+import type { ConfigurationType } from '@/settings/configuration';
 import { loadYoutube } from './youtube-esm.cjs';
 import {
   isYoutubeChannelId,
@@ -34,11 +37,55 @@ type Feed = {
 export class YoutubeVideoOwnerError extends Error {}
 const MAX_VIDEOS = 50;
 
+/** Operator-only setting. Invalid config must fail closed, never fall back to a direct request. */
+export function validateYoutubeProxyUrl(value: string): string {
+  let url: URL;
+  try {
+    url = new URL(value.trim());
+  } catch {
+    throw new Error('Invalid YOUTUBE_PROXY_URL');
+  }
+  const host = url.hostname.replace(/^\[|\]$/g, '');
+  if (
+    !['http:', 'https:'].includes(url.protocol) ||
+    url.pathname !== '/' ||
+    url.search ||
+    url.hash ||
+    [
+      '45.9.117.71',
+      '2a01:e5c0:4c8d::2',
+      'next-films.ru',
+      'www.next-films.ru',
+      'server.next-films.ru',
+    ].includes(host)
+  ) {
+    throw new Error('Invalid YOUTUBE_PROXY_URL: public cinema cannot be a proxy');
+  }
+  return url.href;
+}
+
 /** Metadata only, anonymous, no Google key, credentials, player code or video downloads. */
 @Injectable()
-export class YoutubeReaderService {
+export class YoutubeReaderService implements OnModuleDestroy {
   private session: Promise<Innertube> | null = null;
   private blockedUntil = 0;
+  private proxyAgent: ProxyAgent | undefined;
+
+  constructor(
+    @Optional() private readonly configService?: ConfigService<ConfigurationType, true>,
+  ) {}
+
+  async onModuleDestroy(): Promise<void> {
+    await this.proxyAgent?.close();
+  }
+
+  private dispatcher(): ProxyAgent | undefined {
+    const value = this.configService?.get('apiSettings', { infer: true }).YOUTUBE_PROXY_URL.trim();
+    if (!value) return undefined;
+    // Per-reader dispatcher only. Do not set HTTP_PROXY or the global Node dispatcher.
+    this.proxyAgent ??= new ProxyAgent(validateYoutubeProxyUrl(value));
+    return this.proxyAgent;
+  }
 
   get coolingDown(): boolean {
     return Date.now() < this.blockedUntil;
@@ -85,11 +132,14 @@ export class YoutubeReaderService {
       throw new Error('Unsupported YouTube metadata endpoint');
     }
     if (this.coolingDown) throw new Error('YouTube temporarily unavailable');
-    const response = await fetch(input, {
+    const options: RequestInit & { dispatcher?: ProxyAgent } = {
       ...init,
       redirect: 'error',
       signal: AbortSignal.timeout(20_000),
-    });
+    };
+    const dispatcher = this.dispatcher();
+    if (dispatcher) options.dispatcher = dispatcher;
+    const response = await fetch(input, options);
     if ([403, 429].includes(response.status)) {
       this.blockedUntil = Date.now() + 30 * 60_000;
       await response.body?.cancel();

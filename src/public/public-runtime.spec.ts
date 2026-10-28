@@ -122,6 +122,7 @@ describe('Isolated public runtime', () => {
       'RMQ_URI',
       'DOWNLOAD_SERVICE_HTTP_URL',
       'SHORT_CONTENT_SERVICE_URL',
+      'YOUTUBE_PROXY_URL',
       'TELEGRAM_GATEWAY_URL',
     ]) {
       expect(() => validatePublicEnvironment({ ...valid, [key]: 'internal-service' })).toThrow(key);

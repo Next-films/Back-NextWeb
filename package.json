@@ -65,6 +65,7 @@
     "reflect-metadata": "0.2.2",
     "rxjs": "7.8.1",
     "typeorm": "0.3.24",
+    "undici": "6.29.1",
     "winston": "3.17.0",
     "youtubei.js": "18.3.0"
   },

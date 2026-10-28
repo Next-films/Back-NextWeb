@@ -85,4 +85,8 @@ export class ApiSettings {
 
   @IsString()
   SHORT_CONTENT_SERVICE_TOKEN: string = this.environmentVariables.SHORT_CONTENT_SERVICE_TOKEN || '';
+
+  /** Optional dedicated YouTube metadata proxy; never used for other backend traffic. */
+  @IsString()
+  YOUTUBE_PROXY_URL: string = this.environmentVariables.YOUTUBE_PROXY_URL || '';
 }

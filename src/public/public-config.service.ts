@@ -56,6 +56,7 @@ export function validatePublicEnvironment(env: NodeJS.ProcessEnv): void {
     'RMQ_URI',
     'DOWNLOAD_SERVICE_HTTP_URL',
     'SHORT_CONTENT_SERVICE_URL',
+    'YOUTUBE_PROXY_URL',
     'TELEGRAM_GATEWAY_URL',
   ]) {
     if (env[key]?.trim())
