@@ -66,5 +66,6 @@ jobs:
           test -n "$SSH_KNOWN_HOSTS"
           printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
           sshpass -e ssh -o StrictHostKeyChecking=yes -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" 'test -d /opt/next-public && if ! test -f /opt/next-public/deploy-image.before-maintenance; then cp -p /opt/next-public/deploy-image.sh /opt/next-public/deploy-image.before-maintenance; fi'
-          sshpass -e ssh -o StrictHostKeyChecking=yes -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" 'install -m 750 /dev/stdin /opt/next-public/deploy-image.sh' < deploy/public/deploy-image.sh
+          sshpass -e scp -o StrictHostKeyChecking=yes -P "$SSH_PORT" deploy/public/deploy-image.sh "$SSH_USER@$SSH_HOST:/opt/next-public/deploy-image.sh.maintenance-new"
+          sshpass -e ssh -o StrictHostKeyChecking=yes -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" 'chmod 750 /opt/next-public/deploy-image.sh.maintenance-new && mv /opt/next-public/deploy-image.sh.maintenance-new /opt/next-public/deploy-image.sh'
           sshpass -e ssh -o StrictHostKeyChecking=yes -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" "python3 - '$CINEMA_STATUS_CHANGE'" < deploy/public/set-cinema-status.py
