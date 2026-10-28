@@ -18,7 +18,20 @@ docker compose -f compose.yml up -d --no-deps "$service"
 for attempt in 1 2 3 4 5 6 7 8 9 10 11 12; do
   configured=true
   if [ "$service" = public-front ]; then
-    docker exec "$container" node -e 'process.exit(process.env.VIBIX_PUBLISHER_ID?.trim()?0:1)' || configured=false
+    # A deliberate maintenance response is healthy, not a reason to roll back.
+    if docker exec "$container" node -e '
+      const stopped = process.env.CINEMA_STATUS?.trim().toLowerCase() === "stop";
+      if (!process.env.VIBIX_PUBLISHER_ID?.trim()) process.exit(1);
+      fetch("http://127.0.0.1:3000/", {redirect:"manual", signal:AbortSignal.timeout(8000)}).then(r => {
+        process.exit(stopped
+          ? (r.status === 503 && r.headers.get("x-cinema-maintenance") === "on" ? 0 : 1)
+          : (r.ok ? 0 : 1));
+      }).catch(() => process.exit(1));
+    '; then
+      echo "Public $service ready"
+      exit 0
+    fi
+    configured=false
   fi
   if [ "$configured" = true ] && curl --fail --silent --max-time 8 "http://127.0.0.1:$port$path" >/dev/null; then
     echo "Public $service ready"
