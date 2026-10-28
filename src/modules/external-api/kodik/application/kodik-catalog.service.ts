@@ -1,4 +1,5 @@
 import { HttpService } from '@nestjs/axios';
+import { canPublishCountries } from '@/common/utils/public-content-policy';
 import {
   BadGatewayException,
   Injectable,
@@ -52,7 +53,9 @@ export class KodikCatalogService {
       });
       const record = (response.results ?? []).find(item => item.id === id);
       if (!record) throw new NotFoundException('Kodik title was not found');
-      return this.toPublicItem(record, section);
+      const item = this.toPublicItem(record, section);
+      if (!canPublishCountries(item.countries)) throw new NotFoundException('Content not found');
+      return item;
     });
   }
 
@@ -67,7 +70,9 @@ export class KodikCatalogService {
       not_blocked_for_me: 'true',
       limit: String(PAGE_SIZE),
     });
-    const items = this.deduplicate(response.results ?? [], section);
+    const items = this.deduplicate(response.results ?? [], section).filter(item =>
+      canPublishCountries(item.countries),
+    );
     return {
       items,
       nextCursor: this.extractCursor(response.next_page),

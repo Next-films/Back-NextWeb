@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { canPublishCountries } from '@/common/utils/public-content-policy';
 
 import { VideoseedService } from '@/external-api/videoseed/application/videoseed.service';
 import { VideoseedItem, VideoseedKind } from '@/external-api/videoseed/domain/videoseed.types';
@@ -23,6 +24,7 @@ export class VideoseedCatalogService {
     return results
       .flat()
       .filter(item => this.matchesType(item, mediaType))
+      .filter(item => canPublishCountries(item.countries))
       .map(item => this.toPublicItem(item));
   }
 
@@ -35,7 +37,10 @@ export class VideoseedCatalogService {
         : ['movie', 'serial'];
     for (const kind of kinds) {
       const item = await this.videoseedService.getById(id, kind);
-      if (item) return this.toPublicItem(item);
+      if (item) {
+        if (!canPublishCountries(item.countries)) throw new NotFoundException('Content not found');
+        return this.toPublicItem(item);
+      }
     }
     throw new NotFoundException('Videoseed content not found');
   }

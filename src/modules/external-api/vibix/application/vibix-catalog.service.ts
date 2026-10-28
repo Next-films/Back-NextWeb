@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 
 import { LoggerService } from '@/common/utils/logger/logger.service';
+import { canPublishCountries } from '@/common/utils/public-content-policy';
 import { VideoseedService } from '@/external-api/videoseed/application/videoseed.service';
 import { ExternalApiConfigService } from '@/external-api-config/application/external-api-config.service';
 import { ExternalApiProviderEnum, ExternalApiTargetEnum } from '@/external-api-config/domain/types';
@@ -280,6 +281,7 @@ export class VibixCatalogService {
     const items = this.getRecords(response)
       .filter(record => this.matchesType(record, mediaType))
       .map(record => this.toPublicItem(record))
+      .filter(item => canPublishCountries(item.country))
       // Без кода плеера запись в Vibix ещё не загружена — смотреть нечего.
       .filter(item => Boolean(item.externalPlayer))
       .filter(item => Boolean(item.previewUrl || item.backgroundImg));
@@ -304,7 +306,9 @@ export class VibixCatalogService {
     });
     const record = this.getRecords(response).find(item => Number(item.id) === id);
     if (!record) throw new NotFoundException('Vibix content not found');
-    return this.withVideoseed(this.toPublicItem(record));
+    const item = this.toPublicItem(record);
+    if (!canPublishCountries(item.country)) throw new NotFoundException('Content not found');
+    return this.withVideoseed(item);
   }
 
   /* Карточка Vibix + запасной плеер Videoseed и то, чего нет у Vibix
@@ -316,6 +320,10 @@ export class VibixCatalogService {
       item.externalPlayer?.mediaType === 'series' ? 'serial' : 'movie',
     );
     if (!fallback) return item;
+    // A second provider may reveal a Russian co-production omitted by the first.
+    if (fallback.countries.length && !canPublishCountries(fallback.countries)) {
+      throw new NotFoundException('Content not found');
+    }
 
     return {
       ...item,

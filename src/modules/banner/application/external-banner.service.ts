@@ -1,9 +1,11 @@
 import { Injectable } from '@nestjs/common';
+import { canPublishCountries } from '@/common/utils/public-content-policy';
 import { ExternalApiConfigService } from '@/external-api-config/application/external-api-config.service';
 import { ExternalApiProviderEnum, ExternalApiTargetEnum } from '@/external-api-config/domain/types';
 import { VibixCatalogService } from '@/external-api/vibix/application/vibix-catalog.service';
 import { VideoseedService } from '@/external-api/videoseed/application/videoseed.service';
 import { KodikCatalogService } from '@/external-api/kodik/application/kodik-catalog.service';
+import { KodikPublicItem } from '@/external-api/kodik/domain/kodik.types';
 import { PlaybackSettingsRepository } from '@/playback-settings/infrastructure/playback-settings.repository';
 import { PlaybackProvider } from '@/playback-settings/domain/playback-provider.enum';
 import { VideoseedItem } from '@/external-api/videoseed/domain/videoseed.types';
@@ -91,6 +93,7 @@ export class ExternalBannerService {
   }
 
   private videoseedCandidate(item: VideoseedItem): ExternalBanner | null {
+    if (!canPublishCountries(item.countries)) return null;
     const animated = item.genres.some(genre => /мультфильм|аниме|анимация|animation/i.test(genre));
     const type = animated ? 'cartoons' : item.kind === 'serial' ? 'serials' : 'films';
     return this.candidate(
@@ -111,7 +114,8 @@ export class ExternalBannerService {
       provider === PlaybackProvider.VIBIX && hasVibix
         ? await this.vibix.getTopRecent(10).catch(() => [])
         : [];
-    const vibix = top
+    const allowedTop = top.filter(item => canPublishCountries(item.country));
+    const vibix = allowedTop
       .slice(0, 6)
       .map(item =>
         this.candidate('vibix', item.name, `/detail/${item.id}?type=${item.mediaType}`, [
@@ -122,7 +126,7 @@ export class ExternalBannerService {
       );
     const [seed, kodik] = await Promise.all([
       provider === PlaybackProvider.VIBIX && hasVideoseed
-        ? this.loadVideoseed(top)
+        ? this.loadVideoseed(allowedTop)
         : Promise.resolve([]),
       hasKodik ? this.loadKodik() : Promise.resolve([]),
     ]);
@@ -178,11 +182,12 @@ export class ExternalBannerService {
   private async loadKodik(): Promise<Array<ExternalBanner | null>> {
     const pages = await Promise.all(
       (['anime', 'dramas'] as const).map(section =>
-        this.kodik.getPage(section).catch(() => ({ items: [] })),
+        this.kodik.getPage(section).catch(() => ({ items: [] as KodikPublicItem[] })),
       ),
     );
     return pages.flatMap(page =>
       page.items
+        .filter(item => canPublishCountries(item.countries))
         .slice(0, 2)
         .map(item =>
           this.candidate(

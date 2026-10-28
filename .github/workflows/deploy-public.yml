@@ -22,7 +22,7 @@ jobs:
         with:
           node-version: '20'
       - run: yarn install --frozen-lockfile
-      - run: yarn test --runTestsByPath src/public/public-runtime.spec.ts src/modules/banner/application/external-banner.service.spec.ts
+      - run: yarn test --runTestsByPath src/public/public-runtime.spec.ts src/public/public-country-policy.spec.ts src/common/utils/public-content-policy.spec.ts src/modules/external-api/vibix/application/vibix-catalog.service.spec.ts src/modules/banner/application/external-banner.service.spec.ts
       - name: Build public-only image
         run: docker build -f Dockerfile.public --label org.opencontainers.image.revision="$GITHUB_SHA" -t "next-public-backend:isolated-$GITHUB_SHA" .
       - name: Deploy only to public host

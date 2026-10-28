@@ -21,6 +21,14 @@ keeps its compact height. There is no generic visual recognition of all possible
 Public analytics writes are disabled; internal analytics and its history remain internal.
 There is no automatic publication or synchronization of clips, films, config or files.
 
+The public catalogue excludes productions listing Russia (including RU/RUS and
+co-productions). Missing/unknown production-country metadata is hidden as well.
+The rule applies to Vibix lists/search/top/detail, Videoseed search/detail/fallback,
+Kodik lists/detail and external banner candidates. Blocked detail requests return 404
+without exposing a player URL. This is based on provider metadata, not audio language;
+USSR is not treated as the Russian Federation. The internal admin/installer runtime
+is unchanged. Keep upstream page offsets/cursors so filtering does not skip later titles.
+
 Build the public backend with `Dockerfile.public`. Build Web-Front with
 `NEXT_PUBLIC_APP_ROLE=public`, `NEXT_PUBLIC_API_BASE_URL=/api`,
 `API_BASE_URL=http://public-backend:4000/api`, `API_PROXY_TARGET=http://public-backend:4000`.
