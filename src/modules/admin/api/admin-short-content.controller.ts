@@ -37,6 +37,7 @@ import { AdminUploadShortContentMusicInputDto } from '@/admin/api/dtos/input/adm
 import { fileValidationPipe } from '@/common/pipes/validation-file.pipe';
 import { AdminUpdateShortContentSettingsInputDto } from '@/admin/api/dtos/input/admin-update-short-content-settings.input.dto';
 import { AdminShortContentLogoInputDto } from '@/admin/api/dtos/input/admin-short-content-logo.input.dto';
+import { AdminShortContentFeedbackInputDto } from '@/admin/api/dtos/input/admin-short-content-feedback.input.dto';
 
 const MUSIC_MAX_SIZE_MB = 50;
 const MUSIC_MIME_TYPES = [
@@ -249,6 +250,38 @@ export class AdminShortContentController {
     }
 
     await this.shortContentJobRepository.remove(job);
+  }
+
+  @Post(':jobId/reselect')
+  @HttpCode(HttpStatus.ACCEPTED)
+  async reselectMoments(
+    @Param('jobId', ParseIntPatchPipe) jobId: number,
+  ): Promise<AdminShortContentJobOutputDto> {
+    const original = await this.getJobOrThrow(jobId);
+    if (!original.shortContentJobId)
+      throw new BadRequestException('Short content job has not been started');
+    const engine = await this.shortContentClient.reselectHighlights(original.shortContentJobId);
+    const job = ShortContentJob.create(original.contentType, original.contentId, {
+      ...original.requestPayload,
+    });
+    job.markStarted(engine);
+    return AdminShortContentJobOutputDto.fromEntity(await this.shortContentJobRepository.save(job));
+  }
+
+  @Patch(':jobId/clips/:clipIndex/feedback')
+  async setClipFeedback(
+    @Param('jobId', ParseIntPatchPipe) jobId: number,
+    @Param('clipIndex', ParseIntPatchPipe) clipIndex: number,
+    @Body() body: AdminShortContentFeedbackInputDto,
+  ): Promise<AdminShortContentJobOutputDto> {
+    if (clipIndex < 1) throw new BadRequestException('clipIndex must be positive');
+    const job = await this.getJobOrThrow(jobId);
+    if (!job.shortContentJobId)
+      throw new BadRequestException('Short content job has not been started');
+    job.syncFromEngine(
+      await this.shortContentClient.setClipFeedback(job.shortContentJobId, clipIndex, body),
+    );
+    return AdminShortContentJobOutputDto.fromEntity(await this.shortContentJobRepository.save(job));
   }
 
   /** Pulls active progress and legacy-music upgrades from the rendering service. */

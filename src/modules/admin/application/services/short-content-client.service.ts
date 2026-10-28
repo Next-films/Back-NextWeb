@@ -6,6 +6,7 @@ import { AdminUpdateShortContentClipMusicInputDto } from '@/admin/api/dtos/input
 import { AdminUploadShortContentMusicInputDto } from '@/admin/api/dtos/input/admin-upload-short-content-music.input.dto';
 import { AdminUpdateShortContentSettingsInputDto } from '@/admin/api/dtos/input/admin-update-short-content-settings.input.dto';
 import { AdminShortContentLogoInputDto } from '@/admin/api/dtos/input/admin-short-content-logo.input.dto';
+import { AdminShortContentFeedbackInputDto } from '@/admin/api/dtos/input/admin-short-content-feedback.input.dto';
 
 /** A highlights job of the short-content service (see its README). */
 export type ShortContentEngineJob = Record<string, unknown> & {
@@ -37,6 +38,26 @@ export class ShortContentClientService {
 
   getHighlights(engineJobId: string): Promise<ShortContentEngineJob> {
     return this.call('GET', `/api/shorts/highlights/${encodeURIComponent(engineJobId)}`);
+  }
+
+  reselectHighlights(engineJobId: string): Promise<ShortContentEngineJob> {
+    return this.call(
+      'POST',
+      `/api/shorts/highlights/${encodeURIComponent(engineJobId)}/reselect`,
+      {},
+    );
+  }
+
+  setClipFeedback(
+    engineJobId: string,
+    clipIndex: number,
+    input: AdminShortContentFeedbackInputDto,
+  ): Promise<ShortContentEngineJob> {
+    return this.call(
+      'PATCH',
+      `/api/shorts/highlights/${encodeURIComponent(engineJobId)}/clips/${clipIndex}/feedback`,
+      input,
+    );
   }
 
   getMusicTracks(): Promise<Record<string, unknown>[]> {
