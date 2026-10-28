@@ -190,6 +190,7 @@ export class YoutubeMonitorService implements OnModuleDestroy {
                 this.videos.create({
                   ...old,
                   ...data,
+                  isShort: item.isShort === true,
                   comments: commentsReadFailed ? old?.comments ?? null : detail.comments,
                   commentsUpdatedAt: commentsReadFailed ? old?.commentsUpdatedAt ?? null : now,
                   lastAttemptAt: now,

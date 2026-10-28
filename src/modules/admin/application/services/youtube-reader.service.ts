@@ -12,7 +12,12 @@ import {
   youtubeThumbnail,
 } from './youtube-source';
 
-export type YoutubeListedVideo = { videoId: string; title: string; thumbnailUrl: string | null };
+export type YoutubeListedVideo = {
+  videoId: string;
+  title: string;
+  thumbnailUrl: string | null;
+  isShort: boolean;
+};
 export type YoutubeChannelPage = {
   channelId: string;
   channelName: string;
@@ -159,15 +164,21 @@ export class YoutubeReaderService implements OnModuleDestroy {
       throw new Error('Unexpected YouTube channel');
     const feeds: YoutubeListedVideo[][] = [];
     if (channel.has_videos)
-      feeds.push(await this.readFeed((await channel.getVideos()) as unknown as Feed));
+      feeds.push(await this.readFeed((await channel.getVideos()) as unknown as Feed, false));
     if (channel.has_shorts)
-      feeds.push(await this.readFeed((await channel.getShorts()) as unknown as Feed));
+      feeds.push(await this.readFeed((await channel.getShorts()) as unknown as Feed, true));
     // Interleave regular videos and Shorts, so neither format hides the other.
     const videos = new Map<string, YoutubeListedVideo>();
     for (let index = 0; index < MAX_VIDEOS && videos.size < MAX_VIDEOS; index++) {
       for (const feed of feeds) {
         const video = feed[index];
-        if (video && videos.size < MAX_VIDEOS) videos.set(video.videoId, video);
+        if (video && (videos.has(video.videoId) || videos.size < MAX_VIDEOS)) {
+          const previous = videos.get(video.videoId);
+          videos.set(video.videoId, {
+            ...video,
+            isShort: video.isShort || previous?.isShort === true,
+          });
+        }
       }
     }
     return {
@@ -177,7 +188,7 @@ export class YoutubeReaderService implements OnModuleDestroy {
     };
   }
 
-  private async readFeed(first: Feed): Promise<YoutubeListedVideo[]> {
+  private async readFeed(first: Feed, isShort: boolean): Promise<YoutubeListedVideo[]> {
     let feed = first;
     const videos = new Map<string, YoutubeListedVideo>();
     for (let page = 0; page < 3; page++) {
@@ -194,6 +205,7 @@ export class YoutubeReaderService implements OnModuleDestroy {
           videoId: id,
           title: (title ? String(title) : 'Видео').slice(0, 500),
           thumbnailUrl: youtubeThumbnail(thumbnail),
+          isShort,
         });
         if (videos.size >= MAX_VIDEOS) break;
       }

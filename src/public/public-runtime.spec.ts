@@ -56,11 +56,16 @@ describe('Isolated public runtime', () => {
       '/external-api/config/sync',
       '/analytics/event',
       '/admin/cinema/youtube/sync',
+      '/admin/cinema/youtube/videos/LOP8ul3KqQI/import',
+      '/admin/cinema/youtube/videos/LOP8ul3KqQI/render',
     ]) {
       await request(app.getHttpServer()).post(`/api${path}`).send({}).expect(404);
     }
     await request(app.getHttpServer()).get('/api/cinema/films').expect(404);
     await request(app.getHttpServer()).get('/api/admin/cinema/youtube').expect(404);
+    await request(app.getHttpServer())
+      .get('/api/admin/cinema/youtube/videos/LOP8ul3KqQI/files/original')
+      .expect(404);
     await request(app.getHttpServer())
       .put('/api/admin/cinema/youtube/accounts')
       .send({ accounts: [] })

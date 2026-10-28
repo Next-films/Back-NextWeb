@@ -4,6 +4,7 @@ import * as request from 'supertest';
 import { AdminAccessTokenGuard } from '@/admin-auth/application/guards/jwt/admin-access-token.guard';
 import { AdminYoutubeMonitorController } from './admin-youtube-monitor.controller';
 import { YoutubeMonitorService } from '../application/services/youtube-monitor.service';
+import { YoutubeProcessingService } from '../application/services/youtube-processing.service';
 
 describe('Authenticated admin YouTube routes', () => {
   let app: INestApplication;
@@ -15,7 +16,13 @@ describe('Authenticated admin YouTube routes', () => {
   beforeAll(async () => {
     const module = await Test.createTestingModule({
       controllers: [AdminYoutubeMonitorController],
-      providers: [{ provide: YoutubeMonitorService, useValue: monitor }],
+      providers: [
+        { provide: YoutubeMonitorService, useValue: monitor },
+        {
+          provide: YoutubeProcessingService,
+          useValue: { status: jest.fn(), download: jest.fn(), render: jest.fn(), asset: jest.fn() },
+        },
+      ],
     })
       .overrideGuard(AdminAccessTokenGuard)
       .useValue({
@@ -46,6 +53,14 @@ describe('Authenticated admin YouTube routes', () => {
     await request(app.getHttpServer()).post('/api/admin/cinema/youtube/sync').expect(403);
     expect(monitor.overview).not.toHaveBeenCalled();
     expect(monitor.startSync).not.toHaveBeenCalled();
+    for (const route of ['import', 'render'])
+      await request(app.getHttpServer())
+        .post(`/api/admin/cinema/youtube/videos/LOP8ul3KqQI/${route}`)
+        .send({})
+        .expect(403);
+    await request(app.getHttpServer())
+      .get('/api/admin/cinema/youtube/videos/LOP8ul3KqQI/files/original')
+      .expect(403);
   });
 
   it('returns quickly for manual sync and validates the list and pagination before service calls', async () => {

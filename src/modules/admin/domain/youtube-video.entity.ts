@@ -3,6 +3,10 @@ import { Column, CreateDateColumn, Entity, Index, PrimaryColumn } from 'typeorm'
 @Entity('admin_youtube_videos')
 @Index('IDX_admin_youtube_video_channel', ['channelId'])
 export class YoutubeVideo {
+  /** null means an old cache entry: refresh the channel before allowing a download. */
+  @Column({ type: 'boolean', nullable: true })
+  isShort: boolean | null;
+
   @PrimaryColumn({ type: 'varchar', length: 11 })
   videoId: string;
 

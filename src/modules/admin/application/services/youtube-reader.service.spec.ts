@@ -183,6 +183,7 @@ describe('Anonymous YouTube reader', () => {
     const result = await reader.readChannel('@our_channel');
     expect(result.channelId).toBe(channelId);
     expect(result.videos.map(video => video.videoId)).toEqual([videoId, 'abcdefghijk']);
+    expect(result.videos.every(video => video.isShort)).toBe(true);
     expect(client.resolveURL).toHaveBeenCalledWith('https://www.youtube.com/@our_channel');
   });
 

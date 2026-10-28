@@ -25,6 +25,41 @@ export type ShortContentReprocessing = Record<string, unknown> & {
 export class ShortContentClientService {
   constructor(private readonly configService: ConfigService<ConfigurationType, true>) {}
 
+  youtubeRequest(
+    method: 'GET' | 'POST' | 'DELETE',
+    videoId: string,
+    body?: unknown,
+    action = '',
+  ): Promise<Record<string, unknown>> {
+    return this.call(
+      method,
+      `/api/shorts/youtube/${encodeURIComponent(videoId)}${action ? `/${action}` : ''}`,
+      body,
+    );
+  }
+
+  async youtubeAsset(videoId: string, kind: string): Promise<Response> {
+    const settings = this.configService.get('apiSettings', { infer: true });
+    if (!settings.SHORT_CONTENT_SERVICE_URL?.trim())
+      throw new ServiceUnavailableException('Short-content is not configured');
+    const response = await fetch(
+      new URL(
+        `/api/shorts/youtube/${encodeURIComponent(videoId)}/files/${kind}`,
+        this.ensureTrailingSlash(settings.SHORT_CONTENT_SERVICE_URL),
+      ),
+      {
+        headers: this.buildHeaders(settings.SHORT_CONTENT_SERVICE_TOKEN, false),
+        redirect: 'error',
+        signal: AbortSignal.timeout(120_000),
+      },
+    );
+    if (!response.ok || !response.body) {
+      await response.body?.cancel();
+      throw new ServiceUnavailableException('YouTube artifact is not available yet');
+    }
+    return response;
+  }
+
   createHighlights(
     input: AdminCreateShortContentHighlightsInputDto,
   ): Promise<ShortContentEngineJob> {
