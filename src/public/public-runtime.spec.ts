@@ -55,10 +55,16 @@ describe('Isolated public runtime', () => {
       '/cinema/media/sign-url',
       '/external-api/config/sync',
       '/analytics/event',
+      '/admin/cinema/youtube/sync',
     ]) {
       await request(app.getHttpServer()).post(`/api${path}`).send({}).expect(404);
     }
     await request(app.getHttpServer()).get('/api/cinema/films').expect(404);
+    await request(app.getHttpServer()).get('/api/admin/cinema/youtube').expect(404);
+    await request(app.getHttpServer())
+      .put('/api/admin/cinema/youtube/accounts')
+      .send({ accounts: [] })
+      .expect(404);
   });
 
   it('accepts the player host returned by the real Kodik API, but not lookalike hosts', async () => {

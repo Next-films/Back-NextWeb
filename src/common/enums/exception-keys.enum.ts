@@ -5,6 +5,7 @@ export enum EXCEPTION_KEYS_ENUM {
    *
    */
   INCORRECT_INPUT_DATA = 'error.incorrect_input_data',
+  INVALID_YOUTUBE_SOURCE = 'error.invalid_youtube_source',
   INCORRECT_PAGE = 'error.incorrect_page',
   GENRE_NAME_IS_EXIST = 'error.genre_name_is_exist',
   GENRE_NOT_FOUND = 'error.genre_not_found',

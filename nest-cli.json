@@ -17,7 +17,8 @@
       "**/*.hbs",
       "**/*.html",
       "**/*.svg",
-      "**/*.json"
+      "**/*.json",
+      "**/youtube-esm.cjs"
     ],
     "watchAssets": false,
     "plugins": ["@nestjs/swagger"]

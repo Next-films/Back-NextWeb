@@ -95,6 +95,11 @@ import { SocialPublishingRule } from '@/admin/domain/social-publishing-rule.enti
 import { SocialPublication } from '@/admin/domain/social-publication.entity';
 import { PostMyPostPublishingService } from '@/admin/application/services/postmypost-publishing.service';
 import { SocialPublishingService } from '@/admin/application/services/social-publishing.service';
+import { AdminYoutubeMonitorController } from './api/admin-youtube-monitor.controller';
+import { YoutubeMonitorService } from './application/services/youtube-monitor.service';
+import { YoutubeReaderService } from './application/services/youtube-reader.service';
+import { YoutubeSource } from './domain/youtube-source.entity';
+import { YoutubeVideo } from './domain/youtube-video.entity';
 
 export const AdminProvider = {
   provide: 'Admin',
@@ -170,6 +175,8 @@ const exportProviders = [
       ShortContentJob,
       SocialPublishingRule,
       SocialPublication,
+      YoutubeSource,
+      YoutubeVideo,
     ]),
     BcryptModule,
     JwtModule,
@@ -196,6 +203,7 @@ const exportProviders = [
     AdminCinemaPremieresController,
     AdminShortContentController,
     AdminSocialPublishingController,
+    AdminYoutubeMonitorController,
     AdminController,
   ],
   providers: [
@@ -222,6 +230,8 @@ const exportProviders = [
     ShortContentJobRepository,
     PostMyPostPublishingService,
     SocialPublishingService,
+    YoutubeMonitorService,
+    YoutubeReaderService,
   ],
   exports: [...exportProviders],
 })

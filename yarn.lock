@@ -332,6 +332,11 @@
   resolved "https://registry.yarnpkg.com/@borewit/text-codec/-/text-codec-0.1.1.tgz#7e7f27092473d5eabcffef693a849f2cc48431da"
   integrity sha512-5L/uBxmjaCIX5h8Z+uu+kA9BQLkc/Wl06UGR5ajNRxu+/XjonB5i8JpgFMrPj3LXTCPA0pv8yxUvbUi+QthGGA==
 
+"@bufbuild/protobuf@^2.0.0":
+  version "2.16.0"
+  resolved "https://registry.yarnpkg.com/@bufbuild/protobuf/-/protobuf-2.16.0.tgz#130eff69a232f29fb4e2b3f8ebbb0b3e0adf5a36"
+  integrity sha512-FWa0sPlqYGJgpTs6OxBRcL/AW4JT0OIO+W1ajerluoTVh8CV0B7XM1qsNCRgnkSCkRCgOICKHRQlY17jrsm0+Q==
+
 "@colors/colors@1.5.0":
   version "1.5.0"
   resolved "https://registry.yarnpkg.com/@colors/colors/-/colors-1.5.0.tgz#bb504579c1cae923e6576a4f5da43d25f97bdbd9"
@@ -5474,6 +5479,11 @@ merge2@^1.3.0, merge2@^1.4.1:
   resolved "https://registry.yarnpkg.com/merge2/-/merge2-1.4.1.tgz#4368892f885e907455a6fd7dc55c0c9d404990ae"
   integrity sha512-8q7VEgMJW4J8tcfVPy8g09NcQwZdbwFEqhe/WZkoIzjn/3TGDwtOCYtXGxA3O8tPzpczCCDgv+P2P5y00ZJOOg==
 
+meriyah@^7.3.1:
+  version "7.4.1"
+  resolved "https://registry.yarnpkg.com/meriyah/-/meriyah-7.4.1.tgz#fe8fb759da169f35d271c43c97643b1e12221e2f"
+  integrity sha512-3fIW/dyrrS7xbcxs/EHstPTZX9l/NVLDrXB1b+nNKoS98MpBonPH4kZ9MXUxH1QTlY34jp7ir7eMts1FDC9weA==
+
 methods@^1.1.2, methods@~1.1.2:
   version "1.1.2"
   resolved "https://registry.yarnpkg.com/methods/-/methods-1.1.2.tgz#5529a4d67654134edcc5266656835b0f851afcee"
@@ -7906,3 +7916,12 @@ yocto-queue@^0.1.0:
   version "0.1.0"
   resolved "https://registry.yarnpkg.com/yocto-queue/-/yocto-queue-0.1.0.tgz#0294eb3dee05028d31ee1a5fa2c556a6aaf10a1b"
   integrity sha512-rVksvsnNCdJ/ohGc6xgPwyN8eheCxsiLM8mxuE/t/mOVqJewPuO1miLpTHQiRgTKCLexL4MeAFVagts7HmNZ2Q==
+
+youtubei.js@18.3.0:
+  version "18.3.0"
+  resolved "https://registry.yarnpkg.com/youtubei.js/-/youtubei.js-18.3.0.tgz#510e0cdcbc5b261449cb10de7cb582044868c0fc"
+  integrity sha512-6Cwn/U8a+OjpZp5XgqOjwy7Lk0RrGavm3I5zO7qZWO+fes20vhWMZnlUs0h/97SwjS0AsxAZrZ5bJ85XBJVWTw==
+  dependencies:
+    "@bufbuild/protobuf" "^2.0.0"
+    fflate "^0.8.2"
+    meriyah "^7.3.1"
