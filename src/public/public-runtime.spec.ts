@@ -63,6 +63,11 @@ describe('Isolated public runtime', () => {
     }
     await request(app.getHttpServer()).get('/api/cinema/films').expect(404);
     await request(app.getHttpServer()).get('/api/admin/cinema/youtube').expect(404);
+    await request(app.getHttpServer()).get('/api/admin/cinema/youtube/frames').expect(404);
+    await request(app.getHttpServer()).post('/api/admin/cinema/youtube/frames').expect(404);
+    await request(app.getHttpServer())
+      .get('/api/admin/cinema/youtube/frames/shortkino-v2')
+      .expect(404);
     await request(app.getHttpServer()).get('/api/admin/cinema/youtube/automation').expect(404);
     await request(app.getHttpServer())
       .put('/api/admin/cinema/youtube/automation')

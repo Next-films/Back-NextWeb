@@ -29,6 +29,58 @@ export class ShortContentClientService {
     return this.call('GET', '/api/shorts/youtube-queue');
   }
 
+  youtubeFrames(): Promise<Record<string, unknown>[]> {
+    return this.call('GET', '/api/shorts/youtube-frames');
+  }
+
+  async uploadYoutubeFrame(data: Buffer): Promise<Record<string, unknown>> {
+    const settings = this.configService.get('apiSettings', { infer: true });
+    if (!settings.SHORT_CONTENT_SERVICE_URL?.trim())
+      throw new ServiceUnavailableException('Short-content is not configured');
+    const response = await fetch(
+      new URL('/api/shorts/youtube-frames', settings.SHORT_CONTENT_SERVICE_URL),
+      {
+        method: 'POST',
+        headers: {
+          ...this.buildHeaders(settings.SHORT_CONTENT_SERVICE_TOKEN, false),
+          'Content-Type': 'image/png',
+        },
+        body: data,
+        redirect: 'error',
+        signal: AbortSignal.timeout(60_000),
+      },
+    );
+    if (!response.ok) {
+      await response.body?.cancel();
+      throw new ServiceUnavailableException(
+        'Не удалось сохранить рамку: проверьте PNG, размер, формат 9:16 и доступное место.',
+      );
+    }
+    return response.json() as Promise<Record<string, unknown>>;
+  }
+
+  async youtubeFrameAsset(frameId: string): Promise<Response> {
+    const settings = this.configService.get('apiSettings', { infer: true });
+    if (!settings.SHORT_CONTENT_SERVICE_URL?.trim())
+      throw new ServiceUnavailableException('Short-content is not configured');
+    const response = await fetch(
+      new URL(
+        `/api/shorts/youtube-frames/${encodeURIComponent(frameId)}`,
+        settings.SHORT_CONTENT_SERVICE_URL,
+      ),
+      {
+        headers: this.buildHeaders(settings.SHORT_CONTENT_SERVICE_TOKEN, false),
+        redirect: 'error',
+        signal: AbortSignal.timeout(30_000),
+      },
+    );
+    if (!response.ok || !response.body) {
+      await response.body?.cancel();
+      throw new ServiceUnavailableException('Рамка недоступна');
+    }
+    return response;
+  }
+
   youtubeRequest(
     method: 'GET' | 'POST' | 'DELETE',
     videoId: string,

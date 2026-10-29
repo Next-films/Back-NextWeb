@@ -16,6 +16,9 @@ function fixture() {
   const worker = {
     youtubeRequest: jest.fn().mockResolvedValue({ job: {} }),
     youtubeAsset: jest.fn(),
+    youtubeFrames: jest.fn(),
+    uploadYoutubeFrame: jest.fn(),
+    youtubeFrameAsset: jest.fn(),
   };
   return {
     service: new YoutubeProcessingService(sources as any, videos as any, worker as any),
@@ -26,6 +29,23 @@ function fixture() {
 }
 
 describe('YouTube media eligibility', () => {
+  it('accepts only bounded PNG uploads and safe immutable frame IDs', async () => {
+    const f = fixture();
+    for (const file of [
+      undefined,
+      { mimetype: 'image/svg+xml', buffer: Buffer.from('<svg/>') },
+      { mimetype: 'image/png', buffer: Buffer.from('not png') },
+    ])
+      expect(() => f.service.uploadFrame(file as any)).toThrow('PNG');
+    expect(() => f.service.frameAsset('../private')).toThrow('ID');
+    expect(f.worker.uploadYoutubeFrame).not.toHaveBeenCalled();
+    const png = Buffer.alloc(33);
+    Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]).copy(png);
+    await f.service.uploadFrame({ mimetype: 'image/png', buffer: png } as any);
+    expect(f.worker.uploadYoutubeFrame).toHaveBeenCalledWith(png);
+    await f.service.frameAsset('shortkino-v2');
+    expect(f.worker.youtubeFrameAsset).toHaveBeenCalledWith('shortkino-v2');
+  });
   it.each([false, null, undefined])(
     'never forwards a regular/unknown video to the downloader: %s',
     async isShort => {

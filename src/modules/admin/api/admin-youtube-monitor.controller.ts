@@ -12,7 +12,10 @@ import {
   StreamableFile,
   Query,
   UseGuards,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { AdminAccessTokenGuard } from '@/admin-auth/application/guards/jwt/admin-access-token.guard';
 import { ADMIN_AUTH_JWT_SCHEMA_NAME } from '@/common/constants/auth-jwt-schema-name.constants';
@@ -37,6 +40,27 @@ export class AdminYoutubeMonitorController {
     private readonly processing: YoutubeProcessingService,
     private readonly automation: YoutubeAutomationService,
   ) {}
+
+  @Get('frames')
+  frames() {
+    return this.processing.frames();
+  }
+
+  @Post('frames')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024, files: 1 } }))
+  uploadFrame(@UploadedFile() file: Express.Multer.File | undefined) {
+    return this.processing.uploadFrame(file);
+  }
+
+  @Get('frames/:frameId')
+  async frameFile(@Param('frameId') frameId: string, @Res({ passthrough: true }) res: Response) {
+    const upstream = await this.processing.frameAsset(frameId);
+    res.setHeader('Content-Type', 'image/png');
+    res.setHeader('Cache-Control', 'private, no-store');
+    const body = Readable.fromWeb(upstream.body as never);
+    res.on('close', () => body.destroy());
+    return new StreamableFile(body);
+  }
 
   @Get('automation')
   automationStatus() {

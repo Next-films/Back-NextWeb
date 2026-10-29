@@ -15,6 +15,29 @@ export class YoutubeProcessingService {
     private readonly worker: ShortContentClientService,
   ) {}
 
+  frames() {
+    return this.worker.youtubeFrames();
+  }
+
+  uploadFrame(file: Express.Multer.File | undefined) {
+    if (
+      !file ||
+      file.mimetype !== 'image/png' ||
+      !Buffer.isBuffer(file.buffer) ||
+      file.buffer.length > 10 * 1024 ** 2 ||
+      file.buffer.length < 33 ||
+      !file.buffer.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))
+    )
+      throw new BadRequestException('Загрузите PNG-рамку до 10 МБ');
+    return this.worker.uploadYoutubeFrame(file.buffer);
+  }
+
+  frameAsset(id: string) {
+    if (id !== 'shortkino-v2' && !/^[a-f0-9]{64}$/.test(id))
+      throw new BadRequestException('Invalid frame ID');
+    return this.worker.youtubeFrameAsset(id);
+  }
+
   private async eligible(videoId: string) {
     if (!isYoutubeVideoId(videoId)) throw new BadRequestException('Invalid YouTube video ID');
     const video = await this.videos.findOneBy({ videoId });

@@ -14,6 +14,14 @@ describe('Authenticated admin YouTube routes', () => {
     saveAccounts: jest.fn().mockResolvedValue({ accounts: [] }),
     startSync: jest.fn().mockReturnValue({ running: true }),
   };
+  const processing = {
+    status: jest.fn(),
+    download: jest.fn(),
+    render: jest.fn(),
+    asset: jest.fn(),
+    frames: jest.fn().mockResolvedValue([{ id: 'shortkino-v2' }]),
+    uploadFrame: jest.fn().mockResolvedValue({ id: 'a'.repeat(64) }),
+  };
   beforeAll(async () => {
     const module = await Test.createTestingModule({
       controllers: [AdminYoutubeMonitorController],
@@ -28,7 +36,7 @@ describe('Authenticated admin YouTube routes', () => {
         { provide: YoutubeMonitorService, useValue: monitor },
         {
           provide: YoutubeProcessingService,
-          useValue: { status: jest.fn(), download: jest.fn(), render: jest.fn(), asset: jest.fn() },
+          useValue: processing,
         },
       ],
     })
@@ -52,8 +60,41 @@ describe('Authenticated admin YouTube routes', () => {
     jest.clearAllMocks();
   });
 
+  it('forwards authenticated multipart PNG uploads and limits them to 10 MB', async () => {
+    const auth = { Authorization: 'Bearer test-admin' };
+    await request(app.getHttpServer())
+      .get('/api/admin/cinema/youtube/frames')
+      .set(auth)
+      .expect(200);
+    const png = Buffer.alloc(33);
+    Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]).copy(png);
+    await request(app.getHttpServer())
+      .post('/api/admin/cinema/youtube/frames')
+      .set(auth)
+      .attach('file', png, { filename: 'frame.png', contentType: 'image/png' })
+      .expect(201);
+    expect(processing.uploadFrame).toHaveBeenCalledWith(
+      expect.objectContaining({ mimetype: 'image/png', buffer: png }),
+    );
+    processing.uploadFrame.mockClear();
+    await request(app.getHttpServer())
+      .post('/api/admin/cinema/youtube/frames')
+      .set(auth)
+      .attach('file', Buffer.alloc(10 * 1024 * 1024 + 1), {
+        filename: 'large.png',
+        contentType: 'image/png',
+      })
+      .expect(413);
+    expect(processing.uploadFrame).not.toHaveBeenCalled();
+  });
+
   it('blocks unauthenticated reads, edits and sync starts', async () => {
     await request(app.getHttpServer()).get('/api/admin/cinema/youtube').expect(403);
+    await request(app.getHttpServer()).get('/api/admin/cinema/youtube/frames').expect(403);
+    await request(app.getHttpServer()).post('/api/admin/cinema/youtube/frames').expect(403);
+    await request(app.getHttpServer())
+      .get('/api/admin/cinema/youtube/frames/shortkino-v2')
+      .expect(403);
     await request(app.getHttpServer()).get('/api/admin/cinema/youtube/automation').expect(403);
     await request(app.getHttpServer())
       .put('/api/admin/cinema/youtube/automation')
