@@ -3,6 +3,7 @@ import {
   ArrayMaxSize,
   IsArray,
   IsInt,
+  IsIn,
   IsOptional,
   IsString,
   Max,
@@ -19,6 +20,10 @@ export class AdminYoutubeSourcesInputDto {
 }
 
 export class AdminYoutubeVideosQueryDto {
+  @IsOptional()
+  @IsIn(['downloaded'])
+  view?: 'downloaded';
+
   @IsOptional()
   @Type(() => Number)
   @IsInt()

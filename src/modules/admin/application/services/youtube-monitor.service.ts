@@ -42,10 +42,19 @@ export class YoutubeMonitorService implements OnModuleDestroy {
     ];
     const page = query.page ?? 1;
     const pageSize = query.pageSize ?? 12;
-    const [items, total] = channelIds.length
-      ? await this.videos
+    const builder = channelIds.length
+      ? this.videos
           .createQueryBuilder('video')
           .where('video.channelId IN (:...channelIds)', { channelIds })
+      : null;
+    if (builder && query.view === 'downloaded') {
+      builder
+        .andWhere('video."downloadStatus" = :downloadStatus', { downloadStatus: 'downloaded' })
+        .andWhere('video."isShort" = true')
+        .andWhere('video."lastSyncedAt" IS NOT NULL');
+    }
+    const [items, total] = builder
+      ? await builder
           .orderBy('COALESCE(video."publishedAt", video."firstSeenAt")', 'DESC')
           .addOrderBy('video.videoId', 'ASC')
           .skip((page - 1) * pageSize)

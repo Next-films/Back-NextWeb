@@ -51,15 +51,36 @@ function fixture() {
   const builder: any = {
     where: jest.fn((_sql, params) => {
       builder.ids = params.channelIds;
+      builder.downloaded = false;
+      builder.short = false;
+      builder.verified = false;
+      return builder;
+    }),
+    andWhere: jest.fn((sql: string, params?: any) => {
+      if (params?.downloadStatus) builder.downloaded = true;
+      if (sql.includes('"isShort"')) builder.short = true;
+      if (sql.includes('"lastSyncedAt"')) builder.verified = true;
       return builder;
     }),
     orderBy: jest.fn(() => builder),
     addOrderBy: jest.fn(() => builder),
-    skip: jest.fn(() => builder),
-    take: jest.fn(() => builder),
+    skip: jest.fn((offset: number) => {
+      builder.offset = offset;
+      return builder;
+    }),
+    take: jest.fn((limit: number) => {
+      builder.limit = limit;
+      return builder;
+    }),
     getManyAndCount: jest.fn(async () => {
-      const rows = [...videoRows.values()].filter(row => builder.ids.includes(row.channelId));
-      return [rows, rows.length];
+      const rows = [...videoRows.values()].filter(
+        row =>
+          builder.ids.includes(row.channelId) &&
+          (!builder.downloaded || row.downloadStatus === 'downloaded') &&
+          (!builder.short || row.isShort === true) &&
+          (!builder.verified || row.lastSyncedAt != null),
+      );
+      return [rows.slice(builder.offset, builder.offset + builder.limit), rows.length];
     }),
   };
   const videos = {
@@ -115,6 +136,36 @@ function fixture() {
 }
 
 describe('YouTube monitoring cache and background sync', () => {
+  it('filters downloaded verified Shorts before pagination and counts; never calls YouTube', async () => {
+    const f = fixture();
+    const base = { ...f.videoRows.get(videoId), isShort: true, downloadStatus: 'downloaded' };
+    f.videoRows.set(videoId, base);
+    for (const [id, patch] of [
+      ['downloaded2', {}],
+      ['queued', { downloadStatus: 'queued' }],
+      ['failed', { downloadStatus: 'failed' }],
+      ['deleted', { downloadStatus: 'skipped' }],
+      ['regular', { isShort: false }],
+      ['unverified', { lastSyncedAt: null }],
+      ['disabled', { channelId: 'UC_disabled_channel' }],
+    ] as const) {
+      f.videoRows.set(id, { ...base, ...patch, videoId: id });
+    }
+    const result = await f.monitor.overview({ page: 2, pageSize: 1, view: 'downloaded' });
+    expect(result.total).toBe(2);
+    expect(result.videos).toEqual([expect.objectContaining({ videoId: 'downloaded2' })]);
+    expect(f.reader.readChannel).not.toHaveBeenCalled();
+    expect(f.reader.readVideo).not.toHaveBeenCalled();
+    const unmatched = await f.monitor.overview({
+      page: 1,
+      pageSize: 12,
+      view: 'downloaded',
+      source: '@other',
+    });
+    expect(unmatched.total).toBe(0);
+    expect(unmatched.videos).toEqual([]);
+  });
+
   it('saves a validated deduplicated account list atomically; removal hides but does not delete cached videos', async () => {
     const f = fixture();
     await expect(f.monitor.saveAccounts(['https://45.9.117.71/'])).rejects.toThrow();

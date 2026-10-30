@@ -135,6 +135,13 @@ describe('Authenticated admin YouTube routes', () => {
     expect(monitor.overview).toHaveBeenCalledWith(
       expect.objectContaining({ page: 2, pageSize: 12 }),
     );
+    await request(app.getHttpServer())
+      .get('/api/admin/cinema/youtube?page=2&pageSize=12&view=downloaded&source=@ours')
+      .set(auth)
+      .expect(200);
+    expect(monitor.overview).toHaveBeenLastCalledWith(
+      expect.objectContaining({ page: 2, pageSize: 12, view: 'downloaded', source: '@ours' }),
+    );
     await request(app.getHttpServer()).post('/api/admin/cinema/youtube/sync').set(auth).expect(202);
     await request(app.getHttpServer())
       .put('/api/admin/cinema/youtube/accounts')
@@ -155,7 +162,7 @@ describe('Authenticated admin YouTube routes', () => {
         .send(body)
         .expect(400);
     }
-    for (const query of ['page=0', 'page=NaN', 'pageSize=1000']) {
+    for (const query of ['page=0', 'page=NaN', 'pageSize=1000', 'view=failed', 'view=false']) {
       await request(app.getHttpServer())
         .get(`/api/admin/cinema/youtube?${query}`)
         .set(auth)
