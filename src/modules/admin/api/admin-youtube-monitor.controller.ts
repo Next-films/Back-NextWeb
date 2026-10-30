@@ -67,6 +67,17 @@ export class AdminYoutubeMonitorController {
     return this.automation.overview();
   }
 
+  @Get('processing-batch')
+  processingBatch() {
+    return this.processing.batchStatus();
+  }
+
+  @Post('processing-batch')
+  @HttpCode(HttpStatus.ACCEPTED)
+  configureProcessingBatch(@Body() body: unknown) {
+    return this.processing.configureBatch(body);
+  }
+
   @Put('automation')
   configureAutomation(@Body() body: unknown) {
     return this.automation.configure(body);
@@ -110,8 +121,9 @@ export class AdminYoutubeMonitorController {
   }
 
   @Get()
-  overview(@Query() query: AdminYoutubeVideosQueryDto) {
-    return this.monitor.overview(query);
+  async overview(@Query() query: AdminYoutubeVideosQueryDto) {
+    const result = await this.monitor.overview(query);
+    return query.view === 'downloaded' ? this.processing.libraryStatuses(result) : result;
   }
 
   @Put('accounts')

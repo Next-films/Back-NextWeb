@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, IsNull, Not, Repository } from 'typeorm';
 import { YoutubeSource } from '../../domain/youtube-source.entity';
 import { YoutubeVideo } from '../../domain/youtube-video.entity';
 import { ShortContentClientService } from './short-content-client.service';
@@ -14,6 +14,76 @@ export class YoutubeProcessingService {
     @InjectRepository(YoutubeVideo) private readonly videos: Repository<YoutubeVideo>,
     private readonly worker: ShortContentClientService,
   ) {}
+
+  batchStatus() {
+    return this.worker.youtubeBatch('GET');
+  }
+
+  async configureBatch(input: unknown) {
+    const body = input as {
+      action?: unknown;
+      source?: unknown;
+      frameId?: unknown;
+      contentConfirmed?: unknown;
+    } | null;
+    if (body?.action === 'pause' || body?.action === 'resume')
+      return this.worker.youtubeBatch('POST', { action: body.action });
+    if (
+      body?.action !== 'start' ||
+      body.contentConfirmed !== true ||
+      !(
+        body.frameId === null ||
+        body.frameId === 'shortkino-v2' ||
+        (typeof body.frameId === 'string' && /^[a-f0-9]{64}$/.test(body.frameId))
+      ) ||
+      (body.source !== undefined && (typeof body.source !== 'string' || body.source.length > 300))
+    )
+      throw new BadRequestException('Подтвердите пакетную обработку Shorts и выберите рамку');
+    const sources = await this.sources.find({
+      where: { enabled: true, ...(body.source ? { source: body.source } : {}) },
+    });
+    const channelIds = [
+      ...new Set(sources.map(source => source.channelId).filter((id): id is string => !!id)),
+    ];
+    if (!channelIds.length) throw new BadRequestException('Нет доступных каналов');
+    const videos = await this.videos.find({
+      where: {
+        channelId: In(channelIds),
+        isShort: true,
+        downloadStatus: 'downloaded',
+        lastSyncedAt: Not(IsNull()),
+      },
+      select: { videoId: true },
+      order: { publishedAt: 'DESC', firstSeenAt: 'DESC', videoId: 'ASC' },
+      take: 10000,
+    });
+    if (!videos.length) throw new BadRequestException('Нет скачанных Shorts для обработки');
+    return this.worker.youtubeBatch('POST', {
+      action: 'start',
+      contentConfirmed: true,
+      frameId: body.frameId,
+      videoIds: videos.map(video => video.videoId),
+    });
+  }
+
+  async libraryStatuses<T extends { videos: YoutubeVideo[] }>(overview: T) {
+    if (!overview.videos.length) return overview;
+    try {
+      const statuses = await this.worker.youtubeStatuses(
+        overview.videos.map(video => video.videoId),
+      );
+      const byId = new Map(statuses.map(status => [status.videoId, status]));
+      return {
+        ...overview,
+        videos: overview.videos.map(video => ({
+          ...video,
+          processing: byId.get(video.videoId) ?? null,
+        })),
+      };
+    } catch {
+      return { ...overview, processingUnavailable: true };
+    }
+  }
 
   frames() {
     return this.worker.youtubeFrames();

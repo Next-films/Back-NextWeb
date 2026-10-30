@@ -15,6 +15,9 @@ describe('Authenticated admin YouTube routes', () => {
     startSync: jest.fn().mockReturnValue({ running: true }),
   };
   const processing = {
+    libraryStatuses: jest.fn().mockImplementation(value => Promise.resolve(value)),
+    batchStatus: jest.fn().mockResolvedValue({ status: 'idle' }),
+    configureBatch: jest.fn().mockResolvedValue({ status: 'running' }),
     status: jest.fn(),
     download: jest.fn(),
     render: jest.fn(),
@@ -58,6 +61,27 @@ describe('Authenticated admin YouTube routes', () => {
   });
   afterEach(() => {
     jest.clearAllMocks();
+  });
+
+  it('protects batch processing and returns an explicit start acknowledgement', async () => {
+    const path = '/api/admin/cinema/youtube/processing-batch';
+    await request(app.getHttpServer()).get(path).expect(403);
+    await request(app.getHttpServer()).post(path).send({ action: 'start' }).expect(403);
+    expect(processing.configureBatch).not.toHaveBeenCalled();
+    await request(app.getHttpServer())
+      .get(path)
+      .set('Authorization', 'Bearer test-admin')
+      .expect(200);
+    await request(app.getHttpServer())
+      .post(path)
+      .set('Authorization', 'Bearer test-admin')
+      .send({ action: 'start', contentConfirmed: true, frameId: null })
+      .expect(202);
+    expect(processing.configureBatch).toHaveBeenCalledWith({
+      action: 'start',
+      contentConfirmed: true,
+      frameId: null,
+    });
   });
 
   it('forwards authenticated multipart PNG uploads and limits them to 10 MB', async () => {

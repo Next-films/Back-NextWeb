@@ -29,6 +29,14 @@ export class ShortContentClientService {
     return this.call('GET', '/api/shorts/youtube-queue');
   }
 
+  youtubeBatch(method: 'GET' | 'POST', body?: unknown): Promise<Record<string, unknown>> {
+    return this.call(method, '/api/shorts/youtube-batch', body);
+  }
+
+  youtubeStatuses(videoIds: string[]): Promise<Array<Record<string, unknown>>> {
+    return this.call('POST', '/api/shorts/youtube-statuses', { videoIds });
+  }
+
   youtubePublishingUrl(assetId: string): Promise<{ url: string }> {
     if (!/^[a-f0-9]{64}$/.test(assetId))
       throw new ServiceUnavailableException('Invalid publishing asset');

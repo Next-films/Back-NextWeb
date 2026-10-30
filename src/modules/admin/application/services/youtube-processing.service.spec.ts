@@ -7,13 +7,20 @@ function fixture() {
     isShort: true,
     lastSyncedAt: new Date(),
   };
-  const videos = { findOneBy: jest.fn().mockResolvedValue(video), update: jest.fn() };
+  const videos = {
+    findOneBy: jest.fn().mockResolvedValue(video),
+    find: jest.fn().mockResolvedValue([video]),
+    update: jest.fn(),
+  };
   const sources = {
+    find: jest.fn().mockResolvedValue([{ channelId: video.channelId }]),
     findOneBy: jest
       .fn()
       .mockResolvedValue({ source: 'https://www.youtube.com/@ours', channelName: 'Наш канал' }),
   };
   const worker = {
+    youtubeBatch: jest.fn().mockResolvedValue({ status: 'running' }),
+    youtubeStatuses: jest.fn().mockResolvedValue([]),
     youtubeRequest: jest.fn().mockResolvedValue({ job: {} }),
     youtubeAsset: jest.fn(),
     youtubeFrames: jest.fn(),
@@ -23,12 +30,61 @@ function fixture() {
   return {
     service: new YoutubeProcessingService(sources as any, videos as any, worker as any),
     video,
+    videos,
     sources,
     worker,
   };
 }
 
 describe('YouTube media eligibility', () => {
+  it('starts a batch from verified saved Shorts on enabled channels, never from client URLs or video IDs', async () => {
+    const f = fixture();
+    await expect(f.service.configureBatch({ action: 'start', frameId: null })).rejects.toThrow(
+      'Подтвердите',
+    );
+    await f.service.configureBatch({
+      action: 'start',
+      contentConfirmed: true,
+      frameId: 'shortkino-v2',
+      videoIds: ['attacker'],
+      url: 'http://attacker/',
+    });
+    expect(f.worker.youtubeBatch).toHaveBeenCalledWith('POST', {
+      action: 'start',
+      contentConfirmed: true,
+      frameId: 'shortkino-v2',
+      videoIds: [f.video.videoId],
+    });
+    expect(f.videos.find).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          isShort: true,
+          downloadStatus: 'downloaded',
+          lastSyncedAt: expect.anything(),
+        }),
+      }),
+    );
+    await f.service.configureBatch({ action: 'pause' });
+    expect(f.worker.youtubeBatch).toHaveBeenLastCalledWith('POST', { action: 'pause' });
+  });
+
+  it('does not claim originals are unprocessed when worker status loading fails', async () => {
+    const f = fixture();
+    f.worker.youtubeStatuses.mockRejectedValueOnce(new Error('offline'));
+    expect(await f.service.libraryStatuses({ videos: [f.video] } as any)).toEqual({
+      videos: [f.video],
+      processingUnavailable: true,
+    });
+    f.worker.youtubeStatuses.mockResolvedValueOnce([
+      { videoId: f.video.videoId, processedAvailable: true, revision: 2 },
+    ]);
+    const result = await f.service.libraryStatuses({ videos: [f.video] } as any);
+    expect(result.videos[0].processing).toEqual({
+      videoId: f.video.videoId,
+      processedAvailable: true,
+      revision: 2,
+    });
+  });
   it('accepts only bounded PNG uploads and safe immutable frame IDs', async () => {
     const f = fixture();
     for (const file of [
