@@ -35,6 +35,11 @@ import {
 import { Film } from '@/films/domain/film.entity';
 import { Cartoon } from '@/cartoons/domain/cartoon.entity';
 import { Serial } from '@/serials/domain/serial.entity';
+import { SocialYoutubeClip } from '@/admin/domain/social-youtube-clip.entity';
+import { YoutubeVideo } from '@/admin/domain/youtube-video.entity';
+import { YoutubeSource } from '@/admin/domain/youtube-source.entity';
+import { isYoutubeVideoId } from './youtube-source';
+import { selectPublishingGroup } from './social-publishing-groups';
 
 type StoredClip = {
   index: number;
@@ -74,9 +79,69 @@ export class SocialPublishingService {
     return this.ruleRepository.find({ order: { createdAt: 'DESC' } });
   }
 
+  listYoutubeClips(): Promise<SocialYoutubeClip[]> {
+    return this.dataSource
+      .getRepository(SocialYoutubeClip)
+      .find({ where: { deletedAt: IsNull() }, order: { createdAt: 'DESC' }, take: 200 });
+  }
+
+  async enqueueYoutube(videoId: string, input: unknown): Promise<SocialYoutubeClip> {
+    const body = input as { revision?: unknown; reviewConfirmed?: unknown } | null;
+    if (
+      !isYoutubeVideoId(videoId) ||
+      body?.reviewConfirmed !== true ||
+      !Number.isInteger(body.revision) ||
+      Number(body.revision) < 1
+    )
+      throw new BadRequestException('Подтвердите проверку готовой версии Shorts');
+    const video = await this.dataSource.getRepository(YoutubeVideo).findOneBy({ videoId });
+    if (
+      !video ||
+      video.isShort !== true ||
+      !video.lastSyncedAt ||
+      !(await this.dataSource
+        .getRepository(YoutubeSource)
+        .exist({ where: { channelId: video.channelId, enabled: true } }))
+    )
+      throw new BadRequestException('Shorts или добавленный канал недоступен');
+    const repository = this.dataSource.getRepository(SocialYoutubeClip);
+    const previous = await repository.findOneBy({ videoId, revision: Number(body.revision) });
+    if (previous?.deletedAt)
+      throw new BadRequestException('Эта версия уже опубликована и удалена из хранилища');
+    const result = await this.shortContentClient.youtubeRequest(
+      'POST',
+      videoId,
+      {
+        revision: body.revision,
+        reviewConfirmed: true,
+      },
+      'publishing',
+    );
+    if (
+      typeof result.assetId !== 'string' ||
+      !/^[a-f0-9]{64}$/.test(result.assetId) ||
+      result.revision !== body.revision
+    )
+      throw new BadRequestException('Обработанная версия недоступна');
+    await repository.upsert(
+      {
+        id: result.assetId,
+        videoId,
+        revision: Number(body.revision),
+        title: video.title,
+        description: video.description,
+      },
+      ['videoId', 'revision'],
+    );
+    const asset = await repository.findOneByOrFail({ id: result.assetId });
+    if (asset.deletedAt)
+      throw new BadRequestException('Эта версия уже опубликована и удалена из хранилища');
+    return asset;
+  }
+
   async listPublications(): Promise<SocialPublication[]> {
     const publications = await this.publicationRepository.find({
-      relations: { rule: true },
+      relations: { rule: true, youtubeClip: true },
       order: { createdAt: 'DESC' },
       take: 200,
     });
@@ -99,6 +164,8 @@ export class SocialPublishingService {
         id: true,
         ruleId: true,
         shortContentJobId: true,
+        sourceGroup: true,
+        youtubeAssetId: true,
         clipIndex: true,
         status: true,
         scheduledAt: true,
@@ -131,6 +198,13 @@ export class SocialPublishingService {
     }
 
     const rule = this.ruleRepository.create({
+      sourceGroups: input.sourceGroups ?? ['own'],
+      groupStrategy: input.groupStrategy ?? 'alternate',
+      firstGroup: input.firstGroup ?? 'own',
+      ownPerCycle: input.ownPerCycle ?? 1,
+      youtubePerCycle: input.youtubePerCycle ?? 1,
+      fallbackToOtherGroup: input.fallbackToOtherGroup ?? true,
+      groupCursor: 0,
       name: input.name,
       provider: input.provider,
       projectId: input.projectId,
@@ -158,6 +232,23 @@ export class SocialPublishingService {
     input: AdminUpdateSocialPublishingRuleInputDto,
   ): Promise<SocialPublishingRule> {
     const rule = await this.getRuleOrThrow(id);
+    const groupFields = [
+      'sourceGroups',
+      'groupStrategy',
+      'firstGroup',
+      'ownPerCycle',
+      'youtubePerCycle',
+      'fallbackToOtherGroup',
+    ] as const;
+    for (const field of groupFields) {
+      if (
+        input[field] !== undefined &&
+        JSON.stringify(input[field]) !== JSON.stringify(rule[field])
+      ) {
+        Object.assign(rule, { [field]: input[field] });
+        rule.groupCursor = 0;
+      }
+    }
     const scheduleChanged =
       input.startAt !== undefined ||
       input.intervalMinutes !== undefined ||
@@ -428,6 +519,7 @@ export class SocialPublishingService {
         await this.resumeAfterReconciledInterruptions();
       }
       await this.cleanupPublishedClips();
+      await this.cleanupPublishedYoutubeClips();
     } catch (error) {
       const reason = this.getErrorMessage(error);
       this.logger.error(`Social publishing tick failed: ${reason}`, this.tick.name);
@@ -472,44 +564,74 @@ export class SocialPublishingService {
       if (rule.endAt && rule.nextRunAt > rule.endAt) rule.isEnabled = false;
       await manager.save(rule);
 
-      const jobs = await manager.getRepository(ShortContentJob).find({
-        where: { status: ShortContentJobStatus.RENDERED },
-        order: { createdAt: 'ASC', id: 'ASC' },
-        take: 2_000,
-      });
       const used = await manager.getRepository(SocialPublication).find({
         where: { ruleId: rule.id },
-        select: { shortContentJobId: true, clipIndex: true },
+        select: { shortContentJobId: true, clipIndex: true, youtubeAssetId: true },
       });
       const usedKeys = new Set(used.map(item => `${item.shortContentJobId}:${item.clipIndex}`));
 
-      for (const job of jobs) {
-        if (!rule.contentTypes.includes(job.contentType)) continue;
-
-        const clips = this.getClips(job);
-        for (const clip of clips) {
-          if (usedKeys.has(`${job.id}:${clip.index}`)) continue;
-
-          return manager.save(
-            manager.getRepository(SocialPublication).create({
-              ruleId: rule.id,
-              shortContentJobId: job.id,
-              clipIndex: clip.index,
-              provider: rule.provider,
-              status: SocialPublicationStatus.QUEUED,
-              scheduledAt,
-              externalPublicationId: null,
-              externalUploadId: null,
-              externalFileId: null,
-              providerPayload: null,
-              errorMessage: null,
-              attempts: 0,
-            }),
-          );
+      let own: { job: ShortContentJob; clip: StoredClip } | null = null;
+      const batchSize = 2000;
+      if ((rule.sourceGroups ?? ['own']).includes('own')) {
+        for (let offset = 0; !own; offset += batchSize) {
+          const jobs = await manager.getRepository(ShortContentJob).find({
+            where: { status: ShortContentJobStatus.RENDERED },
+            order: { createdAt: 'ASC', id: 'ASC' },
+            skip: offset,
+            take: batchSize,
+          });
+          for (const job of jobs) {
+            if (!rule.contentTypes.includes(job.contentType)) continue;
+            for (const clip of this.getClips(job)) {
+              if (usedKeys.has(`${job.id}:${clip.index}`)) continue;
+              own = { job, clip };
+              break;
+            }
+            if (own) break;
+          }
+          if (jobs.length < batchSize) break;
         }
       }
-
-      return null;
+      const usedYoutube = new Set(used.map(item => item.youtubeAssetId).filter(Boolean));
+      let youtube: SocialYoutubeClip | null = null;
+      if (rule.sourceGroups?.includes('youtube')) {
+        const repository = manager.getRepository(SocialYoutubeClip);
+        const candidates = await repository.find({
+          where: { deletedAt: IsNull() },
+          order: { createdAt: 'ASC', id: 'ASC' },
+        });
+        for (const candidate of candidates) {
+          if (usedYoutube.has(candidate.id)) continue;
+          // Cleanup takes the same row lock; no publication can reserve a deleted file.
+          youtube = await repository.findOne({
+            where: { id: candidate.id, deletedAt: IsNull() },
+            lock: { mode: 'pessimistic_write' },
+          });
+          if (youtube) break;
+        }
+      }
+      const selection = selectPublishingGroup(rule, { own: !!own, youtube: !!youtube });
+      if (!selection) return null;
+      rule.groupCursor = selection.nextCursor;
+      await manager.save(rule);
+      return manager.save(
+        manager.getRepository(SocialPublication).create({
+          ruleId: rule.id,
+          sourceGroup: selection.group,
+          shortContentJobId: selection.group === 'own' ? own!.job.id : null,
+          clipIndex: selection.group === 'own' ? own!.clip.index : 1,
+          youtubeAssetId: selection.group === 'youtube' ? youtube!.id : null,
+          provider: rule.provider,
+          status: SocialPublicationStatus.QUEUED,
+          scheduledAt,
+          externalPublicationId: null,
+          externalUploadId: null,
+          externalFileId: null,
+          providerPayload: null,
+          errorMessage: null,
+          attempts: 0,
+        }),
+      );
     });
   }
 
@@ -536,10 +658,12 @@ export class SocialPublishingService {
 
     const [rule, job] = await Promise.all([
       this.ruleRepository.findOne({ where: { id: publication.ruleId } }),
-      this.shortContentJobRepository.findOne({ where: { id: publication.shortContentJobId } }),
+      publication.sourceGroup === 'youtube'
+        ? Promise.resolve(null)
+        : this.shortContentJobRepository.findOne({ where: { id: publication.shortContentJobId! } }),
     ]);
 
-    if (!rule || !job) {
+    if (!rule || (!job && publication.sourceGroup !== 'youtube')) {
       await this.failAndPause(publication, 'Publishing rule or short content job no longer exists');
       return;
     }
@@ -548,6 +672,12 @@ export class SocialPublishingService {
 
     try {
       const provider = this.getProvider(rule.provider);
+      if (publication.sourceGroup === 'youtube') {
+        await this.submitYoutube(publication, rule);
+        await this.publicationRepository.save(publication);
+        return;
+      }
+      if (!job) throw new Error('Short content job is missing');
       const clip = this.getClips(job).find(item => item.index === publication.clipIndex);
 
       if (publication.externalFileId) {
@@ -560,6 +690,7 @@ export class SocialPublishingService {
           clipIndex: String(publication.clipIndex),
           contentType: job.contentType,
           contentId: String(job.contentId),
+          sourceGroup: 'Наше',
         };
         publication.scheduledAt = new Date(
           Math.max(publication.scheduledAt.getTime(), Date.now() + IMMEDIATE_PUBLICATION_DELAY_MS),
@@ -631,6 +762,54 @@ export class SocialPublishingService {
         this.checkAccountsBeforePublishing.name,
       );
       return false;
+    }
+  }
+
+  private async submitYoutube(
+    publication: SocialPublication,
+    rule: SocialPublishingRule,
+  ): Promise<void> {
+    if (!publication.youtubeAssetId) throw new Error('YouTube publication asset is missing');
+    const asset = await this.dataSource
+      .getRepository(SocialYoutubeClip)
+      .findOneBy({ id: publication.youtubeAssetId });
+    if (!asset) throw new Error('YouTube publication asset no longer exists');
+    const provider = this.getProvider(rule.provider);
+    if (publication.externalFileId) {
+      publication.scheduledAt = new Date(
+        Math.max(publication.scheduledAt.getTime(), Date.now() + IMMEDIATE_PUBLICATION_DELAY_MS),
+      );
+      const values = {
+        title: asset.title,
+        description: asset.description ?? '',
+        hook: asset.title,
+        clipIndex: '1',
+        contentType: 'youtube',
+        contentId: asset.videoId,
+        sourceGroup: 'YouTube',
+      };
+      const result = await provider.scheduleUploadedVideo({
+        projectId: rule.projectId,
+        accountIds: rule.accountIds,
+        externalFileId: publication.externalFileId,
+        scheduledAt: publication.scheduledAt,
+        title: this.interpolate(rule.titleTemplate, values),
+        caption: this.interpolate(rule.captionTemplate || DEFAULT_CAPTION_TEMPLATE, values)?.trim(),
+      });
+      publication.status = SocialPublicationStatus.SCHEDULED;
+      publication.externalPublicationId = result.externalPublicationId;
+      publication.providerPayload = result.raw;
+    } else if (publication.externalUploadId) {
+      publication.status = SocialPublicationStatus.PROCESSING;
+    } else {
+      const media = await this.shortContentClient.youtubePublishingUrl(asset.id);
+      const upload = await provider.startVideoUpload({
+        projectId: rule.projectId,
+        videoUrl: media.url,
+      });
+      publication.status = SocialPublicationStatus.PROCESSING;
+      publication.externalUploadId = upload.externalUploadId;
+      publication.providerPayload = upload.raw;
     }
   }
 
@@ -879,7 +1058,11 @@ export class SocialPublishingService {
   private async cleanupPublishedClips(): Promise<void> {
     const [published, rules] = await Promise.all([
       this.publicationRepository.find({
-        where: { status: SocialPublicationStatus.PUBLISHED, clipDeletedAt: IsNull() },
+        where: {
+          status: SocialPublicationStatus.PUBLISHED,
+          clipDeletedAt: IsNull(),
+          sourceGroup: 'own',
+        },
         order: { updatedAt: 'ASC' },
         take: 20,
       }),
@@ -887,6 +1070,8 @@ export class SocialPublishingService {
     ]);
 
     for (const publication of published) {
+      // YouTube assets have their own cleanup and revision/queue guards below.
+      if (publication.sourceGroup === 'youtube' || publication.shortContentJobId === null) continue;
       const job = await this.shortContentJobRepository.findOne({
         where: { id: publication.shortContentJobId },
       });
@@ -908,7 +1093,9 @@ export class SocialPublishingService {
 
       const applicableRules = rules.filter(
         rule =>
-          (rule.isEnabled || rule.pausedByFailure) && rule.contentTypes.includes(job.contentType),
+          (rule.isEnabled || rule.pausedByFailure) &&
+          (rule.sourceGroups ?? ['own']).includes('own') &&
+          rule.contentTypes.includes(job.contentType),
       );
       const publicationsForClip = await this.publicationRepository.find({
         where: {
@@ -956,6 +1143,89 @@ export class SocialPublishingService {
       { shortContentJobId, clipIndex },
       { clipDeletedAt: new Date() },
     );
+  }
+
+  private async cleanupPublishedYoutubeClips(): Promise<void> {
+    const published = await this.publicationRepository.find({
+      where: {
+        status: SocialPublicationStatus.PUBLISHED,
+        sourceGroup: 'youtube',
+        clipDeletedAt: IsNull(),
+      },
+      order: { updatedAt: 'ASC' },
+      take: 100,
+    });
+    const visited = new Set<string>();
+    for (const publication of published) {
+      const id = publication.youtubeAssetId;
+      if (!id || visited.has(id)) continue;
+      visited.add(id);
+      try {
+        await this.dataSource.transaction(async manager => {
+          const assets = manager.getRepository(SocialYoutubeClip);
+          const candidate = await assets.findOneBy({ id });
+          if (!candidate) return; // Missing identity is not permission to remove media.
+          // Serialize cleanup of different revisions of the same source across workers.
+          await manager.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [
+            `social-youtube:${candidate.videoId}`,
+          ]);
+          const asset = await assets.findOne({
+            where: { id },
+            lock: { mode: 'pessimistic_write' },
+          });
+          if (!asset) return;
+          const publications = manager.getRepository(SocialPublication);
+          const history = await publications.find({ where: { youtubeAssetId: id } });
+          // A disabled rule may still have an outstanding upload, scheduled post or retry.
+          if (
+            !history.length ||
+            history.some(item => item.status !== SocialPublicationStatus.PUBLISHED)
+          )
+            return;
+          const rules = await manager.getRepository(SocialPublishingRule).find();
+          const done = new Set(history.map(item => item.ruleId));
+          if (
+            rules.some(
+              rule =>
+                (rule.isEnabled || rule.pausedByFailure) &&
+                rule.sourceGroups?.includes('youtube') &&
+                !done.has(rule.id),
+            )
+          )
+            return;
+          const siblings = await assets.find({ where: { videoId: asset.videoId } });
+          const removeSource = siblings.every(item => item.id === id || !!item.deletedAt);
+          const sourceRevision = Math.max(asset.revision, ...siblings.map(item => item.revision));
+          const result = await this.shortContentClient.deleteYoutubePublication(id, {
+            videoId: asset.videoId,
+            revision: asset.revision,
+            sourceRevision,
+            removeSource,
+          });
+          if (result.removed !== true || (result.sourceRemoved === true && !removeSource))
+            throw new Error('Worker did not confirm safe media deletion');
+          const deletedAt = asset.deletedAt ?? new Date();
+          await assets.update({ id }, { deletedAt });
+          await publications.update({ youtubeAssetId: id }, { clipDeletedAt: deletedAt });
+          if (result.sourceRemoved === true) {
+            await manager.getRepository(YoutubeVideo).update(
+              { videoId: asset.videoId },
+              {
+                downloadStatus: 'skipped',
+                downloadRetryAt: null,
+                downloadError: 'Файлы удалены после успешной публикации',
+                downloadUpdatedAt: deletedAt,
+              },
+            );
+          }
+        });
+      } catch (error) {
+        this.logger.warn(
+          `Cannot delete published YouTube clip ${id}: ${this.getErrorMessage(error)}`,
+          this.cleanupPublishedYoutubeClips.name,
+        );
+      }
+    }
   }
 
   private providerFailureMessage(

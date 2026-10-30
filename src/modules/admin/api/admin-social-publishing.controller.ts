@@ -48,6 +48,16 @@ export class AdminSocialPublishingController {
     return this.socialPublishingService.listRules();
   }
 
+  @Get('youtube-clips')
+  listYoutubeClips() {
+    return this.socialPublishingService.listYoutubeClips();
+  }
+
+  @Post('youtube-clips/:videoId')
+  enqueueYoutube(@Param('videoId') videoId: string, @Body() body: unknown) {
+    return this.socialPublishingService.enqueueYoutube(videoId, body);
+  }
+
   @Post('rules')
   @HttpCode(HttpStatus.CREATED)
   createRule(@Body() body: AdminCreateSocialPublishingRuleInputDto) {

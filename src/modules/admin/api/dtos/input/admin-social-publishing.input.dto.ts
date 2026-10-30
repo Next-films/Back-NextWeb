@@ -8,6 +8,8 @@ import {
   IsDateString,
   IsEnum,
   IsInt,
+  ValidateIf,
+  IsIn,
   IsNotEmpty,
   IsOptional,
   IsString,
@@ -20,8 +22,44 @@ import { Type } from 'class-transformer';
 import { ShortContentType } from '@/admin/domain/short-content-job.entity';
 import { SocialPublishingProvider } from '@/admin/domain/social-publishing-rule.entity';
 import { Trim } from '@/common/decorators/transform/trim.decorator';
+import type {
+  PublishingGroup,
+  PublishingStrategy,
+} from '@/admin/application/services/social-publishing-groups';
 
 export class AdminCreateSocialPublishingRuleInputDto {
+  @ValidateIf((_object, value) => value !== undefined)
+  @IsArray()
+  @ArrayNotEmpty()
+  @ArrayMaxSize(2)
+  @ArrayUnique()
+  @IsIn(['own', 'youtube'], { each: true })
+  sourceGroups?: PublishingGroup[];
+
+  @ValidateIf((_object, value) => value !== undefined)
+  @IsIn(['alternate', 'ratio', 'own_first', 'youtube_first'])
+  groupStrategy?: PublishingStrategy;
+
+  @ValidateIf((_object, value) => value !== undefined)
+  @IsIn(['own', 'youtube'])
+  firstGroup?: PublishingGroup;
+
+  @ValidateIf((_object, value) => value !== undefined)
+  @IsInt()
+  @Min(1)
+  @Max(20)
+  ownPerCycle?: number;
+
+  @ValidateIf((_object, value) => value !== undefined)
+  @IsInt()
+  @Min(1)
+  @Max(20)
+  youtubePerCycle?: number;
+
+  @ValidateIf((_object, value) => value !== undefined)
+  @IsBoolean()
+  fallbackToOtherGroup?: boolean;
+
   @ApiProperty()
   @Trim()
   @IsString()
@@ -112,4 +150,5 @@ export class AdminCreateSocialPublishingRuleInputDto {
 
 export class AdminUpdateSocialPublishingRuleInputDto extends PartialType(
   AdminCreateSocialPublishingRuleInputDto,
+  { skipNullProperties: false },
 ) {}

@@ -7,6 +7,10 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { SocialPublication } from '@/admin/domain/social-publication.entity';
+import type {
+  PublishingGroup,
+  PublishingStrategy,
+} from '../application/services/social-publishing-groups';
 
 export enum SocialPublishingProvider {
   POSTMYPOST = 'postmypost',
@@ -14,6 +18,27 @@ export enum SocialPublishingProvider {
 
 @Entity('social_publishing_rules')
 export class SocialPublishingRule {
+  @Column({ type: 'jsonb', default: () => '\'["own"]\'::jsonb' })
+  sourceGroups: PublishingGroup[];
+
+  @Column({ type: 'varchar', length: 20, default: 'alternate' })
+  groupStrategy: PublishingStrategy;
+
+  @Column({ type: 'varchar', length: 10, default: 'own' })
+  firstGroup: PublishingGroup;
+
+  @Column({ type: 'int', default: 1 })
+  ownPerCycle: number;
+
+  @Column({ type: 'int', default: 1 })
+  youtubePerCycle: number;
+
+  @Column({ type: 'boolean', default: true })
+  fallbackToOtherGroup: boolean;
+
+  @Column({ type: 'int', default: 0 })
+  groupCursor: number;
+
   @PrimaryGeneratedColumn()
   id: number;
 

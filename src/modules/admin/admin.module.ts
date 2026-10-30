@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { SocialYoutubeClip } from './domain/social-youtube-clip.entity';
 import { AdminGenreController } from '@/admin/api/admin-genre.controller';
 import { AdminGenreCreateCommandHandler } from '@/admin/application/handlers/admin-genre-create.handler';
 import { MoviesModules } from '@/movies/movies.modules';
@@ -178,6 +179,7 @@ const exportProviders = [
       ShortContentJob,
       SocialPublishingRule,
       SocialPublication,
+      SocialYoutubeClip,
       YoutubeSource,
       YoutubeVideo,
       YoutubeAutomation,

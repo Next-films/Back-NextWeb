@@ -7,11 +7,13 @@ import {
   PrimaryGeneratedColumn,
   Unique,
   UpdateDateColumn,
+  Index,
 } from 'typeorm';
 import {
   SocialPublishingProvider,
   SocialPublishingRule,
 } from '@/admin/domain/social-publishing-rule.entity';
+import { SocialYoutubeClip } from './social-youtube-clip.entity';
 
 export enum SocialPublicationStatus {
   QUEUED = 'queued',
@@ -24,6 +26,7 @@ export enum SocialPublicationStatus {
 
 @Entity('social_publications')
 @Unique('UQ_social_publication_rule_clip', ['ruleId', 'shortContentJobId', 'clipIndex'])
+@Index('UQ_social_publication_rule_youtube', ['ruleId', 'youtubeAssetId'], { unique: true })
 export class SocialPublication {
   @PrimaryGeneratedColumn()
   id: number;
@@ -35,8 +38,18 @@ export class SocialPublication {
   @JoinColumn({ name: 'ruleId' })
   rule?: SocialPublishingRule;
 
-  @Column({ type: 'int' })
-  shortContentJobId: number;
+  @Column({ type: 'varchar', length: 10, default: 'own' })
+  sourceGroup: 'own' | 'youtube';
+
+  @Column({ type: 'varchar', length: 64, nullable: true })
+  youtubeAssetId: string | null;
+
+  @ManyToOne(() => SocialYoutubeClip, { nullable: true, onDelete: 'RESTRICT' })
+  @JoinColumn({ name: 'youtubeAssetId' })
+  youtubeClip?: SocialYoutubeClip | null;
+
+  @Column({ type: 'int', nullable: true })
+  shortContentJobId: number | null;
 
   @Column({ type: 'int' })
   clipIndex: number;

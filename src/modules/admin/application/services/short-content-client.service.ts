@@ -29,6 +29,21 @@ export class ShortContentClientService {
     return this.call('GET', '/api/shorts/youtube-queue');
   }
 
+  youtubePublishingUrl(assetId: string): Promise<{ url: string }> {
+    if (!/^[a-f0-9]{64}$/.test(assetId))
+      throw new ServiceUnavailableException('Invalid publishing asset');
+    return this.call('GET', `/api/shorts/youtube-publishing/${assetId}/url`);
+  }
+
+  deleteYoutubePublication(
+    assetId: string,
+    input: { videoId: string; revision: number; sourceRevision: number; removeSource: boolean },
+  ): Promise<{ removed: boolean; sourceRemoved: boolean }> {
+    if (!/^[a-f0-9]{64}$/.test(assetId))
+      throw new ServiceUnavailableException('Invalid publishing asset');
+    return this.call('DELETE', `/api/shorts/youtube-publishing/${assetId}`, input);
+  }
+
   youtubeFrames(): Promise<Record<string, unknown>[]> {
     return this.call('GET', '/api/shorts/youtube-frames');
   }
