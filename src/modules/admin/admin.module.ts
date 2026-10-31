@@ -99,6 +99,7 @@ import { SocialPublishingService } from '@/admin/application/services/social-pub
 import { AdminYoutubeMonitorController } from './api/admin-youtube-monitor.controller';
 import { YoutubeMonitorService } from './application/services/youtube-monitor.service';
 import { YoutubeProcessingService } from './application/services/youtube-processing.service';
+import { ReadyShortContentService } from './application/services/ready-short-content.service';
 import { YoutubeAutomationService } from './application/services/youtube-automation.service';
 import { YoutubeAutomation } from './domain/youtube-automation.entity';
 import { YoutubeReaderService } from './application/services/youtube-reader.service';
@@ -238,6 +239,7 @@ const exportProviders = [
     SocialPublishingService,
     YoutubeMonitorService,
     YoutubeProcessingService,
+    ReadyShortContentService,
     YoutubeAutomationService,
     YoutubeReaderService,
   ],

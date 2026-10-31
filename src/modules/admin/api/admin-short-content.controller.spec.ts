@@ -27,6 +27,7 @@ describe('AdminShortContentController rebuild refresh', () => {
       { setContext: jest.fn() } as never,
       client as never,
       repo as never,
+      {} as never,
     );
     const fresh = await controller.reselectMoments(10);
     expect(fresh.shortContentJobId).toBe('engine-new');
@@ -65,6 +66,7 @@ describe('AdminShortContentController rebuild refresh', () => {
       logger as never,
       client as never,
       repo as never,
+      {} as never,
     );
     const first = await controller.getAll({} as never);
     expect((first[0].result?.clips as Array<{ revision: number }>)[0].revision).toBe(4);

@@ -38,6 +38,8 @@ import { fileValidationPipe } from '@/common/pipes/validation-file.pipe';
 import { AdminUpdateShortContentSettingsInputDto } from '@/admin/api/dtos/input/admin-update-short-content-settings.input.dto';
 import { AdminShortContentLogoInputDto } from '@/admin/api/dtos/input/admin-short-content-logo.input.dto';
 import { AdminShortContentFeedbackInputDto } from '@/admin/api/dtos/input/admin-short-content-feedback.input.dto';
+import { ReadyShortContentService } from '../application/services/ready-short-content.service';
+import { AdminReadyShortContentQueryDto } from './dtos/input/admin-ready-short-content.input.dto';
 
 const MUSIC_MAX_SIZE_MB = 50;
 const MUSIC_MIME_TYPES = [
@@ -72,6 +74,7 @@ export class AdminShortContentController {
     private readonly logger: LoggerService,
     private readonly shortContentClient: ShortContentClientService,
     private readonly shortContentJobRepository: ShortContentJobRepository,
+    private readonly readyShortContent: ReadyShortContentService,
   ) {
     this.logger.setContext(AdminShortContentController.name);
   }
@@ -99,6 +102,11 @@ export class AdminShortContentController {
     }
 
     return this.shortContentClient.getSources(contentType, contentId);
+  }
+
+  @Get('ready')
+  ready(@Query() query: AdminReadyShortContentQueryDto) {
+    return this.readyShortContent.list(query);
   }
 
   @Get('music-tracks')

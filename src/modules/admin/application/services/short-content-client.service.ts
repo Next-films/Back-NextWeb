@@ -7,6 +7,7 @@ import { AdminUploadShortContentMusicInputDto } from '@/admin/api/dtos/input/adm
 import { AdminUpdateShortContentSettingsInputDto } from '@/admin/api/dtos/input/admin-update-short-content-settings.input.dto';
 import { AdminShortContentLogoInputDto } from '@/admin/api/dtos/input/admin-short-content-logo.input.dto';
 import { AdminShortContentFeedbackInputDto } from '@/admin/api/dtos/input/admin-short-content-feedback.input.dto';
+import { ReadyEngineClip } from './ready-short-content.types';
 
 /** A highlights job of the short-content service (see its README). */
 export type ShortContentEngineJob = Record<string, unknown> & {
@@ -24,6 +25,10 @@ export type ShortContentReprocessing = Record<string, unknown> & {
 @Injectable()
 export class ShortContentClientService {
   constructor(private readonly configService: ConfigService<ConfigurationType, true>) {}
+
+  readyClips(): Promise<{ clips: ReadyEngineClip[] }> {
+    return this.call('GET', '/api/shorts/ready-clips');
+  }
 
   youtubeQueue(): Promise<Record<string, unknown>> {
     return this.call('GET', '/api/shorts/youtube-queue');
