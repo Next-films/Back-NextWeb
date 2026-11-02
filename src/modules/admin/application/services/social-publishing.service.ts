@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { DataSource, IsNull, LessThanOrEqual, Repository } from 'typeorm';
+import { DataSource, In, IsNull, LessThanOrEqual, Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { LoggerService } from '@/common/utils/logger/logger.service';
 import {
@@ -94,10 +94,37 @@ export class SocialPublishingService {
       Number(body.revision) < 1
     )
       throw new BadRequestException('Подтвердите проверку готовой версии Shorts');
+    return this.saveYoutubeSnapshot(videoId, Number(body.revision), 'manual');
+  }
+
+  /** Internal automation path: never misrepresents owner authorization as a manual review. */
+  async enqueueAutomaticYoutube(videoId: string, revision: number): Promise<SocialYoutubeClip> {
+    if (!isYoutubeVideoId(videoId) || !Number.isSafeInteger(revision) || revision < 1)
+      throw new BadRequestException('Некорректная готовая версия Shorts');
+    const rules = await this.ruleRepository.find({
+      where: { isEnabled: true, autoEnqueueYoutube: true, pausedByFailure: false },
+    });
+    if (
+      !rules.some(
+        rule => rule.sourceGroups?.includes('youtube') && (!rule.endAt || rule.endAt > new Date()),
+      )
+    )
+      throw new BadRequestException('Автодобавление YouTube выключено');
+    if (await this.ruleRepository.exist({ where: { pausedByFailure: true } }))
+      throw new BadRequestException('Публикация приостановлена после ошибки');
+    return this.saveYoutubeSnapshot(videoId, revision, 'automatic');
+  }
+
+  private async saveYoutubeSnapshot(
+    videoId: string,
+    revision: number,
+    enrollmentMode: 'manual' | 'automatic',
+  ): Promise<SocialYoutubeClip> {
     const video = await this.dataSource.getRepository(YoutubeVideo).findOneBy({ videoId });
     if (
       !video ||
       video.isShort !== true ||
+      (enrollmentMode === 'automatic' && video.downloadStatus !== 'downloaded') ||
       !video.lastSyncedAt ||
       !(await this.dataSource
         .getRepository(YoutubeSource)
@@ -105,29 +132,32 @@ export class SocialPublishingService {
     )
       throw new BadRequestException('Shorts или добавленный канал недоступен');
     const repository = this.dataSource.getRepository(SocialYoutubeClip);
-    const previous = await repository.findOneBy({ videoId, revision: Number(body.revision) });
+    const previous = await repository.findOneBy({ videoId, revision });
     if (previous?.deletedAt)
       throw new BadRequestException('Эта версия уже опубликована и удалена из хранилища');
     const result = await this.shortContentClient.youtubeRequest(
       'POST',
       videoId,
       {
-        revision: body.revision,
-        reviewConfirmed: true,
+        revision,
+        ...(enrollmentMode === 'manual'
+          ? { reviewConfirmed: true }
+          : { automaticPublicationAuthorized: true }),
       },
       'publishing',
     );
     if (
       typeof result.assetId !== 'string' ||
       !/^[a-f0-9]{64}$/.test(result.assetId) ||
-      result.revision !== body.revision
+      result.revision !== revision
     )
       throw new BadRequestException('Обработанная версия недоступна');
     await repository.upsert(
       {
         id: result.assetId,
         videoId,
-        revision: Number(body.revision),
+        revision,
+        enrollmentMode: previous?.enrollmentMode === 'manual' ? 'manual' : enrollmentMode,
         title: video.title,
         description: video.description,
       },
@@ -179,6 +209,8 @@ export class SocialPublishingService {
   }
 
   async createRule(input: AdminCreateSocialPublishingRuleInputDto): Promise<SocialPublishingRule> {
+    if (input.autoEnqueueYoutube && !input.sourceGroups?.includes('youtube'))
+      throw new BadRequestException('Автодобавление доступно только для группы YouTube');
     const startAt = new Date(input.startAt);
     const endAt = input.endAt ? new Date(input.endAt) : null;
     const timezone = input.timezone ?? 'Europe/Moscow';
@@ -199,6 +231,7 @@ export class SocialPublishingService {
 
     const rule = this.ruleRepository.create({
       sourceGroups: input.sourceGroups ?? ['own'],
+      autoEnqueueYoutube: input.autoEnqueueYoutube ?? false,
       groupStrategy: input.groupStrategy ?? 'alternate',
       firstGroup: input.firstGroup ?? 'own',
       ownPerCycle: input.ownPerCycle ?? 1,
@@ -232,6 +265,12 @@ export class SocialPublishingService {
     input: AdminUpdateSocialPublishingRuleInputDto,
   ): Promise<SocialPublishingRule> {
     const rule = await this.getRuleOrThrow(id);
+    if (input.autoEnqueueYoutube !== undefined) rule.autoEnqueueYoutube = input.autoEnqueueYoutube;
+    if (!(input.sourceGroups ?? rule.sourceGroups)?.includes('youtube')) {
+      if (input.autoEnqueueYoutube)
+        throw new BadRequestException('Автодобавление доступно только для группы YouTube');
+      rule.autoEnqueueYoutube = false;
+    }
     const groupFields = [
       'sourceGroups',
       'groupStrategy',
@@ -597,7 +636,10 @@ export class SocialPublishingService {
       if (rule.sourceGroups?.includes('youtube')) {
         const repository = manager.getRepository(SocialYoutubeClip);
         const candidates = await repository.find({
-          where: { deletedAt: IsNull() },
+          where: {
+            deletedAt: IsNull(),
+            enrollmentMode: rule.autoEnqueueYoutube ? In(['manual', 'automatic']) : 'manual',
+          },
           order: { createdAt: 'ASC', id: 'ASC' },
         });
         for (const candidate of candidates) {
@@ -1189,6 +1231,7 @@ export class SocialPublishingService {
               rule =>
                 (rule.isEnabled || rule.pausedByFailure) &&
                 rule.sourceGroups?.includes('youtube') &&
+                (asset.enrollmentMode !== 'automatic' || rule.autoEnqueueYoutube) &&
                 !done.has(rule.id),
             )
           )

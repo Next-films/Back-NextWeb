@@ -96,6 +96,7 @@ import { SocialPublishingRule } from '@/admin/domain/social-publishing-rule.enti
 import { SocialPublication } from '@/admin/domain/social-publication.entity';
 import { PostMyPostPublishingService } from '@/admin/application/services/postmypost-publishing.service';
 import { SocialPublishingService } from '@/admin/application/services/social-publishing.service';
+import { YoutubeAutoPublishingService } from './application/services/youtube-auto-publishing.service';
 import { AdminYoutubeMonitorController } from './api/admin-youtube-monitor.controller';
 import { YoutubeMonitorService } from './application/services/youtube-monitor.service';
 import { YoutubeProcessingService } from './application/services/youtube-processing.service';
@@ -237,6 +238,7 @@ const exportProviders = [
     ShortContentJobRepository,
     PostMyPostPublishingService,
     SocialPublishingService,
+    YoutubeAutoPublishingService,
     YoutubeMonitorService,
     YoutubeProcessingService,
     ReadyShortContentService,

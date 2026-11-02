@@ -72,6 +72,22 @@ function fixture() {
 }
 
 describe('Published YouTube storage cleanup', () => {
+  it('waits only for opted-in rules for an automatic asset, while retaining all outstanding references', async () => {
+    const f = fixture();
+    Object.assign(f.asset, { enrollmentMode: 'automatic' });
+    Object.assign(f.rules[0], { autoEnqueueYoutube: true });
+    f.rules.push({ id: 2, sourceGroups: ['youtube'], isEnabled: true, pausedByFailure: false });
+    await f.cleanup();
+    expect(f.worker.deleteYoutubePublication).toHaveBeenCalledTimes(1);
+    f.worker.deleteYoutubePublication.mockClear();
+    Object.assign(f.rules[1], { autoEnqueueYoutube: true });
+    await f.cleanup();
+    expect(f.worker.deleteYoutubePublication).not.toHaveBeenCalled();
+    Object.assign(f.rules[1], { autoEnqueueYoutube: false });
+    f.history.push({ ...f.published, ruleId: 2, status: Status.QUEUED });
+    await f.cleanup();
+    expect(f.worker.deleteYoutubePublication).not.toHaveBeenCalled();
+  });
   it('removes files only after all required publications, retains history and prevents automatic re-download', async () => {
     const f = fixture();
     await f.cleanup();

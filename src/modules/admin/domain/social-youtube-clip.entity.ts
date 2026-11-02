@@ -4,6 +4,9 @@ import { Column, CreateDateColumn, Entity, PrimaryColumn, Unique } from 'typeorm
 @Entity('social_youtube_clips')
 @Unique('UQ_social_youtube_clip_revision', ['videoId', 'revision'])
 export class SocialYoutubeClip {
+  @Column({ type: 'varchar', length: 10, default: 'manual' })
+  enrollmentMode: 'manual' | 'automatic';
+
   @PrimaryColumn({ type: 'varchar', length: 64 })
   id: string;
 

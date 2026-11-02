@@ -29,6 +29,10 @@ import type {
 
 export class AdminCreateSocialPublishingRuleInputDto {
   @ValidateIf((_object, value) => value !== undefined)
+  @IsBoolean()
+  autoEnqueueYoutube?: boolean;
+
+  @ValidateIf((_object, value) => value !== undefined)
   @IsArray()
   @ArrayNotEmpty()
   @ArrayMaxSize(2)

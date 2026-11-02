@@ -18,6 +18,9 @@ export enum SocialPublishingProvider {
 
 @Entity('social_publishing_rules')
 export class SocialPublishingRule {
+  @Column({ type: 'boolean', default: false })
+  autoEnqueueYoutube: boolean;
+
   @Column({ type: 'jsonb', default: () => '\'["own"]\'::jsonb' })
   sourceGroups: PublishingGroup[];
 

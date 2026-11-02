@@ -97,10 +97,29 @@ function fixture() {
     (service as any).reserveDuePublication(
       new Date(rule.nextRunAt.getTime() - 120000),
     ) as Promise<SocialPublication | null>;
-  return { rule, own, youtube, used, query, reserve };
+  return {
+    rule,
+    own,
+    youtube,
+    used,
+    query,
+    reserve,
+    youtubeRepository: repositories.get(SocialYoutubeClip),
+  };
 }
 
 describe('Publishing group reservation transaction', () => {
+  it('keeps automatic assets out of manual rules until that specific rule opts in', async () => {
+    const f = fixture();
+    await f.reserve();
+    expect(f.youtubeRepository.find).toHaveBeenLastCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ enrollmentMode: 'manual' }) }),
+    );
+    f.rule.autoEnqueueYoutube = true;
+    await f.reserve();
+    const filter = f.youtubeRepository.find.mock.calls.at(-1)[0].where.enrollmentMode;
+    expect(filter.value).toEqual(['manual', 'automatic']);
+  });
   it('reserves own, YouTube, own, then falls back without repeating used clips', async () => {
     const f = fixture();
     const results = [await f.reserve(), await f.reserve(), await f.reserve(), await f.reserve()];
@@ -145,6 +164,71 @@ describe('Publishing group reservation transaction', () => {
 });
 
 describe('Approved YouTube publishing integration', () => {
+  it('uses separate automatic authorization only when an active opted-in YouTube rule exists', async () => {
+    const asset = { id: 'a'.repeat(64), videoId: 'abcdefghijk', revision: 1 };
+    const worker = {
+      youtubeRequest: jest.fn().mockResolvedValue({ assetId: asset.id, revision: 1 }),
+    };
+    const clips = {
+      findOneBy: jest.fn().mockResolvedValue(null),
+      upsert: jest.fn(),
+      findOneByOrFail: jest.fn().mockResolvedValue(asset),
+    };
+    const rules = {
+      find: jest.fn().mockResolvedValue([]),
+      exist: jest.fn().mockResolvedValue(false),
+    };
+    const repositories = new Map<any, any>([
+      [
+        YoutubeVideo,
+        {
+          findOneBy: jest.fn().mockResolvedValue({
+            videoId: asset.videoId,
+            isShort: true,
+            lastSyncedAt: new Date(),
+            channelId: 'UC_test',
+            downloadStatus: 'downloaded',
+            title: 'Shorts',
+          }),
+        },
+      ],
+      [YoutubeSource, { exist: jest.fn().mockResolvedValue(true) }],
+      [SocialYoutubeClip, clips],
+    ]);
+    const service = new SocialPublishingService(
+      { getRepository: entity => repositories.get(entity) } as never,
+      { setContext: jest.fn() } as never,
+      {} as never,
+      rules as never,
+      {} as never,
+      {} as never,
+      worker as never,
+    );
+    await expect(service.enqueueAutomaticYoutube(asset.videoId, 1)).rejects.toThrow('выключено');
+    expect(worker.youtubeRequest).not.toHaveBeenCalled();
+    rules.find.mockResolvedValue([
+      { sourceGroups: ['youtube'], autoEnqueueYoutube: true, isEnabled: true },
+    ]);
+    await service.enqueueAutomaticYoutube(asset.videoId, 1);
+    expect(worker.youtubeRequest).toHaveBeenCalledWith(
+      'POST',
+      asset.videoId,
+      { revision: 1, automaticPublicationAuthorized: true },
+      'publishing',
+    );
+    expect(clips.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({ enrollmentMode: 'automatic' }),
+      ['videoId', 'revision'],
+    );
+    rules.exist.mockResolvedValue(true);
+    await expect(service.enqueueAutomaticYoutube(asset.videoId, 1)).rejects.toThrow(
+      'приостановлена',
+    );
+    expect(worker.youtubeRequest).toHaveBeenCalledTimes(1);
+    await expect(
+      service.enqueueYoutube(asset.videoId, { revision: 1, automaticPublicationAuthorized: true }),
+    ).rejects.toThrow('Подтвердите');
+  });
   it('requires verified source ownership and explicit review before asking the worker for a snapshot', async () => {
     const asset = { id: 'a'.repeat(64), videoId: 'abcdefghijk', revision: 1 };
     const video = {
